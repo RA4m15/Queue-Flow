@@ -18,9 +18,9 @@ import {
   Pie,
   Legend,
 } from 'recharts';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, TrendingUp, BarChart2, PieChart as PieIcon, Clock } from 'lucide-react';
 
-const SERVICE_COLORS = ['#f97316', '#06b6d4', '#22c55e', '#8b5cf6', '#ec4899', '#6366f1', '#f59e0b'];
+const SERVICE_COLORS = ['#00E5A8', '#00D2FF', '#3B82F6', '#A855F7', '#EC4899', '#F59E0B', '#10B981'];
 
 export default function Analytics() {
   const { activeCenterId } = useSocket();
@@ -47,16 +47,26 @@ export default function Analytics() {
     served: c.served || 0,
   }));
 
+  const darkTooltipStyle = {
+    background: '#0D1422',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    fontSize: 12,
+    color: '#F8FAFC',
+    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.7)',
+    fontFamily: 'var(--font-mono)',
+  };
+
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '24px 28px', maxWidth: '1600px', margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#1c1917', letterSpacing: '-0.02em' }}>
-            Operational Analytics & Reports
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+            Operational Analytics & Telemetry
           </h1>
-          <p style={{ fontSize: '12px', color: '#78716c', marginTop: '2px' }}>
-            Evidence-based metrics and operational trends from MongoDB Atlas
+          <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '3px' }}>
+            Historical queue performance, counter utilization, and IoT footfall trends
           </p>
         </div>
 
@@ -64,66 +74,89 @@ export default function Analytics() {
           onClick={refreshAnalytics}
           disabled={loading}
           className="btn-secondary"
-          style={{ fontSize: '12px', padding: '6px 14px' }}
+          style={{ fontSize: '12px', padding: '8px 16px', gap: '8px' }}
         >
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh</span>
+          <span>Refresh Analytics</span>
         </button>
       </div>
 
       {error && <ErrorMessage message={error} onRetry={refreshAnalytics} />}
 
       {loading ? (
-        <LoadingSpinner message="Aggregating analytics data..." />
+        <LoadingSpinner message="Aggregating telemetry datasets..." />
       ) : (
         <>
           {/* Top Summary Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-            <div className="stat-pill">
-              <span className="stat-pill-val">{summary.totalIssued ?? 0}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <div className="stat-pill" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '18px 20px' }}>
               <span className="stat-pill-label">Total Issued Today</span>
+              <span className="stat-pill-val" style={{ color: '#F8FAFC', marginTop: '8px' }}>
+                {summary.totalIssued ?? 0}
+              </span>
             </div>
-            <div className="stat-pill">
-              <span className="stat-pill-val">{summary.totalServed ?? 0}</span>
+
+            <div className="stat-pill" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '18px 20px' }}>
               <span className="stat-pill-label">Completed Services</span>
+              <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '8px' }}>
+                {summary.totalServed ?? 0}
+              </span>
             </div>
-            <div className="stat-pill">
-              <span className="stat-pill-val">
+
+            <div className="stat-pill" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '18px 20px' }}>
+              <span className="stat-pill-label">Average Wait Time</span>
+              <span className="stat-pill-val" style={{ color: '#00D2FF', marginTop: '8px' }}>
                 {summary.avgWaitSeconds ? `${Math.round(summary.avgWaitSeconds / 60)}m` : '—'}
               </span>
-              <span className="stat-pill-label">Average Wait Time</span>
             </div>
-            <div className="stat-pill">
-              <span className="stat-pill-val">{summary.currentCrowd ?? '—'}</span>
-              <span className="stat-pill-sub">{typeof summary.crowdPercent === 'number' ? `${summary.crowdPercent}% capacity` : '—'}</span>
+
+            <div className="stat-pill" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '18px 20px' }}>
               <span className="stat-pill-label">Current Crowd</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
+                <span className="stat-pill-val" style={{ color: '#F8FAFC' }}>
+                  {summary.currentCrowd ?? '—'}
+                </span>
+                <span className="stat-pill-sub" style={{ color: '#00E5A8' }}>
+                  {typeof summary.crowdPercent === 'number' ? `${summary.crowdPercent}% full` : ''}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Charts Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '24px' }}>
             {/* Hourly Footfall Chart */}
-            <div className="q-card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1c1917', marginBottom: '2px' }}>
-                Hourly Visitor Footfall
-              </h3>
-              <p style={{ fontSize: '12px', color: '#a8a29e', marginBottom: '16px' }}>
-                Entries recorded by IoT sensors per hour today
+            <div className="q-card" style={{ padding: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <TrendingUp size={16} color="#00E5A8" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
+                  Hourly Visitor Footfall
+                </h3>
+              </div>
+              <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '18px' }}>
+                Entries logged by IoT optical sensor sensors by hour today
               </p>
 
               {hourlyFootfall.length === 0 ? (
                 <EmptyState title="No footfall recorded yet" description="Footfall events will plot here as visitors arrive." />
               ) : (
-                <div style={{ width: '100%', height: '220px' }}>
+                <div style={{ width: '100%', height: '240px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={hourlyFootfall} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#a8a29e', fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#a8a29e', fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
+                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
                       <Tooltip
-                        contentStyle={{ background: '#ffffff', border: '1px solid #f0ede8', borderRadius: 12, fontSize: 12, boxShadow: 'var(--shadow-md)' }}
+                        contentStyle={darkTooltipStyle}
                         formatter={(value) => [`${value} visitors`, 'Visitors']}
                       />
-                      <Line type="monotone" dataKey="count" stroke="#f97316" strokeWidth={2.5} dot={{ r: 3, fill: '#f97316' }} activeDot={{ r: 5 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#00E5A8"
+                        strokeWidth={2.5}
+                        dot={{ r: 4, fill: '#00E5A8', stroke: '#0D1422', strokeWidth: 2 }}
+                        activeDot={{ r: 6, fill: '#00E5A8', boxShadow: '0 0 10px #00E5A8' }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -131,12 +164,15 @@ export default function Analytics() {
             </div>
 
             {/* Counter Utilization Chart */}
-            <div className="q-card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1c1917', marginBottom: '2px' }}>
-                Counter Utilization
-              </h3>
-              <p style={{ fontSize: '12px', color: '#a8a29e', marginBottom: '16px' }}>
-                Capacity utilization percentage per counter
+            <div className="q-card" style={{ padding: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <BarChart2 size={16} color="#00D2FF" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
+                  Counter Utilization
+                </h3>
+              </div>
+              <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '18px' }}>
+                Active time utilization percentage per counter
               </p>
 
               {utilData.length === 0 ? (
@@ -145,21 +181,24 @@ export default function Analytics() {
                 <EmptyState title="Utilization unavailable" description="Counter utilization metrics are currently unavailable." />
               ) : (
                 <>
-                  <div style={{ width: '100%', height: '220px' }}>
+                  <div style={{ width: '100%', height: '240px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={utilData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#a8a29e', fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
-                        <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: '#a8a29e', fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
+                        <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
                         <Tooltip
-                          contentStyle={{ background: '#ffffff', border: '1px solid #f0ede8', borderRadius: 12, fontSize: 12, boxShadow: 'var(--shadow-md)' }}
+                          contentStyle={darkTooltipStyle}
                           formatter={(val) => [
                             val !== null && val !== undefined ? `${val}% utilization` : 'Utilization unavailable',
-                            'Utilization'
+                            'Utilization',
                           ]}
                         />
                         <Bar dataKey="util" radius={[6, 6, 0, 0]}>
                           {utilData.map((d, i) => (
-                            <Cell key={i} fill={d.util !== null ? (d.util > 70 ? '#22c55e' : d.util > 30 ? '#f97316' : '#3b82f6') : 'transparent'} />
+                            <Cell
+                              key={i}
+                              fill={d.util !== null ? (d.util > 70 ? '#00E5A8' : d.util > 30 ? '#00D2FF' : '#3B82F6') : 'transparent'}
+                            />
                           ))}
                         </Bar>
                       </BarChart>
@@ -169,16 +208,17 @@ export default function Analytics() {
                     {utilData.map((d, i) => (
                       <span
                         key={i}
+                        className="mono"
                         style={{
                           fontSize: '11px',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          background: '#faf9f6',
-                          border: '1px solid #f0ede8',
-                          color: d.util !== null ? '#44403c' : '#a8a29e',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid var(--border-subtle)',
+                          color: d.util !== null ? '#F8FAFC' : '#64748B',
                         }}
                       >
-                        {d.name}: {d.util !== null ? `${d.util}% utilization` : 'Utilization unavailable'}
+                        {d.name}: {d.util !== null ? `${d.util}%` : '—'}
                       </span>
                     ))}
                   </div>
@@ -187,29 +227,30 @@ export default function Analytics() {
             </div>
 
             {/* Service Demand Distribution */}
-            <div className="q-card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1c1917', marginBottom: '2px' }}>
-                Service Demand Breakdown
-              </h3>
-              <p style={{ fontSize: '12px', color: '#a8a29e', marginBottom: '16px' }}>
+            <div className="q-card" style={{ padding: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <PieIcon size={16} color="#A855F7" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
+                  Service Demand Breakdown
+                </h3>
+              </div>
+              <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '18px' }}>
                 Tokens requested by service category
               </p>
 
               {pieData.length === 0 ? (
                 <EmptyState title="No service data" description="Token categories will show here once tokens are requested." />
               ) : (
-                <div style={{ width: '100%', height: '220px' }}>
+                <div style={{ width: '100%', height: '240px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={75} innerRadius={42} paddingAngle={4}>
+                      <Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={75} innerRadius={45} paddingAngle={4}>
                         {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <Cell key={`cell-${index}`} fill={entry.color} stroke="#0D1422" strokeWidth={2} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        contentStyle={{ background: '#ffffff', border: '1px solid #f0ede8', borderRadius: 12, fontSize: 12, boxShadow: 'var(--shadow-md)' }}
-                      />
-                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} />
+                      <Tooltip contentStyle={darkTooltipStyle} />
+                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono', color: '#94A3B8' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -217,15 +258,18 @@ export default function Analytics() {
             </div>
 
             {/* Average Service Time Section */}
-            <div className="q-card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1c1917', marginBottom: '2px' }}>
-                Average Service Time
-              </h3>
-              <p style={{ fontSize: '12px', color: '#a8a29e', marginBottom: '16px' }}>
+            <div className="q-card" style={{ padding: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <Clock size={16} color="#F59E0B" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
+                  Average Service Time
+                </h3>
+              </div>
+              <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '18px' }}>
                 Average service duration per completed token by service category
               </p>
 
-              {analytics.queues?.length === 0 ? (
+              {(!analytics?.queues || analytics.queues.length === 0) ? (
                 <EmptyState title="No queue data" description="Queues will appear here." />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -239,21 +283,21 @@ export default function Analytics() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '10px 14px',
+                          padding: '12px 16px',
                           borderRadius: '12px',
-                          background: '#faf9f6',
-                          border: '1px solid #f0ede8',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid var(--border-subtle)',
                         }}
                       >
                         <div>
-                          <p style={{ fontSize: '13px', fontWeight: 600, color: '#1c1917' }}>
-                            {q.service?.name || 'Service'}
+                          <p style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
+                            {q.service?.name || '—'}
                           </p>
-                          <p style={{ fontSize: '11px', color: '#78716c' }}>
+                          <p style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
                             {q.waitingCount || 0} waiting • {q.completedCount || 0} completed
                           </p>
                         </div>
-                        <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: avgSec ? '#f97316' : '#a8a29e' }}>
+                        <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: avgSec ? '#00E5A8' : '#64748B' }}>
                           {avgDisplay}
                         </span>
                       </div>

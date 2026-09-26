@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { disconnectSocket } from './socket';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -27,9 +28,10 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear token on 401
+      // Clear token and disconnect socket on 401
       localStorage.removeItem('queueflow_admin_token');
       localStorage.removeItem('queueflow_admin_user');
+      disconnectSocket();
       if (window.location.pathname !== '/login') {
         window.location.href = '/login?expired=1';
       }
@@ -56,8 +58,17 @@ export const serviceCenterAPI = {
 };
 
 export const serviceAPI = {
+  /** Public — only active services (used by customer features) */
   list: (centerId) => api.get(`/services${centerId ? `?centerId=${centerId}` : ''}`),
+  /** Admin-only — all services including inactive */
+  listAdmin: (centerId) => api.get(`/services/admin?centerId=${centerId}`),
   getById: (id) => api.get(`/services/${id}`),
+  /** POST /api/services — Admin creates a new service */
+  create: (payload) => api.post('/services', payload),
+  /** PATCH /api/services/:id — Admin updates name/description/avgTime/isActive/order */
+  update: (id, payload) => api.patch(`/services/${id}`, payload),
+  /** Convenience toggle — sends {isActive} patch */
+  toggleActive: (id, isActive) => api.patch(`/services/${id}`, { isActive }),
 };
 
 export const queueAPI = {
@@ -69,9 +80,14 @@ export const queueAPI = {
 export const counterAPI = {
   list: (centerId) => api.get(`/counters${centerId ? `?centerId=${centerId}` : ''}`),
   getById: (id) => api.get(`/counters/${id}`),
+  getOperatorCounter: (centerId, counterId) =>
+    api.get(`/counters/operator/me${counterId ? `?counterId=${counterId}` : (centerId ? `?centerId=${centerId}` : '')}`),
   updateStatus: (id, status) => api.patch(`/counters/${id}/status`, { status }),
   assignService: (id, serviceId) => api.patch(`/counters/${id}/assign`, { serviceId }),
+  morph: (id, serviceId, reason) => api.patch(`/counters/${id}/morph`, { serviceId, reason }),
+  assignStaff: (id, staffId) => api.patch(`/counters/${id}/assign-staff`, { staffId }),
   callNext: (id) => api.post(`/counters/${id}/call-next`),
+  recall: (id) => api.post(`/counters/${id}/recall`),
   startServing: (id) => api.post(`/counters/${id}/start-serving`),
   complete: (id) => api.post(`/counters/${id}/complete`),
   skip: (id, tokenId) => api.post(`/counters/${id}/skip`, { tokenId }),
@@ -89,6 +105,39 @@ export const crowdAPI = {
 export const analyticsAPI = {
   getDashboard: (centerId) => api.get(`/analytics/${centerId}`),
   getTokens: (centerId, hours = 8) => api.get(`/analytics/${centerId}/tokens?hours=${hours}`),
+  getOperationalOverview: (centerId) => api.get(`/analytics/${centerId}/operational-overview`),
+  getEwtIntelligence: (centerId) => api.get(`/analytics/${centerId}/ewt`),
+  getForecast: (centerId, params = {}) => {
+    const q = new URLSearchParams();
+    if (params.horizonHours) q.set('horizonHours', params.horizonHours);
+    if (params.serviceId) q.set('serviceId', params.serviceId);
+    if (params.refresh) q.set('refresh', 'true');
+    const queryString = q.toString();
+    return api.get(`/analytics/${centerId}/forecast${queryString ? `?${queryString}` : ''}`);
+  },
+  getHistoricalReport: (centerId, params = {}) => {
+    const q = new URLSearchParams();
+    if (params.timeRange) q.set('timeRange', params.timeRange);
+    if (params.startDate) q.set('startDate', params.startDate);
+    if (params.endDate) q.set('endDate', params.endDate);
+    if (params.serviceId) q.set('serviceId', params.serviceId);
+    if (params.counterId) q.set('counterId', params.counterId);
+    if (params.targetWaitMinutes) q.set('targetWaitMinutes', params.targetWaitMinutes);
+    if (params.page) q.set('page', params.page);
+    if (params.limit) q.set('limit', params.limit);
+    const queryString = q.toString();
+    return api.get(`/analytics/${centerId}/historical${queryString ? `?${queryString}` : ''}`);
+  },
+  getExportUrl: (centerId, params = {}) => {
+    const q = new URLSearchParams();
+    if (params.timeRange) q.set('timeRange', params.timeRange);
+    if (params.startDate) q.set('startDate', params.startDate);
+    if (params.endDate) q.set('endDate', params.endDate);
+    if (params.serviceId) q.set('serviceId', params.serviceId);
+    if (params.counterId) q.set('counterId', params.counterId);
+    const queryString = q.toString();
+    return `/api/analytics/${centerId}/historical/export${queryString ? `?${queryString}` : ''}`;
+  },
 };
 
 export const notificationAPI = {

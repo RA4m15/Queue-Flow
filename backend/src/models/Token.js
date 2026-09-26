@@ -49,6 +49,12 @@ const tokenSchema = new mongoose.Schema(
       ref: 'Counter',
       default: null,
     },
+    // Staff/Operator who served, called, or completed this token
+    servedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     status: {
       type: String,
       enum: TOKEN_STATUSES,
@@ -70,9 +76,25 @@ const tokenSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
-    // QR code data (compact string to be encoded as QR)
+    // QR code data (signed compact payload string to be encoded as QR)
     qrData: {
       type: String,
+    },
+    // Current active QR nonce (jti) — used for one-time replay protection.
+    // Stored and checked atomically during verify-qr. Cleared when token becomes terminal.
+    qrNonce: {
+      type: String,
+      default: null,
+    },
+    // When the current qrNonce was issued (for audit and freshness reference)
+    qrIssuedAt: {
+      type: Date,
+      default: null,
+    },
+    // Whether the QR has been successfully consumed (one-time check-in enforced)
+    qrConsumed: {
+      type: Boolean,
+      default: false,
     },
     // Notification preferences captured at token creation time
     notifyApp: {
@@ -82,6 +104,16 @@ const tokenSchema = new mongoose.Schema(
     notifySms: {
       type: Boolean,
       default: false,
+    },
+    // Intake channel attribution (Phase D)
+    channel: {
+      type: String,
+      enum: ['WEB', 'MOBILE', 'QR', 'WHATSAPP', 'SMS', 'TELEGRAM'],
+      default: 'WEB',
+    },
+    channelMetadata: {
+      externalMessageId: { type: String, default: null },
+      externalUserId: { type: String, default: null },
     },
     // Timestamps for lifecycle events
     calledAt: { type: Date, default: null },
@@ -116,10 +148,23 @@ tokenSchema.index({ centerId: 1, serviceId: 1, status: 1 });
 tokenSchema.index({ userId: 1, status: 1 });
 tokenSchema.index({ userId: 1, createdAt: -1 });
 tokenSchema.index({ centerId: 1, createdAt: -1 });
+tokenSchema.index({ centerId: 1, status: 1, createdAt: -1 });
+tokenSchema.index({ centerId: 1, completedAt: -1 });
 tokenSchema.index({ counterId: 1, status: 1 });
-tokenSchema.index({ tokenCode: 1, centerId: 1 });
-// Uniqueness: one tokenNumber per service queue per day
-// (handled in queueService via atomic increment on Queue doc)
+// Tier 3 / Feature 1 — Context-Aware EWT: bounded service-time history lookup
+// for a single service queue (center + service + completion time). Additive only.
+tokenSchema.index({ centerId: 1, serviceId: 1, completedAt: -1 });
+// Database-level concurrency guarantee: exactly one active token per user per service
+tokenSchema.index(
+  { userId: 1, centerId: 1, serviceId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ['WAITING', 'CALLED', 'SERVING'] },
+    },
+    name: 'unique_active_user_token_per_service',
+  }
+);
 
 const Token = mongoose.model('Token', tokenSchema);
 

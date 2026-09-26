@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
+import { disconnectSocket } from '../services/socket';
 
 const AuthContext = createContext(null);
 
@@ -55,6 +56,7 @@ export function AuthProvider({ children }) {
         throw new Error('Access denied. This panel is restricted to Admin and Staff only.');
       }
 
+      disconnectSocket();
       localStorage.setItem('queueflow_admin_token', newToken);
       localStorage.setItem('queueflow_admin_user', JSON.stringify(userData));
       setToken(newToken);
@@ -67,11 +69,18 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('queueflow_admin_token');
-    localStorage.removeItem('queueflow_admin_user');
-    setToken(null);
-    setUser(null);
+  const logout = useCallback(async () => {
+    try {
+      await authAPI.logout();
+    } catch (_) {
+      // Best effort remote logout
+    } finally {
+      localStorage.removeItem('queueflow_admin_token');
+      localStorage.removeItem('queueflow_admin_user');
+      disconnectSocket();
+      setToken(null);
+      setUser(null);
+    }
   }, []);
 
   const value = {

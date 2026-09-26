@@ -223,15 +223,15 @@ export default function CounterDisplay() {
   const tokenCode = currentToken?.tokenCode || (typeof currentToken === 'string' ? currentToken : null);
   const isServing = !!tokenCode && counter.status === 'ACTIVE';
 
-  const statusColor = socketStatus === 'CONNECTED' ? '#22c55e' : socketStatus === 'CONNECTING' ? '#f59e0b' : '#ef4444';
+  const statusColor = socketStatus === 'CONNECTED' ? '#00E5A8' : socketStatus === 'CONNECTING' ? '#F59E0B' : '#EF4444';
   const statusLabel = socketStatus === 'CONNECTED' ? 'ONLINE' : socketStatus === 'CONNECTING' ? 'CONNECTING' : 'OFFLINE / RECONNECTING';
 
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: '#070b09',
-        color: '#ffffff',
+        background: '#05070D',
+        color: '#F8FAFC',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -249,9 +249,9 @@ export default function CounterDisplay() {
             top: '20px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'rgba(239, 68, 68, 0.2)',
-            border: '1px solid rgba(239, 68, 68, 0.45)',
-            color: '#fca5a5',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            color: '#FCA5A5',
             padding: '6px 16px',
             borderRadius: '10px',
             fontSize: '12px',
@@ -273,12 +273,12 @@ export default function CounterDisplay() {
           top: '40%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '600px',
-          height: '600px',
+          width: '650px',
+          height: '650px',
           borderRadius: '50%',
           background: isServing
-            ? 'radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, rgba(7, 11, 9, 0) 70%)'
-            : 'radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, rgba(7, 11, 9, 0) 70%)',
+            ? 'radial-gradient(circle, rgba(0, 229, 168, 0.18) 0%, rgba(5, 7, 13, 0) 70%)'
+            : 'radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, rgba(5, 7, 13, 0) 70%)',
           pointerEvents: 'none',
           transition: 'background 0.5s ease',
         }}
@@ -291,12 +291,12 @@ export default function CounterDisplay() {
             style={{
               padding: '6px 16px',
               borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'rgba(0, 229, 168, 0.08)',
+              border: '1px solid rgba(0, 229, 168, 0.25)',
               fontFamily: 'var(--font-mono)',
               fontSize: '14px',
               fontWeight: 700,
-              color: '#f97316',
+              color: '#00E5A8',
               letterSpacing: '0.05em',
             }}
           >
@@ -304,7 +304,7 @@ export default function CounterDisplay() {
           </div>
 
           <span style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: 500 }}>
-            {counter.serviceId?.name || 'General Inquiries'}
+            {counter.serviceId?.name || '—'}
           </span>
         </div>
 
@@ -370,8 +370,8 @@ export default function CounterDisplay() {
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             letterSpacing: '0.04em',
-            color: isServing ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
-            textShadow: isServing ? '0 0 50px rgba(249, 115, 22, 0.4)' : 'none',
+            color: isServing ? '#00E5A8' : 'rgba(255, 255, 255, 0.2)',
+            textShadow: isServing ? '0 0 60px rgba(0, 229, 168, 0.5)' : 'none',
             lineHeight: 1,
             margin: '20px 0',
           }}
@@ -383,7 +383,7 @@ export default function CounterDisplay() {
           style={{
             fontSize: 'clamp(16px, 2.5vw, 24px)',
             fontWeight: 600,
-            color: isServing ? '#00ff87' : 'rgba(255, 255, 255, 0.4)',
+            color: isServing ? '#00E5A8' : 'rgba(255, 255, 255, 0.4)',
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
           }}

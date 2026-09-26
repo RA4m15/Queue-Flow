@@ -83,6 +83,7 @@ counterSchema.virtual('utilizationPercent').get(function () {
 counterSchema.index({ centerId: 1 });
 counterSchema.index({ centerId: 1, status: 1 });
 counterSchema.index({ centerId: 1, number: 1 }, { unique: true });
+counterSchema.index({ staffId: 1 }, { sparse: true });
 
 const Counter = mongoose.model('Counter', counterSchema);
 

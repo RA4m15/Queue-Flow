@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { serviceAPI } from '../../services/api';
-import { X } from 'lucide-react';
+import { X, Layers } from 'lucide-react';
 
 export default function AssignServiceModal({ counter, centerId, onClose, onAssign }) {
   const [services, setServices] = useState([]);
@@ -41,34 +41,74 @@ export default function AssignServiceModal({ counter, centerId, onClose, onAssig
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f0ede8' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1c1917' }}>
-            Assign Service to {counter?.name}
-          </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a8a29e' }}>
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '18px 22px',
+            borderBottom: '1px solid var(--border-subtle)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: 'rgba(0, 229, 168, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#00E5A8',
+              }}
+            >
+              <Layers size={16} />
+            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#F8FAFC' }}>
+              Assign Service: {counter?.name}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#64748B',
+              padding: '4px',
+              borderRadius: '6px',
+            }}
+            aria-label="Close dialog"
+          >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
-          <p style={{ fontSize: '13px', color: '#78716c', marginBottom: '14px' }}>
-            Choose which service queue this counter will handle. Calling next will draw from this queue.
+        <form onSubmit={handleSubmit} style={{ padding: '22px' }}>
+          <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '16px', lineHeight: 1.5 }}>
+            Select the designated service queue for this counter. Calling next will draw customers sequentially from this service.
           </p>
 
           {loading ? (
-            <p style={{ fontSize: '13px', color: '#a8a29e' }}>Loading available services...</p>
+            <p style={{ fontSize: '13px', color: '#64748B', textAlign: 'center', padding: '20px' }}>
+              Loading facility service catalog...
+            </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '22px', maxHeight: '280px', overflowY: 'auto' }}>
+              {/* Unassigned Option */}
               <label
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 14px',
+                  gap: '12px',
+                  padding: '12px 16px',
                   borderRadius: '12px',
-                  border: !selectedServiceId ? '2px solid #f97316' : '1px solid #e7e5e4',
-                  background: !selectedServiceId ? 'rgba(249,115,22,0.04)' : '#fff',
+                  border: !selectedServiceId ? '1px solid #00E5A8' : '1px solid var(--border-subtle)',
+                  background: !selectedServiceId ? 'rgba(0, 229, 168, 0.08)' : 'rgba(255, 255, 255, 0.02)',
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 <input
@@ -77,41 +117,51 @@ export default function AssignServiceModal({ counter, centerId, onClose, onAssig
                   value=""
                   checked={!selectedServiceId}
                   onChange={() => setSelectedServiceId('')}
+                  style={{ accentColor: '#00E5A8' }}
                 />
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#1c1917' }}>Unassigned (Idle)</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
+                  Unassigned (Idle Counter)
+                </span>
               </label>
 
-              {services.map((svc) => (
-                <label
-                  key={svc._id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    border: selectedServiceId === svc._id ? '2px solid #f97316' : '1px solid #e7e5e4',
-                    background: selectedServiceId === svc._id ? 'rgba(249,115,22,0.04)' : '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="service"
-                    value={svc._id}
-                    checked={selectedServiceId === svc._id}
-                    onChange={() => setSelectedServiceId(svc._id)}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#1c1917' }}>{svc.name}</p>
-                    <p style={{ fontSize: '11px', color: '#a8a29e' }}>Prefix: {svc.tokenPrefix} • ~{svc.avgServiceTimeMinutes} min/customer</p>
-                  </div>
-                </label>
-              ))}
+              {services.map((svc) => {
+                const isSelected = selectedServiceId === svc._id;
+                return (
+                  <label
+                    key={svc._id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      border: isSelected ? '1px solid #00E5A8' : '1px solid var(--border-subtle)',
+                      background: isSelected ? 'rgba(0, 229, 168, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="service"
+                      value={svc._id}
+                      checked={isSelected}
+                      onChange={() => setSelectedServiceId(svc._id)}
+                      style={{ accentColor: '#00E5A8' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>{svc.name}</p>
+                      <p className="mono" style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                        Prefix: <strong style={{ color: '#00E5A8' }}>{svc.tokenPrefix}</strong> • ~{svc.avgServiceTimeMinutes}m estimate
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>

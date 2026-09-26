@@ -5,7 +5,7 @@ import { notificationAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorMessage from '../components/common/ErrorMessage';
 import EmptyState from '../components/common/EmptyState';
-import { AlertTriangle, Info, CheckCircle, Send, Check } from 'lucide-react';
+import { AlertTriangle, Info, CheckCircle2, Send, Check, Radio } from 'lucide-react';
 
 export default function Alerts() {
   const { activeCenterId } = useSocket();
@@ -37,14 +37,14 @@ export default function Alerts() {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+    <div style={{ padding: '24px 28px', maxWidth: '1000px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#1c1917', letterSpacing: '-0.02em' }}>
-          Operational Alerts & Recommendations
+        <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+          Operational Alerts & Dispatch
         </h1>
-        <p style={{ fontSize: '12px', color: '#78716c', marginTop: '2px' }}>
-          Real-time intelligent recommendations based on active queue loads and IoT crowd levels
+        <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '3px' }}>
+          Real-time algorithmic recommendations based on active queue loads and IoT crowd telemetry
         </p>
       </div>
 
@@ -59,78 +59,85 @@ export default function Alerts() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              padding: '12px 18px',
+              gap: '12px',
+              padding: '14px 20px',
               borderRadius: '16px',
-              marginBottom: '24px',
-              background: recommendations.length > 0 ? 'rgba(249, 115, 22, 0.08)' : 'rgba(34, 197, 94, 0.08)',
-              border: recommendations.length > 0 ? '1px solid rgba(249, 115, 22, 0.25)' : '1px solid rgba(34, 197, 94, 0.25)',
+              marginBottom: '28px',
+              background: recommendations.length > 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(0, 229, 168, 0.1)',
+              border: recommendations.length > 0 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(0, 229, 168, 0.3)',
             }}
           >
             {recommendations.length > 0 ? (
-              <AlertTriangle size={18} color="#f97316" />
+              <AlertTriangle size={20} color="#F59E0B" />
             ) : (
-              <CheckCircle size={18} color="#22c55e" />
+              <CheckCircle2 size={20} color="#00E5A8" />
             )}
-            <p style={{ fontSize: '13px', fontWeight: 700, color: recommendations.length > 0 ? '#ea580c' : '#15803d' }}>
+            <p
+              style={{
+                fontSize: '13px',
+                fontWeight: 700,
+                color: recommendations.length > 0 ? '#FBBF24' : '#00E5A8',
+              }}
+            >
               {recommendations.length > 0
                 ? `${recommendations.length} operational recommendation${recommendations.length > 1 ? 's' : ''} require attention`
-                : 'All queues and operations are currently running within optimal parameters'}
+                : 'All queues and counter operations are currently running within optimal parameters'}
             </p>
           </div>
 
           {/* Recommendations List */}
-          <div style={{ marginBottom: '32px' }}>
-            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: '#a8a29e', marginBottom: '12px', textTransform: 'uppercase' }}>
+          <div style={{ marginBottom: '36px' }}>
+            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: '#64748B', marginBottom: '12px', textTransform: 'uppercase' }}>
               DATA-DRIVEN RECOMMENDATIONS
             </p>
 
             {recommendations.length === 0 ? (
               <EmptyState
                 title="No active alerts"
-                description="When queues spike or counter capacities reach threshold, operational suggestions will appear here."
+                description="When queue loads spike or counter capacities reach threshold, operational suggestions will appear here."
               />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {recommendations.map((rec, i) => {
                   const isWarn = rec.type === 'WARN';
                   const isSuggest = rec.type === 'SUGGEST';
-                  const borderColor = isWarn ? 'rgba(249,115,22,0.3)' : isSuggest ? 'rgba(34,197,94,0.3)' : 'rgba(6,182,212,0.3)';
-                  const tagBg = isWarn ? 'rgba(249,115,22,0.1)' : isSuggest ? 'rgba(34,197,94,0.1)' : 'rgba(6,182,212,0.1)';
-                  const tagColor = isWarn ? '#f97316' : isSuggest ? '#22c55e' : '#06b6d4';
+                  const borderColor = isWarn ? 'rgba(245,158,11,0.35)' : isSuggest ? 'rgba(0,229,168,0.35)' : 'rgba(0,210,255,0.35)';
+                  const tagBg = isWarn ? 'rgba(245,158,11,0.12)' : isSuggest ? 'rgba(0,229,168,0.12)' : 'rgba(0,210,255,0.12)';
+                  const tagColor = isWarn ? '#FBBF24' : isSuggest ? '#00E5A8' : '#00D2FF';
 
                   return (
                     <div
                       key={i}
                       className="q-card"
                       style={{
-                        padding: '18px 20px',
+                        padding: '20px 22px',
                         border: `1px solid ${borderColor}`,
-                        background: '#ffffff',
+                        background: 'rgba(13, 20, 34, 0.75)',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                         <span
                           className="mono"
                           style={{
                             fontSize: '9px',
                             fontWeight: 700,
-                            padding: '2px 8px',
+                            padding: '3px 8px',
                             borderRadius: '6px',
                             background: tagBg,
                             color: tagColor,
+                            border: `1px solid ${borderColor}`,
                           }}
                         >
                           {rec.type || 'INFO'}
                         </span>
-                        {isWarn ? <AlertTriangle size={15} color={tagColor} /> : <Info size={15} color={tagColor} />}
+                        {isWarn ? <AlertTriangle size={16} color={tagColor} /> : <Info size={16} color={tagColor} />}
                       </div>
 
-                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1c1917', marginBottom: '4px' }}>
+                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC', marginBottom: '6px' }}>
                         {rec.title}
                       </h3>
 
-                      <p style={{ fontSize: '13px', color: '#78716c', lineHeight: 1.5, marginBottom: '14px' }}>
+                      <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: 1.5, marginBottom: '14px' }}>
                         {rec.desc}
                       </p>
 
@@ -159,46 +166,88 @@ export default function Alerts() {
             )}
           </div>
 
-          {/* Broadcast Notification Form matching UI reference */}
+          {/* Broadcast Notification Form */}
           <div>
-            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: '#a8a29e', marginBottom: '12px', textTransform: 'uppercase' }}>
-              BROADCAST ANNOUNCEMENT
+            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: '#64748B', marginBottom: '12px', textTransform: 'uppercase' }}>
+              BROADCAST ANNOUNCEMENT DISPATCH
             </p>
 
-            <div className="q-card" style={{ padding: '24px' }}>
-              <p style={{ fontSize: '13px', color: '#78716c', marginBottom: '16px' }}>
-                Send a real-time announcement to all queued visitors at this service center via Socket.IO.
+            <div className="q-card" style={{ padding: '26px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <Radio size={16} color="#00E5A8" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
+                  Facility-Wide Broadcast
+                </h3>
+              </div>
+              <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '18px' }}>
+                Transmit an immediate real-time announcement to all queued visitors at this facility via Socket.IO.
               </p>
 
               {sendSuccess && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '12px', background: 'rgba(34,197,94,0.1)', color: '#15803d', fontSize: '13px', marginBottom: '16px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: 'rgba(0,229,168,0.12)',
+                    border: '1px solid rgba(0,229,168,0.3)',
+                    color: '#00E5A8',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    marginBottom: '18px',
+                  }}
+                >
                   <Check size={16} />
                   <span>Announcement successfully broadcast to all active queued visitors!</span>
                 </div>
               )}
 
               <form onSubmit={handleSendBroadcast}>
-                <div style={{ marginBottom: '14px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#94A3B8',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    Broadcast Headline
+                  </label>
                   <input
                     type="text"
                     required
                     value={broadcastTitle}
                     onChange={(e) => setBroadcastTitle(e.target.value)}
-                    placeholder="Announcement Title (e.g. Counter 03 Opening Shortly)"
+                    placeholder="Announcement Title"
                     style={{
                       width: '100%',
-                      padding: '10px 14px',
+                      padding: '12px 14px',
                       borderRadius: '12px',
-                      border: '1px solid #e7e5e4',
                       fontSize: '14px',
-                      fontFamily: 'var(--font-main)',
-                      outline: 'none',
-                      background: '#faf9f6',
                     }}
                   />
                 </div>
 
-                <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#94A3B8',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    Announcement Message
+                  </label>
                   <textarea
                     rows={3}
                     required
@@ -209,12 +258,8 @@ export default function Alerts() {
                       width: '100%',
                       padding: '12px 14px',
                       borderRadius: '12px',
-                      border: '1px solid #e7e5e4',
                       fontSize: '14px',
-                      fontFamily: 'var(--font-main)',
-                      outline: 'none',
                       resize: 'none',
-                      background: '#faf9f6',
                     }}
                   />
                 </div>
@@ -223,10 +268,10 @@ export default function Alerts() {
                   type="submit"
                   disabled={sending || !broadcastTitle || !broadcastBody}
                   className="btn-primary"
-                  style={{ width: '100%', padding: '12px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '13px', fontSize: '13px', gap: '8px' }}
                 >
-                  <Send size={14} />
-                  <span>{sending ? 'Broadcasting...' : 'Broadcast to All Queued Visitors'}</span>
+                  <Send size={15} />
+                  <span>{sending ? 'Broadcasting to Queue...' : 'Transmit Broadcast to Queued Visitors'}</span>
                 </button>
               </form>
             </div>

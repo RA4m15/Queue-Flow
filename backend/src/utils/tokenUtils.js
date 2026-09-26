@@ -1,6 +1,7 @@
 'use strict';
 
 const QRCode = require('qrcode');
+const { generateSignedQRPayload } = require('./qrSecurity');
 
 /**
  * Get today's date as YYYY-MM-DD in local time.
@@ -26,21 +27,30 @@ function formatTokenCode(prefix, number) {
 }
 
 /**
- * Generate a compact QR data string for a token.
- * The QR contains a verification URL/string that staff can scan.
- * @param {string} tokenId - MongoDB _id of the token
- * @param {string} tokenCode - Human-readable token code (e.g. 'A-047')
- * @param {string} centerId - MongoDB _id of the service center
- * @returns {string} QR data string
+ * Generate a cryptographically signed QR payload for a token.
+ * The QR contains a signed, short-lived, nonce-protected payload
+ * that the backend can verify without trusting client-supplied data.
+ *
+ * PII NOT included: userId, email, phone, password, JWT.
+ *
+ * @param {string} tokenId   - MongoDB _id of the token
+ * @param {string} centerId  - MongoDB _id of the service center
+ * @param {string} serviceId - MongoDB _id of the service
+ * @returns {{ qrData: string, nonce: string, issuedAt: Date }}
+ *   qrData   — signed JSON string suitable for encoding into a QR image
+ *   nonce    — UUID v4 (jti) — must be stored on the Token document for replay protection
+ *   issuedAt — Date when the QR was issued — stored for audit trail
+ * @throws {Error} if QR_SIGNING_SECRET is not configured
  */
-function generateQRData(tokenId, tokenCode, centerId) {
-  return JSON.stringify({
-    type: 'QUEUEFLOW_TOKEN',
-    id: tokenId,
-    code: tokenCode,
-    center: centerId,
-    ts: Date.now(),
-  });
+function generateQRData(tokenId, centerId, serviceId) {
+  const qrData = generateSignedQRPayload({ tokenId, centerId, serviceId });
+  // Parse nonce and issuedAt from the payload so the caller can persist them
+  const parsed = JSON.parse(qrData);
+  return {
+    qrData,
+    nonce: parsed.jti,
+    issuedAt: new Date(parsed.iat * 1000),
+  };
 }
 
 /**

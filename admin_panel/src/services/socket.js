@@ -1,13 +1,15 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
 let socket = null;
 
 export function getSocket() {
   if (!socket) {
+    const token = localStorage.getItem('queueflow_admin_token');
     socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
+      auth: token ? { token } : undefined,
       reconnection: true,
       reconnectionAttempts: 15,
       reconnectionDelay: 1000,

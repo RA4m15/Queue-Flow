@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, ShieldCheck, Activity, Cpu, Layers } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState('');
   const { login } = useAuth();
@@ -26,8 +27,12 @@ export default function Login() {
 
     setSubmitting(true);
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const userData = await login(email, password);
+      if (userData?.role === 'STAFF') {
+        navigate('/operator');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setLocalError(err.message || 'Login failed. Please verify credentials.');
     } finally {
@@ -35,189 +40,363 @@ export default function Login() {
     }
   };
 
-  const handleQuickLogin = (role) => {
-    if (role === 'admin') {
-      setEmail('admin@queueflow.dev');
-      setPassword('Admin@1234');
-    } else {
-      setEmail('staff1@queueflow.dev');
-      setPassword('Staff@1234');
-    }
-  };
-
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: '#faf9f6',
+        background: '#05070D',
+        backgroundImage: 'radial-gradient(circle at 10% 20%, #0D1B2A 0%, #05070D 60%, #020305 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '24px',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Background radial ambient lights */}
       <div
-        className="q-card"
+        style={{
+          position: 'absolute',
+          top: '-15%',
+          left: '-10%',
+          width: '600px',
+          height: '600px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0, 229, 168, 0.12) 0%, rgba(5, 7, 13, 0) 70%)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-15%',
+          right: '-10%',
+          width: '650px',
+          height: '650px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, rgba(5, 7, 13, 0) 70%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Main Container */}
+      <div
         style={{
           width: '100%',
-          maxWidth: '420px',
-          padding: '36px 32px',
-          background: '#ffffff',
-          borderRadius: '24px',
-          boxShadow: 'var(--shadow-lg)',
-          border: '1px solid #f0ede8',
+          maxWidth: '1080px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+          gap: '40px',
+          alignItems: 'center',
+          position: 'relative',
+          zIndex: 10,
         }}
       >
-        {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        {/* Left Side: Brand & Visual Statement */}
+        <div style={{ padding: '20px' }}>
+          {/* Logo Badge */}
           <div
             style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '14px',
-              background: 'linear-gradient(135deg, #f97316, #fb923c)',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              margin: '0 auto 12px',
-              boxShadow: 'var(--shadow-glow-orange)',
+              gap: '10px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              background: 'rgba(0, 229, 168, 0.08)',
+              border: '1px solid rgba(0, 229, 168, 0.25)',
+              marginBottom: '24px',
             }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+            <span className="pulsing-dot">
+              <span className="pulsing-dot-ping" style={{ backgroundColor: '#00E5A8' }} />
+              <span className="pulsing-dot-core" style={{ backgroundColor: '#00E5A8' }} />
+            </span>
+            <span
+              className="mono"
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#00E5A8',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Command Console v1.0
+            </span>
           </div>
-          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#1c1917', letterSpacing: '-0.02em' }}>
-            QueueFlow
+
+          <h1
+            style={{
+              fontSize: 'clamp(32px, 4.5vw, 48px)',
+              fontWeight: 800,
+              color: '#F8FAFC',
+              letterSpacing: '-0.03em',
+              lineHeight: 1.15,
+              marginBottom: '16px',
+            }}
+          >
+            Intelligent Queue <br />
+            <span
+              style={{
+                background: 'linear-gradient(135deg, #00E5A8 0%, #00D2FF 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Operations & Telemetry
+            </span>
           </h1>
-          <p style={{ fontSize: '13px', color: '#78716c', marginTop: '4px' }}>
-            Admin & Counter Management Portal
+
+          <p
+            style={{
+              fontSize: '15px',
+              color: '#94A3B8',
+              lineHeight: 1.6,
+              maxWidth: '440px',
+              marginBottom: '32px',
+            }}
+          >
+            Real-time multi-counter management, IoT footfall crowd tracking, and smart token routing in a centralized operational command center.
           </p>
+
+          {/* Feature Highlights Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '14px',
+                background: 'rgba(17, 27, 44, 0.65)',
+                border: '1px solid var(--border-subtle)',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00E5A8', marginBottom: '6px' }}>
+                <Activity size={16} />
+                <span className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>Real-Time Synchronization</span>
+              </div>
+              <p style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4 }}>
+                Sub-millisecond token lifecycle updates via Redis Socket.IO adapter.
+              </p>
+            </div>
+
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '14px',
+                background: 'rgba(17, 27, 44, 0.65)',
+                border: '1px solid var(--border-subtle)',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00D2FF', marginBottom: '6px' }}>
+                <Cpu size={16} />
+                <span className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>IoT Crowd Sensors</span>
+              </div>
+              <p style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4 }}>
+                Automated optical turnstile and sensor telemetry integration.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Notices */}
-        {isExpired && (
-          <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '12px', marginBottom: '16px', fontSize: '12px', color: '#b45309' }}>
-            Your session has expired. Please sign in again.
-          </div>
-        )}
-
-        {isUnauthorized && (
-          <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', marginBottom: '16px', fontSize: '12px', color: '#b91c1c' }}>
-            Access denied. Customer accounts cannot access the admin panel.
-          </div>
-        )}
-
-        {localError && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '12px', marginBottom: '16px', fontSize: '12px', color: '#b91c1c' }}>
-            <AlertCircle size={15} style={{ flexShrink: 0 }} />
-            <span>{localError}</span>
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#44403c', marginBottom: '6px' }}>
-              Staff / Admin Email
-            </label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Mail size={16} style={{ position: 'absolute', left: '12px', color: '#a8a29e' }} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@queueflow.dev"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px 10px 38px',
-                  borderRadius: '12px',
-                  border: '1px solid #e7e5e4',
-                  fontSize: '14px',
-                  fontFamily: 'var(--font-main)',
-                  outline: 'none',
-                  background: '#faf9f6',
-                  color: '#1c1917',
-                  transition: 'border-color 0.15s ease',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = '#f97316')}
-                onBlur={(e) => (e.target.style.borderColor = '#e7e5e4')}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#44403c', marginBottom: '6px' }}>
-              Password
-            </label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Lock size={16} style={{ position: 'absolute', left: '12px', color: '#a8a29e' }} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px 10px 38px',
-                  borderRadius: '12px',
-                  border: '1px solid #e7e5e4',
-                  fontSize: '14px',
-                  fontFamily: 'var(--font-main)',
-                  outline: 'none',
-                  background: '#faf9f6',
-                  color: '#1c1917',
-                  transition: 'border-color 0.15s ease',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = '#f97316')}
-                onBlur={(e) => (e.target.style.borderColor = '#e7e5e4')}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="btn-primary"
-            style={{ width: '100%', padding: '12px', fontSize: '14px' }}
+        {/* Right Side: Login Card */}
+        <div>
+          <div
+            className="q-card-glow"
+            style={{
+              padding: '40px 36px',
+              borderRadius: '24px',
+              boxShadow: 'var(--shadow-lg), var(--shadow-glow-mint)',
+              position: 'relative',
+            }}
           >
-            {submitting ? 'Authenticating...' : 'Sign In to Dashboard'}
-            {!submitting && <ArrowRight size={16} />}
-          </button>
-        </form>
+            {/* Header */}
+            <div style={{ marginBottom: '28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <div
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #00E5A8 0%, #008f6b 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#05070D',
+                  }}
+                >
+                  <ShieldCheck size={18} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+                    Operator Sign In
+                  </h2>
+                  <p style={{ fontSize: '12px', color: '#64748B' }}>
+                    Staff and Administrator credentials required
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        {/* Demo Credentials Helper - Dev only */}
-        {import.meta.env.DEV && (
-          <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #f7f5f2', textAlign: 'center' }}>
-            <p style={{ fontSize: '11px', color: '#a8a29e', marginBottom: '8px' }}>
-              QUICK LOGIN PRESETS (DEV ONLY)
-            </p>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin')}
-                className="btn-secondary"
-                style={{ fontSize: '11px', padding: '6px 12px' }}
+            {/* Notices */}
+            {isExpired && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: '12px',
+                  marginBottom: '18px',
+                  fontSize: '12px',
+                  color: '#FBBF24',
+                }}
               >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('staff')}
-                className="btn-secondary"
-                style={{ fontSize: '11px', padding: '6px 12px' }}
+                Your session has expired. Please authenticate again.
+              </div>
+            )}
+
+            {isUnauthorized && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '12px',
+                  marginBottom: '18px',
+                  fontSize: '12px',
+                  color: '#F87171',
+                }}
               >
-                Staff
+                Access denied. Customer accounts cannot access the admin console.
+              </div>
+            )}
+
+            {localError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 14px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '12px',
+                  marginBottom: '18px',
+                  fontSize: '12px',
+                  color: '#F87171',
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{localError}</span>
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '18px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#94A3B8',
+                    marginBottom: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  Operator Email
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Mail size={16} style={{ position: 'absolute', left: '14px', color: '#64748B' }} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter email address"
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px 12px 42px',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '26px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#94A3B8',
+                    marginBottom: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  Secure Password
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '14px', color: '#64748B' }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '12px 42px 12px 42px',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748B',
+                      cursor: 'pointer',
+                      padding: '4px',
+                    }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  fontSize: '14px',
+                  borderRadius: '12px',
+                }}
+              >
+                {submitting ? 'Authenticating...' : 'Sign In to Command Console'}
+                {!submitting && <ArrowRight size={16} />}
               </button>
+            </form>
+
+            <div style={{ marginTop: '22px', textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', color: '#475569' }}>
+                Protected by QueueFlow Zero-Trust Session Architecture
+              </p>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

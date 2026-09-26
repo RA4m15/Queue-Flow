@@ -9,6 +9,8 @@ const queueService = require('../services/queueService');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendBadRequest, sendNotFound } = require('../utils/apiResponse');
 const { emitToCenter } = require('../config/socket');
+const { verifyQRPayload } = require('../utils/qrSecurity');
+const { logger } = require('../utils/logger');
 
 // ─── Validation ───────────────────────────────────
 const rfidValidation = [
@@ -20,6 +22,18 @@ const crowdValidation = [
   body('centerId').isMongoId().withMessage('Valid centerId is required'),
   body('type').isIn(['ENTRY', 'EXIT']).withMessage('Type must be ENTRY or EXIT'),
   body('sensorId').optional().isString(),
+];
+
+const scanQRValidation = [
+  body('qrPayload')
+    .isString()
+    .trim()
+    .isLength({ min: 10, max: 2048 })
+    .withMessage('qrPayload is required'),
+  body('centerId')
+    .optional()
+    .isMongoId()
+    .withMessage('centerId must be a valid MongoId'),
 ];
 
 // ─── IoT Controllers ──────────────────────────────
@@ -121,4 +135,77 @@ const handleCrowd = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { handleRfid, handleCrowd, rfidValidation, crowdValidation };
+/**
+ * POST /api/iot/scan-qr
+ * Physical scanner (ESP32 or kiosk) submits a scanned QR payload for verification.
+ * Auth: x-iot-secret header (shared device secret — never embedded in Flutter app).
+ *
+ * The IoT device does NOT need to know the signing secret or perform any
+ * cryptographic operation itself. It sends the raw QR string to the server,
+ * and the server verifies the signature, expiry, nonce, and token state.
+ *
+ * Returns only the minimum information needed for the scanner to display
+ * the result (token code, status, center). Never returns PII, JWT, or secrets.
+ */
+const scanQR = asyncHandler(async (req, res) => {
+  const { qrPayload } = req.body;
+
+  // 1. Cryptographic verification
+  let parsed;
+  try {
+    parsed = verifyQRPayload(qrPayload);
+  } catch (err) {
+    logger.security('IOT_QR_VERIFICATION_FAILURE', {
+      requestId: req.id,
+      reason: err._reason || err.message,
+      clientIp: req.ip,
+    });
+    return sendBadRequest(res, 'QR verification failed');
+  }
+
+  const { tid: tokenId, cid: centerId, jti: nonce } = parsed;
+
+  // 2. Atomic nonce consumption — prevents replay and concurrent duplicate scans
+  const token = await Token.findOneAndUpdate(
+    {
+      _id: tokenId,
+      qrNonce: nonce,
+      qrConsumed: false,
+      status: { $in: ['WAITING', 'CALLED', 'SERVING'] },
+    },
+    {
+      $set: { qrConsumed: true, qrNonce: null },
+    },
+    {
+      new: true,
+      select: 'tokenCode tokenNumber centerId serviceId status counterId',
+    }
+  );
+
+  if (!token) {
+    logger.security('IOT_QR_VERIFICATION_FAILURE', {
+      requestId: req.id,
+      reason: 'nonce_replay_or_token_consumed_or_inactive',
+      clientIp: req.ip,
+    });
+    return sendBadRequest(res, 'QR verification failed');
+  }
+
+  // 3. Center authorization — QR centerId must match token's actual centerId
+  if (token.centerId.toString() !== centerId.toString()) {
+    return sendBadRequest(res, 'QR verification failed');
+  }
+
+  // 4. Return minimal safe info to the scanner device
+  return sendSuccess(res, {
+    message: 'QR verified',
+    data: {
+      tokenCode: token.tokenCode,
+      tokenNumber: token.tokenNumber,
+      status: token.status,
+      centerId: token.centerId.toString(),
+    },
+  });
+});
+
+module.exports = { handleRfid, handleCrowd, scanQR, rfidValidation, crowdValidation, scanQRValidation };

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="qf_mint" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5A8"/>
+      <stop offset="100%" stop-color="#00D2FF"/>
+    </linearGradient>
+    <radialGradient id="qf_bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#111B2C"/>
+      <stop offset="100%" stop-color="#05070D"/>
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="url(#qf_bg)" />
+  <rect x="8" y="8" width="176" height="176" rx="32" fill="none" stroke="rgba(0, 229, 168, 0.2)" stroke-width="2" />
+  <!-- QueueFlow Icon: Flow curves + Q Token -->
+  <circle cx="96" cy="96" r="54" fill="none" stroke="url(#qf_mint)" stroke-width="12" stroke-linecap="round" stroke-dasharray="260 70"/>
+  <path d="M120 120 L144 144" stroke="url(#qf_mint)" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="96" cy="74" r="8" fill="#00E5A8"/>
+  <circle cx="96" cy="96" r="6" fill="#00D2FF"/>
+</svg>

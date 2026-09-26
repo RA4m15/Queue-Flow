@@ -1,3 +1,10 @@
+# Flutter SDK directory (not the app — this is the Flutter toolchain source)
+/flutter/
+
+# Android Gradle caches and local machine config
+local.properties
+**/.gradle/
+
 # Environment variables and credentials
 .env
 .env.*

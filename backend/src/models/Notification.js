@@ -23,8 +23,9 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       enum: [
         'TOKEN_CREATED',
-        'TOKEN_APPROACHING',   // N people ahead
+        'TOKEN_APPROACHING',   // N people ahead (e.g. 5 tokens away, next in line)
         'TOKEN_CALLED',        // Your turn now
+        'NO_SHOW_WARNING',     // Called token approaching no-show threshold
         'TOKEN_SERVING',
         'TOKEN_COMPLETED',
         'TOKEN_SKIPPED',
@@ -55,7 +56,20 @@ const notificationSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // Delivery channels
+    // Idempotency and anti-duplicate alert key (e.g. `${tokenId}_5_TOKENS_AWAY`)
+    dedupeKey: {
+      type: String,
+      sparse: true,
+      unique: true,
+      index: true,
+    },
+    // Target primary channel
+    channel: {
+      type: String,
+      enum: ['IN_APP', 'SOCKET', 'FCM', 'SMS', 'WHATSAPP', 'TELEGRAM'],
+      default: 'IN_APP',
+    },
+    // Delivery status tracking
     deliveredViaSocket: {
       type: Boolean,
       default: false,
@@ -67,6 +81,22 @@ const notificationSchema = new mongoose.Schema(
     deliveredViaSms: {
       type: Boolean,
       default: false,
+    },
+    deliveredViaWhatsApp: {
+      type: Boolean,
+      default: false,
+    },
+    deliveredViaTelegram: {
+      type: Boolean,
+      default: false,
+    },
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
   },
   {

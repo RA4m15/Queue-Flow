@@ -38,6 +38,7 @@ const queueEventSchema = new mongoose.Schema(
         'COUNTER_BREAK',
         'COUNTER_RESUMED',
         'COUNTER_ASSIGNED',
+        'COUNTER_MORPHED',
         'QUEUE_PAUSED',
         'QUEUE_RESUMED',
       ],

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/admin_integration.test.js"
+    "test": "node --env-file=.env.test test/admin_integration.test.js",
+    "test:phase-c": "node --env-file=.env.test test/phase_c_service_mgmt.test.js"
   },
   "dependencies": {
     "axios": "^1.7.4",

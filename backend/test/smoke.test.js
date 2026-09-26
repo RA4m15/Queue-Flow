@@ -213,15 +213,20 @@ async function runTests() {
   console.log('\n▶ [5/8] Socket.IO Real-Time Event Setup');
   const receivedEvents = [];
 
+  // Pass the customer JWT in the handshake auth object, matching the Flutter
+  // SocketService and the new server-side io.use() authentication middleware.
   socketClient = ioClient(baseUrl, {
     transports: ['websocket'],
     reconnection: false,
+    auth: { token: testCustomerToken },
   });
 
   await new Promise((resolve, reject) => {
     socketClient.on('connect', () => {
-      console.log(`  ✅ Test Socket.IO client connected (id: ${socketClient.id})`);
+      console.log(`  ✅ Test Socket.IO client authenticated & connected (id: ${socketClient.id})`);
+      // join:center — subscribe to center-level broadcasts
       socketClient.emit('join:center', testCenterId);
+      // join:user — now a server-authoritative no-op; private room already joined
       socketClient.emit('join:user', testCustomerId);
       socketClient.emit('join:counter', { centerId: testCenterId, counterId: testCounterId });
       resolve();
@@ -251,6 +256,9 @@ async function runTests() {
 
   // ─── 6. Complete Token Flow & Queue State Transitions ────────────
   console.log('\n▶ [6/8] Token Flow & Queue State Transitions');
+
+  // Ensure clean queue state for the test service
+  await Token.deleteMany({ serviceId: testServiceId, status: { $in: ['WAITING', 'CALLED', 'SERVING'] } });
 
   // Step A: Customer creates token
   const tokenCreateRes = await request('POST', '/api/tokens', {

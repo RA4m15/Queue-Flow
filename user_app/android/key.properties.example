@@ -1,0 +1,8 @@
+# QueueFlow Android Production Release Signing Configuration Template
+# DO NOT COMMIT THE REAL key.properties FILE OR KEYSTORE TO VERSION CONTROL.
+# Copy this file to "key.properties" in android/ and fill with your production keystore details:
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+storeFile=../keystore/release.keystore

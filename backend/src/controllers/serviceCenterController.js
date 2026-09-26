@@ -22,9 +22,15 @@ const createValidation = [
 const list = asyncHandler(async (req, res) => {
   const { type, isOpen } = req.query;
   const filter = {};
-
-  if (type) filter.type = type.toUpperCase();
-  if (isOpen !== undefined) filter.isOpen = isOpen === 'true';
+  if (type && typeof type === 'string') {
+    const t = type.trim().toUpperCase();
+    if (['BANK', 'HOSPITAL', 'GOVT', 'RAILWAY', 'SUPPORT', 'OTHER'].includes(t)) {
+      filter.type = t;
+    }
+  }
+  if (isOpen !== undefined) {
+    filter.isOpen = isOpen === 'true' || isOpen === true;
+  }
 
   const centers = await ServiceCenter.find(filter)
     .select('-__v')

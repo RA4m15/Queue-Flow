@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { serviceCenterAPI } from '../../services/api';
-import { LogOut, Radio, ChevronDown, Building2 } from 'lucide-react';
+import { LogOut, Building2, ChevronDown, Menu, User, Shield } from 'lucide-react';
 
-export default function Navbar() {
-  const { user, logout, isAdmin } = useAuth();
-  const { isConnected, activeCenterId, setActiveCenterId } = useSocket();
+export default function Navbar({ onToggleSidebar }) {
+  const { user, logout } = useAuth();
+  const { activeCenterId, setActiveCenterId } = useSocket();
   const [centers, setCenters] = useState([]);
   const [currentTime, setCurrentTime] = useState('');
   const navigate = useNavigate();
@@ -31,186 +31,204 @@ export default function Navbar() {
     loadCenters();
   }, [activeCenterId, setActiveCenterId]);
 
-  // Live time ticker
+  // Live clock ticker
   useEffect(() => {
     function updateClock() {
       const now = new Date();
       setCurrentTime(
-        `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+        `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
       );
     }
     updateClock();
-    const interval = setInterval(updateClock, 10000);
+    const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const currentCenter = centers.find((c) => c._id === activeCenterId);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const currentCenter = centers.find((c) => c._id === activeCenterId);
+
   return (
-    <header style={{ background: '#faf9f6', borderBottom: '1px solid #f0ede8', position: 'sticky', top: 0, zIndex: 100 }}>
-      {/* Top micro-bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 24px', borderBottom: '1px solid #f7f5f2', fontSize: '11px', color: '#a8a29e' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="mono">{currentTime}</span>
-          <span>•</span>
-          <span>Operator: <strong style={{ color: '#44403c' }}>{user?.name || 'Staff'}</strong></span>
-          <span className="badge" style={{ fontSize: '9px', padding: '1px 6px', background: 'rgba(249,115,22,0.1)', color: '#f97316' }}>
-            {user?.role || 'STAFF'}
-          </span>
-        </div>
-
+    <header
+      style={{
+        background: 'rgba(8, 12, 22, 0.85)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid var(--border-subtle)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 80,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 24px',
+          maxWidth: '1600px',
+          margin: '0 auto',
+          gap: '16px',
+        }}
+      >
+        {/* Left: Mobile Toggle & Center Switcher */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Socket live indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {isConnected ? (
-              <>
-                <span className="pulsing-dot">
-                  <span className="pulsing-dot-ping" style={{ backgroundColor: '#22c55e' }}></span>
-                  <span className="pulsing-dot-core" style={{ backgroundColor: '#22c55e' }}></span>
-                </span>
-                <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '11px', letterSpacing: '0.05em' }}>LIVE</span>
-              </>
-            ) : (
-              <>
-                <span className="pulsing-dot">
-                  <span className="pulsing-dot-core" style={{ backgroundColor: '#f59e0b' }}></span>
-                </span>
-                <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: '11px' }}>RECONNECTING</span>
-              </>
-            )}
-          </div>
-
           <button
-            onClick={handleLogout}
+            onClick={onToggleSidebar}
+            className="btn-secondary"
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#78716c',
-              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              fontSize: '11px',
-              padding: '2px 6px',
-              borderRadius: '6px',
+              justifyContent: 'center',
             }}
-            title="Sign out"
+            title="Toggle Navigation"
+            aria-label="Toggle navigation menu"
           >
-            <LogOut size={13} />
-            <span>Sign out</span>
+            <Menu size={18} />
           </button>
-        </div>
-      </div>
 
-      {/* Main Navigation Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', maxWidth: '1400px', margin: '0 auto' }}>
-        {/* Brand & Center Select */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
+          {/* Active Center Dropdown */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(17, 27, 44, 0.75)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: '12px',
+              padding: '4px 12px',
+              gap: '8px',
+              position: 'relative',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <Building2 size={16} color="#00E5A8" style={{ flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className="mono" style={{ fontSize: '9px', color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                ACTIVE FACILITY
+              </span>
+              <select
+                value={activeCenterId || ''}
+                onChange={(e) => setActiveCenterId(e.target.value)}
+                style={{
+                  fontFamily: 'var(--font-main)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#F8FAFC',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  paddingRight: '18px',
+                  boxShadow: 'none',
+                }}
+              >
+                {centers.map((c) => (
+                  <option
+                    key={c._id}
+                    value={c._id}
+                    style={{ background: '#0D1422', color: '#F8FAFC' }}
+                  >
+                    {c.name} ({c.code})
+                  </option>
+                ))}
+              </select>
             </div>
-            <span style={{ fontWeight: 800, fontSize: '18px', color: '#1c1917', letterSpacing: '-0.02em' }}>QueueFlow</span>
-            <span className="mono" style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '6px', fontWeight: 700, background: 'rgba(249,115,22,0.1)', color: '#f97316' }}>
-              ADMIN
-            </span>
+            <ChevronDown
+              size={13}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                pointerEvents: 'none',
+                color: '#94A3B8',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Right: Time, Operator Profile & Sign Out */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+          {/* Live UTC/Local Ticker */}
+          <div
+            className="mono"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              color: '#94A3B8',
+              background: 'rgba(255, 255, 255, 0.03)',
+              padding: '6px 12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <span style={{ color: '#00E5A8', fontWeight: 700 }}>LIVE</span>
+            <span>{currentTime || '—:—:—'}</span>
           </div>
 
-          {/* Service Center Switcher Dropdown */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Building2 size={15} style={{ color: '#a8a29e', marginRight: '6px' }} />
-            <select
-              value={activeCenterId || ''}
-              onChange={(e) => setActiveCenterId(e.target.value)}
+          {/* User Profile Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '4px 8px 4px 4px',
+              borderRadius: '12px',
+              background: 'rgba(17, 27, 44, 0.6)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <div
               style={{
-                fontFamily: 'var(--font-main)',
+                width: '32px',
+                height: '32px',
+                borderRadius: '9px',
+                background: 'linear-gradient(135deg, rgba(0, 229, 168, 0.25) 0%, rgba(0, 210, 255, 0.15) 100%)',
+                border: '1px solid rgba(0, 229, 168, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#00E5A8',
+                fontWeight: 700,
                 fontSize: '13px',
-                fontWeight: 600,
-                color: '#44403c',
-                background: '#ffffff',
-                border: '1px solid #e7e5e4',
-                borderRadius: '10px',
-                padding: '6px 28px 6px 10px',
-                appearance: 'none',
-                cursor: 'pointer',
-                outline: 'none',
-                boxShadow: 'var(--shadow-sm)',
               }}
             >
-              {centers.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} style={{ position: 'absolute', right: '10px', pointerEvents: 'none', color: '#78716c' }} />
+              {user?.name ? user.name[0].toUpperCase() : <User size={15} />}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC', lineHeight: 1.2 }}>
+                {user?.name || '—'}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Shield size={10} color="#00E5A8" />
+                <span className="mono" style={{ fontSize: '9px', color: '#00E5A8', fontWeight: 700 }}>
+                  {user?.role || 'STAFF'}
+                </span>
+              </div>
+            </div>
           </div>
+
+          {/* Sign Out Button */}
+          <button
+            onClick={handleLogout}
+            className="btn-secondary"
+            style={{
+              padding: '8px 12px',
+              fontSize: '12px',
+              gap: '6px',
+            }}
+            title="Sign out of command console"
+          >
+            <LogOut size={14} color="#EF4444" />
+            <span style={{ color: '#F87171' }}>Sign out</span>
+          </button>
         </div>
-
-        {/* Tab Navigation matching reference */}
-        <nav style={{ display: 'flex', gap: '8px' }}>
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) => (isActive ? 'active' : '')}
-            style={({ isActive }) => ({
-              padding: '8px 18px',
-              borderRadius: '12px',
-              fontSize: '13px',
-              fontWeight: 600,
-              textDecoration: 'none',
-              transition: 'all 0.15s ease',
-              background: isActive ? '#f97316' : 'rgba(0,0,0,0.04)',
-              color: isActive ? '#ffffff' : '#78716c',
-              boxShadow: isActive ? '0 2px 8px rgba(249,115,22,0.25)' : 'none',
-            })}
-          >
-            Live
-          </NavLink>
-
-          <NavLink
-            to="/analytics"
-            style={({ isActive }) => ({
-              padding: '8px 18px',
-              borderRadius: '12px',
-              fontSize: '13px',
-              fontWeight: 600,
-              textDecoration: 'none',
-              transition: 'all 0.15s ease',
-              background: isActive ? '#f97316' : 'rgba(0,0,0,0.04)',
-              color: isActive ? '#ffffff' : '#78716c',
-              boxShadow: isActive ? '0 2px 8px rgba(249,115,22,0.25)' : 'none',
-            })}
-          >
-            Analytics
-          </NavLink>
-
-          <NavLink
-            to="/alerts"
-            style={({ isActive }) => ({
-              padding: '8px 18px',
-              borderRadius: '12px',
-              fontSize: '13px',
-              fontWeight: 600,
-              textDecoration: 'none',
-              transition: 'all 0.15s ease',
-              background: isActive ? '#f97316' : 'rgba(0,0,0,0.04)',
-              color: isActive ? '#ffffff' : '#78716c',
-              boxShadow: isActive ? '0 2px 8px rgba(249,115,22,0.25)' : 'none',
-            })}
-          >
-            Alerts
-          </NavLink>
-        </nav>
       </div>
     </header>
   );

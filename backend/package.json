@@ -33,7 +33,8 @@
     "test:document-gate": "node test/phase_tier4_document_gate.test.js",
     "test:fcm": "node test/phase_fcm_delivery.test.js",
     "test:workload-balancer": "node test/phase_tier4_workload_balancer.test.js",
-    "test:all": "node test/smoke.test.js && node test/phase_tier4_ghost_queue.test.js && node test/phase_tier4_service_graph.test.js && node test/phase_tier4_p2p_swap.test.js && node test/phase_tier4_document_gate.test.js && node test/phase_tier4_workload_balancer.test.js && node test/phase_fcm_delivery.test.js",
+    "test:live-metrics": "node test/live_metrics_realtime_regression.test.js",
+    "test:all": "node test/smoke.test.js && node test/live_metrics_realtime_regression.test.js && node test/phase_tier4_ghost_queue.test.js && node test/phase_tier4_service_graph.test.js && node test/phase_tier4_p2p_swap.test.js && node test/phase_tier4_document_gate.test.js && node test/phase_tier4_workload_balancer.test.js && node test/phase_fcm_delivery.test.js",
     "seed": "node scripts/seed.js",
     "seed:clear": "node scripts/seed.js --clear"
   },

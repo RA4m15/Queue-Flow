@@ -11,6 +11,7 @@ const ServiceCenter = require('../models/ServiceCenter');
 const recommendationService = require('../services/recommendationService');
 const queueService = require('../services/queueService');
 const waitTimeService = require('../services/waitTimeService');
+const queueMetricsService = require('../services/queueMetricsService');
 const { mlPredictorService } = require('../services/mlPredictorService');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendNotFound, sendBadRequest, sendForbidden } = require('../utils/apiResponse');
@@ -38,16 +39,31 @@ const getDashboard = asyncHandler(async (req, res) => {
   if (!center) return sendNotFound(res, 'Service center not found');
 
   // ── Stat pills ──────────────────────────────────────────────────────────────
+  // `totalWaiting` / `totalServed` / `totalIssued` are kept for backward
+  // compatibility with existing charts. They are day-partitioned Queue
+  // aggregates and are legitimately zero when no Queue document exists for
+  // today yet — so they must NOT drive the live stat pills.
   const totalWaiting = queues.reduce((s, q) => s + (q.waitingCount || 0), 0);
   const totalServed  = queues.reduce((s, q) => s + (q.completedCount || 0), 0);
   const totalIssued  = queues.reduce((s, q) => s + (q.totalIssued || 0), 0);
   const activeCounters  = counters.filter((c) => c.status === 'ACTIVE').length;
   const closedCounters  = counters.filter((c) => c.status === 'CLOSED').length;
 
-  // Average wait time across queues with real data
-  const queuesWithAvg = queues.filter((q) => q.avgServiceTimeSeconds);
-  const avgWaitSeconds = queuesWithAvg.length > 0
-    ? Math.round(queuesWithAvg.reduce((s, q) => s + q.avgServiceTimeSeconds, 0) / queuesWithAvg.length)
+  // Authoritative live metrics, shared with the Live Counter display endpoint
+  // and the `queue.updated` broadcast so every surface agrees by construction.
+  const metrics = await queueMetricsService.getLiveQueueMetrics(centerId);
+
+  // Average WAIT time actually observed, measured from real token timestamps
+  // (calledAt − createdAt) by queueMetricsService. This is deliberately NOT a
+  // service-time average, and it is `null` — never a placeholder — until at
+  // least one real customer has been called today.
+  const avgWaitSeconds = metrics.avgWaitSeconds;
+
+  // Mean observed service duration across today's queues, exposed under its
+  // correct name so the previous value is not simply lost.
+  const queuesWithServiceTime = queues.filter((q) => q.avgServiceTimeSeconds);
+  const avgServiceSeconds = queuesWithServiceTime.length > 0
+    ? Math.round(queuesWithServiceTime.reduce((s, q) => s + q.avgServiceTimeSeconds, 0) / queuesWithServiceTime.length)
     : null;
 
   // ── Footfall chart — hourly buckets for today ───────────────────────────────
@@ -127,7 +143,16 @@ const getDashboard = asyncHandler(async (req, res) => {
         currentCrowd: center.currentCrowd,
         crowdPercent: center.crowdPercent,
         crowdStatus: center.crowdStatus,
+        // ── Authoritative live stat-pill values (Token-derived, not day-partitioned) ──
+        waitingCount: metrics.waitingCount,
+        servingCount: metrics.servingCount,
+        completedToday: metrics.completedToday,
+        issuedToday: metrics.issuedToday,
+        waitSampleCount: metrics.waitSampleCount,
+        // Measured average WAIT time, or null when no customer has been called yet.
         avgWaitSeconds,
+        // Mean observed SERVICE duration, kept under its correct name.
+        avgServiceSeconds,
         ghostQueue,
       },
       queues: queues.map((q) => ({

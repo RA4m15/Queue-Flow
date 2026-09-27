@@ -2,6 +2,7 @@
 
 const queueService = require('../services/queueService');
 const waitTimeService = require('../services/waitTimeService');
+const queueMetricsService = require('../services/queueMetricsService');
 const Queue = require('../models/Queue');
 const { Token } = require('../models/Token');
 const { getTodayDateString } = require('../utils/tokenUtils');
@@ -166,6 +167,11 @@ const getCenterDisplay = asyncHandler(async (req, res) => {
     .select('tokenCode currentPosition waitEstimateMinutes serviceId createdAt')
     .lean();
 
+  // Authoritative live counts. Read from Token documents, not from the
+  // day-partitioned Queue aggregate, so the headline numbers on the board
+  // always match the tokens actually on the floor.
+  const metrics = await queueMetricsService.getLiveQueueMetrics(centerId);
+
   // Most recent callout for visual/audio prompt
   const latestCallout = nowServing.length > 0 ? nowServing[0] : null;
 
@@ -181,6 +187,11 @@ const getCenterDisplay = asyncHandler(async (req, res) => {
         crowdSensorOnline,
       },
       displayToken,
+      // Authoritative center-scoped live counts, derived from real Token
+      // documents. Consumers MUST use these for headline numbers instead of
+      // summing `queues[].waitingCount`, because `queues` is day-partitioned and
+      // is legitimately empty while real customers are still waiting.
+      metrics,
       nowServing,
       nextInQueue,
       counters: counters.map((c) => ({

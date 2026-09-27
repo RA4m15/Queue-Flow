@@ -796,12 +796,10 @@ async function acceptOffer({ offerId, acceptingTokenId, userId }) {
     yourTokenCode: swapResult.acceptingTokenCode,
   });
 
-  // Emit queue.updated to the center (no PII)
-  emitToCenter(swapResult.centerId.toString(), 'queue.updated', {
-    serviceId: swapResult.serviceId.toString(),
-    event: 'swap.completed',
-    offerId: offer._id.toString(),
-  });
+  // Emit the canonical queue.updated to the center (no PII). A swap reorders the
+  // real waiting line, so this must carry the same authoritative payload every
+  // other queue mutation emits.
+  await queueService.emitQueueUpdated(swapResult.centerId, swapResult.serviceId);
 
   // Notifications — reuse existing notificationService.sendTokenNotification
   try {

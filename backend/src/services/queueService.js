@@ -9,6 +9,7 @@ const Service = require('../models/Service');
 const QueueEvent = require('../models/QueueEvent');
 const { getTodayDateString, formatTokenCode, generateQRData } = require('../utils/tokenUtils');
 const waitTimeService = require('./waitTimeService');
+const queueMetricsService = require('./queueMetricsService');
 const notificationService = require('./notificationService');
 const documentGateService = require('./documentGateService');
 const workloadBalancerService = require('./workloadBalancerService');
@@ -56,6 +57,50 @@ async function getOrCreateQueue(centerId, serviceId) {
   }
 
   return queue;
+}
+
+/**
+ * Broadcast the ONE canonical `queue.updated` payload for a center.
+ *
+ * Every queue mutation funnels through here so subscribers (Admin Panel stat
+ * pills, Live Counter board, TV monitors) always receive the same shape with
+ * the same fields. Previously each mutation site emitted a different partial
+ * object — some without `centerId`, some without `totalIssued` — which made
+ * consumers silently drop updates or overwrite good values with `undefined`.
+ *
+ * The payload carries BOTH:
+ *   • per-service counters (`serviceId`, `waitingCount`, `activeCount`,
+ *     `totalIssued`) for queue tables, and
+ *   • center-scoped live metrics from queueMetricsService (the authoritative
+ *     Token-derived counts) for stat pills.
+ *
+ * @param {string|ObjectId} centerId
+ * @param {string|ObjectId|null} serviceId - service the mutation affected, if any
+ */
+async function _emitQueueUpdated(centerId, serviceId = null) {
+  try {
+    const date = getTodayDateString();
+    const [metrics, queue] = await Promise.all([
+      queueMetricsService.getLiveQueueMetrics(centerId),
+      serviceId
+        ? Queue.findOne({ centerId, serviceId, date }).select('waitingCount activeCount totalIssued').lean()
+        : Promise.resolve(null),
+    ]);
+
+    emitToCenter(centerId.toString(), 'queue.updated', {
+      centerId: centerId.toString(),
+      serviceId: serviceId ? serviceId.toString() : null,
+      waitingCount: queue ? queue.waitingCount || 0 : 0,
+      activeCount: queue ? queue.activeCount || 0 : 0,
+      totalIssued: queue ? queue.totalIssued || 0 : 0,
+      // Authoritative center-wide counts derived from real Token documents.
+      metrics,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    // A broadcast failure must never fail the underlying queue mutation.
+    console.error('[QueueService] Failed to broadcast queue.updated:', err.message);
+  }
 }
 
 /**
@@ -399,12 +444,7 @@ async function joinQueue({
     .populate('counterId', 'name number')
     .lean();
 
-  emitToCenter(centerId.toString(), 'queue.updated', {
-    centerId,
-    serviceId,
-    waitingCount: queue.waitingCount,
-    totalIssued: queue.totalIssued,
-  });
+  await _emitQueueUpdated(centerId, serviceId);
 
   emitToUser(userId.toString(), 'token.created', { token: populatedToken });
 
@@ -607,6 +647,10 @@ async function startServing({ tokenId, counterId, adminId }) {
   emitToCenter(token.centerId.toString(), 'token.serving', { token: _sanitizeTokenForCenter(populated) });
   emitToUser(token.userId.toString(), 'token.serving', { token: populated });
 
+  // Start-serving moves a token from CALLED into SERVING, which changes the
+  // authoritative servingCount. Broadcast so live surfaces stay in step.
+  await _emitQueueUpdated(token.centerId, token.serviceId);
+
   // Tier 4 Feature 5: Real-time operational workload broadcast
   workloadBalancerService.broadcastWorkloadUpdate(token.centerId);
 
@@ -718,6 +762,12 @@ async function completeToken({ tokenId, counterId, adminId }) {
       token: null,
     });
   }
+
+  // A completion changes the authoritative center metrics (activeCount drops,
+  // completedToday increments) but does not reorder the waiting line, so
+  // _updateWaitingPositions is not called here. Broadcast queue.updated so the
+  // Admin Panel and Live Counter counters advance without a refresh.
+  await _emitQueueUpdated(token.centerId, token.serviceId);
 
   await notificationService.sendTokenNotification(token, 'TOKEN_COMPLETED', {
     title: 'Service Completed',
@@ -1161,13 +1211,9 @@ async function _updateWaitingPositions(centerId, serviceId) {
     });
   }
 
-  // Emit queue.updated to center room for live display boards, monitors, and dashboards
-  emitToCenter(centerId.toString(), 'queue.updated', {
-    serviceId: serviceId.toString(),
-    waitingCount: waitingTokens.length,
-    activeCount: queue ? queue.activeCount : 0,
-    timestamp: new Date().toISOString(),
-  });
+  // Emit the canonical queue.updated to the center room for live display
+  // boards, monitors, and dashboards.
+  await _emitQueueUpdated(centerId, serviceId);
 }
 
 /**
@@ -1308,6 +1354,7 @@ module.exports = {
   cancelToken,
   expireToken,
   getQueueStatus,
+  emitQueueUpdated: _emitQueueUpdated,
   _updateWaitingPositions,
   _estimatePositionWait,
   checkNoShowWarnings,

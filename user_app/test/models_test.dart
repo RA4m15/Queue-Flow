@@ -99,6 +99,63 @@ void main() {
       expect(token.canCancel, false); // can only cancel when WAITING
     });
 
+    test('TokenModel Ghost Queue geofencing proximity properties', () {
+      final jsonInside = {
+        '_id': 'tokInside',
+        'tokenCode': 'A-010',
+        'tokenNumber': 10,
+        'userId': 'u123',
+        'status': 'WAITING',
+        'proximityState': 'INSIDE',
+        'proximityDistanceMeters': 120,
+      };
+
+      final tokenInside = TokenModel.fromJson(jsonInside);
+      expect(tokenInside.isInsideGeofence, true);
+      expect(tokenInside.isNearGeofence, false);
+      expect(tokenInside.isApproachingGeofence, false);
+      expect(tokenInside.isOutsideGeofence, false);
+      expect(tokenInside.proximityDisplayLabel, 'Inside Service Area');
+      expect(tokenInside.proximityDistanceMeters, 120);
+
+      final tokenApproaching = tokenInside.copyWith(
+        proximityState: 'APPROACHING',
+        proximityDistanceMeters: 1500,
+      );
+      expect(tokenApproaching.isApproachingGeofence, true);
+      expect(tokenApproaching.proximityDisplayLabel, 'Approaching');
+
+      final tokenOutside = tokenInside.copyWith(
+        proximityState: 'OUTSIDE',
+        proximityDistanceMeters: 10500,
+      );
+      expect(tokenOutside.isOutsideGeofence, true);
+      expect(tokenOutside.proximityDisplayLabel, 'Outside Service Area');
+    });
+
+    test('TokenModel Service Graph multi-hop journey linking properties', () {
+      final jsonHop = {
+        '_id': 'tokHop2',
+        'tokenCode': 'B-005',
+        'tokenNumber': 5,
+        'userId': 'u123',
+        'status': 'WAITING',
+        'journeyId': 'journey_alpha_1',
+        'previousTokenId': 'tokHop1',
+        'nextTokenId': null,
+      };
+
+      final tokenHop = TokenModel.fromJson(jsonHop);
+      expect(tokenHop.journeyId, 'journey_alpha_1');
+      expect(tokenHop.previousTokenId, 'tokHop1');
+      expect(tokenHop.nextTokenId, null);
+
+      final tokenNext = tokenHop.copyWith(
+        nextTokenId: 'tokHop3',
+      );
+      expect(tokenNext.nextTokenId, 'tokHop3');
+    });
+
     test('QueueStatus fromJson parses correctly', () {
       final json = {
         'service': {

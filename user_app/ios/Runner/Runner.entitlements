@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Universal Links for the canonical customer queue-join QR.
+
+	  The canonical QR encodes https://<host>/join?centerId=... . When the
+	  phone camera opens that URL, iOS checks the associated domains declared
+	  here and opens QueueFlow when the domain publishes a matching
+	  apple-app-site-association file. Without the app installed, or if the
+	  domain is not verified, iOS opens Safari on the same URL, which is the
+	  Customer Web /join page. That fallback is the whole point of using HTTPS.
+
+	  REQUIREMENTS — these cannot be satisfied from the repository alone and
+	  must be completed outside the codebase before automatic app opening works:
+	    1. This file must be referenced by the Runner target via
+	       CODE_SIGN_ENTITLEMENTS, and the provisioning profile must have the
+	       Associated Domains capability enabled.
+	    2. The domain must serve, at its root:
+	         /.well-known/apple-app-site-association
+	       (or /apple-app-site-association), as application/json, with no
+	       redirect, containing the app's Team ID and bundle ID:
+	         { "applinks": { "details": [
+	             { "appID": "<TEAMID>.<BUNDLEID>",
+	               "components": [ { "/": "/join", "*": "*" } ] } ] } }
+	    3. The domain must be served over HTTPS with a publicly trusted
+	       certificate. A raw IP or a self-signed certificate cannot verify.
+	    4. The domain owner must submit the domain to Apple's CDN; propagation
+	       can take up to ~24 hours.
+
+	  Until steps 1-4 are done, the linked QR opens Customer Web in Safari.
+	  That is correct, expected behaviour and not a defect.
+
+	  The host below must match the domain serving the file AND the value of
+	  VITE_CUSTOMER_WEB_URL used to generate the QR codes, otherwise the QR
+	  will not point at this associated domain.
+
+	  The default below is the reserved .invalid TLD (RFC 2606), which can never
+	  resolve. An unconfigured build therefore cannot be mistaken for a working
+	  Universal Link: iOS cannot verify a domain that does not exist, so the QR
+	  opens Customer Web in Safari. Replace it with the real host before
+	  shipping, together with VITE_CUSTOMER_WEB_URL and
+	  --dart-define=QUEUEFLOW_JOIN_HOSTS.
+	-->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:join.invalid</string>
+	</array>
+</dict>
+</plist>

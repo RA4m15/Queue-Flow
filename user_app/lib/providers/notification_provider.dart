@@ -5,6 +5,7 @@ import '../models/notification.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../services/storage_service.dart';
+import '../services/push_notification_service.dart';
 import 'app_providers.dart';
 
 class NotificationsState {
@@ -40,6 +41,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     required this.apiService,
     required this.socketService,
     this.storageService,
+    this.pushService,
   }) : super(const NotificationsState()) {
     _initSocket();
   }
@@ -47,6 +49,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   final ApiService apiService;
   final SocketService socketService;
   final StorageService? storageService;
+  final PushNotificationService? pushService;
 
   Future<String?> _getCurrentUserId() async {
     if (socketService.currentUserId != null && socketService.currentUserId!.isNotEmpty) {
@@ -78,6 +81,20 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
             newNotification.userId != myUserId) {
           return;
         }
+
+        // Deduplication guard: ignore if notification already in list or dedupeKey matches
+        final isDuplicate = state.notifications.any((n) =>
+            n.id == newNotification.id ||
+            (newNotification.dedupeKey != null &&
+                newNotification.dedupeKey!.isNotEmpty &&
+                n.dedupeKey == newNotification.dedupeKey));
+        if (isDuplicate) {
+          return;
+        }
+
+        // Pass to pushService for foreground presentation & anti-duplication tracking
+        pushService?.processIncomingNotification(newNotification);
+
         state = state.copyWith(
           notifications: [newNotification, ...state.notifications],
           unreadCount: state.unreadCount + 1,
@@ -131,10 +148,12 @@ final notificationsProvider = StateNotifierProvider<NotificationsNotifier, Notif
   final apiService = ref.watch(apiServiceProvider);
   final socketService = ref.watch(socketServiceProvider);
   final storageService = ref.watch(storageServiceProvider);
+  final pushService = ref.watch(pushNotificationServiceProvider.notifier);
 
   return NotificationsNotifier(
     apiService: apiService,
     socketService: socketService,
     storageService: storageService,
+    pushService: pushService,
   );
 });

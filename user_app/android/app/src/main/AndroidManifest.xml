@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Android 13+ (API 33) requires an explicit runtime grant before any
+         notification can be posted. firebase_messaging requests this at
+         runtime; declaring it here is what makes the request possible. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="QueueFlow"
@@ -25,9 +29,65 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- REQUIRED for the intent filters below to do anything.
+                 The Flutter Android embedding discards incoming VIEW intents
+                 unless deep-link handling is explicitly enabled, either here or
+                 via MainActivity.shouldHandleDeeplinking(). MainActivity also
+                 overrides it; both are set so the requirement is visible in the
+                 merged manifest and not only in Kotlin. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- Legacy custom-scheme join links (queueflow://join?centerId=...).
+                 Retained so QR codes printed before the HTTPS format existed
+                 keep opening the app. The canonical format below is preferred
+                 because it also works when the app is NOT installed. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="queueflow" android:host="join" />
+            </intent-filter>
+
+            <!-- Canonical Android App Link for the customer queue-join QR.
+
+                 queueflow://join is only understood by phones that already have
+                 QueueFlow installed, whereas https://<customer-web>/join works
+                 everywhere: with the app installed this intent filter claims the
+                 link (verified via assetlinks.json on the domain), and without
+                 the app Android falls back to the browser and lands on the very
+                 same Customer Web /join route.
+
+                 The host is injected from build.gradle.kts via
+                 `manifestPlaceholders.queueflowJoinHost`, so the domain is
+                 defined in exactly one place and cannot drift from the domain
+                 that serves /.well-known/assetlinks.json.
+
+                 android:autoVerify only succeeds once
+                 https://<host>/.well-known/assetlinks.json is served with
+                 Content-Type: application/json and lists this app's signing
+                 certificate SHA-256 fingerprints. Without that file Android
+                 treats this as an ordinary web link and the QR still opens the
+                 Customer Web page — it just will not launch the app. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Only the join route. Other Customer Web pages (and any
+                     unrelated link on the same domain) stay in the browser. -->
+                <data android:scheme="https"
+                      android:host="${queueflowJoinHost}"
+                      android:pathPrefix="/join" />
+                <!-- Allow a secondary host (e.g. an apex + www pair) to be
+                     added via queueflowJoinHostAlt without editing XML. -->
+                <data android:scheme="https"
+                      android:host="${queueflowJoinHostAlt}"
+                      android:pathPrefix="/join" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
@@ -35,6 +95,17 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- FCM notification delivery.
+             The channel id here must match FCM_ANDROID_CHANNEL_ID on the
+             backend and a channel created by the app, otherwise Android
+             silently drops the notification on API 26+. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/queueflow_alerts_channel_id" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

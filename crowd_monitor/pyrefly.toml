@@ -1,0 +1,5 @@
+preset = "basic"
+project-includes = [
+    "**/*.py*",
+]
+python-interpreter-path = "C:/Users/bunde/anaconda3/envs/queueflow-crowd/python.exe"

@@ -19,8 +19,64 @@ import '../../screens/history/history_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
 import '../../screens/scan/scan_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import '../../utils/join_link_service.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
+
+/// Transient screen for the inbound customer queue-join route.
+///
+/// It does no work itself, and that is the point. The link is already being
+/// handled by [JoinLinkService], which reads the platform route with its real
+/// host intact and parks the validated payload for `JoinLinkListener` to run
+/// through the one shared join flow.
+///
+/// This screen exists only so the router has somewhere to land: without a
+/// matching route, go_router would render "Page Not Found" while the join flow
+/// was still running behind it. It steps aside on its own if nothing takes over,
+/// so a link that cannot be resolved never leaves the customer staring at a
+/// spinner.
+class JoinLinkTransitScreen extends ConsumerStatefulWidget {
+  const JoinLinkTransitScreen({super.key});
+
+  /// How long to wait for the join flow to take over before giving up.
+  static const Duration fallbackDelay = Duration(seconds: 8);
+
+  @override
+  ConsumerState<JoinLinkTransitScreen> createState() =>
+      _JoinLinkTransitScreenState();
+}
+
+class _JoinLinkTransitScreenState extends ConsumerState<JoinLinkTransitScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // A join payload already parked means the flow is running; leave it be.
+      if (ref.read(pendingJoinLinkProvider) != null) return;
+      // Otherwise the link was not a join link this build can serve. Say
+      // nothing and get the customer back to a working app.
+      if (!mounted) return;
+      GoRouter.of(context).go('/home');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppColors.primary),
+              const SizedBox(height: 20),
+              Text(
+                'Opening your queue…',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+}
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -206,6 +262,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/scan',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ScanScreen(),
+      ),
+      // ─── CANONICAL CUSTOMER QUEUE-JOIN LINK ───────────────────────
+      //
+      // The single target of the QR printed on the Live Counter display and of
+      // every inbound App Link / Universal Link. The OS hands Flutter the
+      // absolute URL, so what matches here is its path. Parsing and validation
+      // happen in JoinLinkService against the engine's own copy of the route,
+      // which still has the host; this route only stops go_router from showing
+      // a 404 while that happens.
+      GoRoute(
+        path: joinLinkLocation(),
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const JoinLinkTransitScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

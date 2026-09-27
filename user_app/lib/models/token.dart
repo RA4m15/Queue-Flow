@@ -48,6 +48,13 @@ class TokenModel {
     this.createdAt,
     this.actualServiceSeconds,
     this.feedback,
+    this.proximityState,
+    this.proximityUpdatedAt,
+    this.proximityDistanceMeters,
+    this.journeyId,
+    this.previousTokenId,
+    this.nextTokenId,
+    this.servingToken,
   });
 
   final String id;
@@ -72,6 +79,17 @@ class TokenModel {
   final DateTime? createdAt;
   final int? actualServiceSeconds;
   final TokenFeedback? feedback;
+  final String? proximityState;
+  final DateTime? proximityUpdatedAt;
+  final int? proximityDistanceMeters;
+  final String? journeyId;
+  final String? previousTokenId;
+  final String? nextTokenId;
+  final String? servingToken;
+
+  int get peopleAhead => (isCalled || isServing)
+      ? 0
+      : ((currentPosition != null && currentPosition! > 1) ? currentPosition! - 1 : 0);
 
   bool get isActive => ['WAITING', 'CALLED', 'SERVING'].contains(status.toUpperCase());
   bool get isWaiting => status.toUpperCase() == 'WAITING';
@@ -80,6 +98,30 @@ class TokenModel {
   bool get isCompleted => status.toUpperCase() == 'COMPLETED';
   bool get canCancel => status.toUpperCase() == 'WAITING';
   bool get hasFeedback => feedback?.rating != null;
+
+  bool get isInsideGeofence => proximityState?.toUpperCase() == 'INSIDE';
+  bool get isNearGeofence => proximityState?.toUpperCase() == 'NEAR';
+  bool get isApproachingGeofence => proximityState?.toUpperCase() == 'APPROACHING';
+  bool get isOutsideGeofence => proximityState?.toUpperCase() == 'OUTSIDE';
+
+  String get proximityDisplayLabel {
+    switch (proximityState?.toUpperCase()) {
+      case 'INSIDE':
+        return 'Inside Service Area';
+      case 'NEAR':
+        return 'Near Center';
+      case 'APPROACHING':
+        return 'Approaching';
+      case 'OUTSIDE':
+        return 'Outside Service Area';
+      case 'LOCATION_UNAVAILABLE':
+        return 'Location Not Configured';
+      case 'STALE':
+        return 'Location Stale';
+      default:
+        return 'Location Permission Required';
+    }
+  }
 
   factory TokenModel.fromJson(Map<String, dynamic> json) {
     // Service name extraction
@@ -140,8 +182,43 @@ class TokenModel {
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
       actualServiceSeconds: (json['actualServiceSeconds'] as num?)?.toInt(),
       feedback: json['feedback'] is Map ? TokenFeedback.fromJson(Map<String, dynamic>.from(json['feedback'])) : null,
+      proximityState: json['proximityState']?.toString(),
+      proximityUpdatedAt: json['proximityUpdatedAt'] != null ? DateTime.tryParse(json['proximityUpdatedAt'].toString()) : null,
+      proximityDistanceMeters: (json['proximityDistanceMeters'] as num?)?.toInt(),
+      journeyId: (json['journeyId'] is Map ? json['journeyId']['_id'] : json['journeyId'])?.toString(),
+      previousTokenId: (json['previousTokenId'] is Map ? json['previousTokenId']['_id'] : json['previousTokenId'])?.toString(),
+      nextTokenId: (json['nextTokenId'] is Map ? json['nextTokenId']['_id'] : json['nextTokenId'])?.toString(),
+      servingToken: json['servingToken']?.toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        '_id': id,
+        'tokenCode': tokenCode,
+        'tokenNumber': tokenNumber,
+        'userId': userId,
+        'centerId': {'_id': centerId, 'name': centerName},
+        'serviceId': {'_id': serviceId, 'name': serviceName},
+        'status': status,
+        if (counterId != null) 'counterId': {'_id': counterId, 'name': counterName, 'number': counterNumber},
+        'initialPosition': initialPosition,
+        'currentPosition': currentPosition,
+        'waitEstimateMinutes': waitEstimateMinutes,
+        'qrData': qrData,
+        'calledAt': calledAt?.toIso8601String(),
+        'servingAt': servingAt?.toIso8601String(),
+        'completedAt': completedAt?.toIso8601String(),
+        'createdAt': createdAt?.toIso8601String(),
+        'actualServiceSeconds': actualServiceSeconds,
+        if (feedback != null) 'feedback': feedback!.toJson(),
+        'proximityState': proximityState,
+        'proximityUpdatedAt': proximityUpdatedAt?.toIso8601String(),
+        'proximityDistanceMeters': proximityDistanceMeters,
+        'journeyId': journeyId,
+        'previousTokenId': previousTokenId,
+        'nextTokenId': nextTokenId,
+        if (servingToken != null) 'servingToken': servingToken,
+      };
 
   TokenModel copyWith({
     String? id,
@@ -166,6 +243,13 @@ class TokenModel {
     DateTime? createdAt,
     int? actualServiceSeconds,
     TokenFeedback? feedback,
+    String? proximityState,
+    DateTime? proximityUpdatedAt,
+    int? proximityDistanceMeters,
+    String? journeyId,
+    String? previousTokenId,
+    String? nextTokenId,
+    String? servingToken,
   }) {
     return TokenModel(
       id: id ?? this.id,
@@ -190,6 +274,13 @@ class TokenModel {
       createdAt: createdAt ?? this.createdAt,
       actualServiceSeconds: actualServiceSeconds ?? this.actualServiceSeconds,
       feedback: feedback ?? this.feedback,
+      proximityState: proximityState ?? this.proximityState,
+      proximityUpdatedAt: proximityUpdatedAt ?? this.proximityUpdatedAt,
+      proximityDistanceMeters: proximityDistanceMeters ?? this.proximityDistanceMeters,
+      journeyId: journeyId ?? this.journeyId,
+      previousTokenId: previousTokenId ?? this.previousTokenId,
+      nextTokenId: nextTokenId ?? this.nextTokenId,
+      servingToken: servingToken ?? this.servingToken,
     );
   }
 }

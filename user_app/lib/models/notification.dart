@@ -10,6 +10,7 @@ class NotificationModel {
     this.tokenId,
     this.readAt,
     this.createdAt,
+    this.dedupeKey,
   });
 
   final String id;
@@ -22,6 +23,7 @@ class NotificationModel {
   final String? tokenId;
   final DateTime? readAt;
   final DateTime? createdAt;
+  final String? dedupeKey;
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
@@ -35,6 +37,7 @@ class NotificationModel {
       tokenId: json['tokenId'] is Map ? json['tokenId']['_id'] : json['tokenId']?.toString(),
       readAt: json['readAt'] != null ? DateTime.tryParse(json['readAt'].toString()) : null,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      dedupeKey: json['dedupeKey']?.toString(),
     );
   }
 
@@ -49,6 +52,7 @@ class NotificationModel {
     String? tokenId,
     DateTime? readAt,
     DateTime? createdAt,
+    String? dedupeKey,
   }) {
     return NotificationModel(
       id: id ?? this.id,
@@ -61,6 +65,7 @@ class NotificationModel {
       tokenId: tokenId ?? this.tokenId,
       readAt: readAt ?? this.readAt,
       createdAt: createdAt ?? this.createdAt,
+      dedupeKey: dedupeKey ?? this.dedupeKey,
     );
   }
 }

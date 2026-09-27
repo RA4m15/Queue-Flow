@@ -1,5 +1,19 @@
-export function ConnectionIndicator({ status = 'connected', isOnline = true }) {
-  if (!isOnline) {
+export function ConnectionIndicator({ 
+  status = 'connected', 
+  isOnline = true, 
+  connectionState = null, 
+  isCached = false,
+  cachedAt = null 
+}) {
+  // Determine effective state
+  const effectiveState = connectionState || (
+    !isOnline ? 'OFFLINE' :
+    status === 'reconnecting' ? 'RECONNECTING' :
+    isCached ? 'STALE' : 'LIVE'
+  );
+
+  if (!isOnline || effectiveState === 'OFFLINE_NO_CACHE' || effectiveState === 'OFFLINE_LAST_KNOWN' || effectiveState === 'OFFLINE') {
+    const title = cachedAt ? `Offline. Showing state from ${new Date(cachedAt).toLocaleTimeString()}` : 'Offline. No connection.';
     return (
       <div 
         style={{
@@ -15,6 +29,7 @@ export function ConnectionIndicator({ status = 'connected', isOnline = true }) {
         }}
         role="status"
         aria-live="polite"
+        title={title}
       >
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444' }} />
         Offline
@@ -22,7 +37,7 @@ export function ConnectionIndicator({ status = 'connected', isOnline = true }) {
     );
   }
 
-  if (status === 'reconnecting') {
+  if (effectiveState === 'ONLINE_RECONNECTING' || effectiveState === 'RECONNECTING' || status === 'reconnecting') {
     return (
       <div 
         style={{
@@ -41,6 +56,29 @@ export function ConnectionIndicator({ status = 'connected', isOnline = true }) {
       >
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F59E0B' }} />
         Reconnecting...
+      </div>
+    );
+  }
+
+  if (effectiveState === 'ONLINE_STALE' || effectiveState === 'STALE') {
+    return (
+      <div 
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.4rem',
+          fontSize: '0.75rem',
+          color: '#38BDF8',
+          background: 'rgba(56, 189, 248, 0.1)',
+          padding: '0.2rem 0.6rem',
+          borderRadius: '9999px',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+        }}
+        role="status"
+        aria-live="polite"
+      >
+        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38BDF8' }} />
+        Refreshing live status...
       </div>
     );
   }
@@ -66,3 +104,4 @@ export function ConnectionIndicator({ status = 'connected', isOnline = true }) {
     </div>
   );
 }
+

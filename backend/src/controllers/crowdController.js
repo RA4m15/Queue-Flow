@@ -12,10 +12,17 @@ const { emitToCenter } = require('../config/socket');
  */
 const getCrowd = asyncHandler(async (req, res) => {
   const center = await ServiceCenter.findById(req.params.centerId)
-    .select('name currentCrowd capacity capacityAlertThreshold')
+    .select('name currentCrowd crowdUpdatedAt capacity capacityAlertThreshold')
     .lean({ virtuals: true });
 
   if (!center) return sendNotFound(res, 'Service center not found');
+
+  // A reading is only trustworthy while the sensor is still reporting.
+  const SENSOR_STALE_MS = 90000;
+  const crowdUpdatedAt = center.crowdUpdatedAt || null;
+  const crowdSensorOnline = Boolean(
+    crowdUpdatedAt && (Date.now() - new Date(crowdUpdatedAt).getTime()) < SENSOR_STALE_MS
+  );
 
   return sendSuccess(res, {
     data: {
@@ -26,6 +33,8 @@ const getCrowd = asyncHandler(async (req, res) => {
       crowdPercent: center.crowdPercent,
       crowdStatus: center.crowdStatus,
       capacityAlertThreshold: center.capacityAlertThreshold,
+      crowdUpdatedAt,
+      crowdSensorOnline,
     },
   });
 });

@@ -12,9 +12,27 @@ class SocketService {
   // Managed listener registry to prevent listener leaks and guarantee
   // automatic re-binding when socket reconnects or is re-created
   final Map<String, Set<dynamic Function(dynamic)>> _listeners = {};
+  final Set<VoidCallback> _onConnectCallbacks = {};
+  final Set<VoidCallback> _onDisconnectCallbacks = {};
 
   bool get isConnected => _isConnected;
   String? get currentUserId => _currentUserId;
+
+  void addConnectListener(VoidCallback callback) {
+    _onConnectCallbacks.add(callback);
+  }
+
+  void removeConnectListener(VoidCallback callback) {
+    _onConnectCallbacks.remove(callback);
+  }
+
+  void addDisconnectListener(VoidCallback callback) {
+    _onDisconnectCallbacks.add(callback);
+  }
+
+  void removeDisconnectListener(VoidCallback callback) {
+    _onDisconnectCallbacks.remove(callback);
+  }
 
   void connect({required String userId, String? centerId, String? token}) {
     final sanitizedUserId = userId.trim();
@@ -78,6 +96,10 @@ class SocketService {
         if (_currentCenterId != null) {
           joinCenter(_currentCenterId!);
         }
+
+        for (final cb in _onConnectCallbacks.toList()) {
+          cb();
+        }
       });
 
       _socket!.onDisconnect((_) {
@@ -85,12 +107,18 @@ class SocketService {
         if (kDebugMode) {
           debugPrint('[SocketService] Disconnected from gateway');
         }
+        for (final cb in _onDisconnectCallbacks.toList()) {
+          cb();
+        }
       });
 
       _socket!.onConnectError((_) {
         _isConnected = false;
         if (kDebugMode) {
           debugPrint('[SocketService] Connection error to gateway');
+        }
+        for (final cb in _onDisconnectCallbacks.toList()) {
+          cb();
         }
       });
 
@@ -174,6 +202,22 @@ class SocketService {
       for (final handler in handlers.toList()) {
         handler(data);
       }
+    }
+  }
+
+  @visibleForTesting
+  void handleConnectForTesting() {
+    _isConnected = true;
+    for (final cb in _onConnectCallbacks.toList()) {
+      cb();
+    }
+  }
+
+  @visibleForTesting
+  void handleDisconnectForTesting() {
+    _isConnected = false;
+    for (final cb in _onDisconnectCallbacks.toList()) {
+      cb();
     }
   }
 

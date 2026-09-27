@@ -17,7 +17,8 @@ class ServiceCenterAddress {
       street: json['street']?.toString(),
       city: json['city']?.toString(),
       state: json['state']?.toString(),
-      zip: json['zip']?.toString(),
+      // The backend address schema names this field `pincode`.
+      zip: (json['pincode'] ?? json['zip'])?.toString(),
     );
   }
 
@@ -40,8 +41,8 @@ class ServiceCenter {
     this.phone,
     this.email,
     this.activeCounters = 0,
-    this.crowdModerateThreshold = 50,
-    this.crowdHighThreshold = 80,
+    this.capacityAlertThreshold = 80,
+    this.backendCrowdStatus,
   });
 
   final String id;
@@ -55,28 +56,43 @@ class ServiceCenter {
   final String? phone;
   final String? email;
   final int activeCounters;
-  final int crowdModerateThreshold;
-  final int crowdHighThreshold;
 
-  // Crowd status computation (no fake capacity)
+  /// Admin-configured "crowd is too high" percentage from the backend.
+  final int capacityAlertThreshold;
+
+  /// The backend's own `crowdStatus` virtual, when the payload includes it.
+  final String? backendCrowdStatus;
+
+  /// Mirrors the backend `crowdStatus` virtual, which is only attached to
+  /// payloads read with `lean({ virtuals: true })`. `GET /service-centers`
+  /// is a plain `.lean()` and therefore omits it, so the same rule is applied
+  /// locally against the real `currentCrowd` / `capacity` / alert threshold.
   String get crowdStatus {
+    final reported = backendCrowdStatus;
+    if (reported != null && reported.isNotEmpty) return reported;
     if (capacity <= 0) return 'UNKNOWN';
     final pct = (currentCrowd / capacity) * 100;
-    if (pct >= crowdHighThreshold) return 'HIGH';
-    if (pct >= crowdModerateThreshold) return 'MODERATE';
+    if (pct >= capacityAlertThreshold) return 'HIGH';
+    if (pct >= _moderateThresholdPercent) return 'MODERATE';
     return 'LOW';
   }
 
+  /// The backend virtual hard-codes the MODERATE cut-off at 50 %.
+  static const int _moderateThresholdPercent = 50;
+
+  /// The backend `type` enum is BANK | HOSPITAL | GOVT | RAILWAY | SUPPORT | OTHER.
   String get typeDisplayName {
     switch (type.toUpperCase()) {
       case 'HOSPITAL':
         return 'Hospital & Health';
       case 'BANK':
         return 'Banking & Finance';
-      case 'GOVT_OFFICE':
+      case 'GOVT':
         return 'Government Office';
-      case 'TELECOM':
-        return 'Telecom & Network';
+      case 'RAILWAY':
+        return 'Railway & Transport';
+      case 'SUPPORT':
+        return 'Customer Support';
       default:
         return type;
     }
@@ -88,17 +104,19 @@ class ServiceCenter {
         return '🏥';
       case 'BANK':
         return '🏦';
-      case 'GOVT_OFFICE':
+      case 'GOVT':
         return '🏛️';
-      case 'TELECOM':
-        return '📡';
+      case 'RAILWAY':
+        return '🚆';
+      case 'SUPPORT':
+        return '🎧';
       default:
         return '🏢';
     }
   }
 
   factory ServiceCenter.fromJson(Map<String, dynamic> json) {
-    final thresholds = json['crowdThresholds'] as Map<String, dynamic>?;
+    final reportedCrowdStatus = json['crowdStatus']?.toString();
     return ServiceCenter(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
@@ -111,8 +129,9 @@ class ServiceCenter {
       phone: json['phone']?.toString(),
       email: json['email']?.toString(),
       activeCounters: (json['activeCounters'] as num?)?.toInt() ?? 0,
-      crowdModerateThreshold: (thresholds?['moderate'] as num?)?.toInt() ?? 50,
-      crowdHighThreshold: (thresholds?['high'] as num?)?.toInt() ?? 80,
+      capacityAlertThreshold: (json['capacityAlertThreshold'] as num?)?.toInt() ?? 80,
+      backendCrowdStatus:
+          (reportedCrowdStatus == null || reportedCrowdStatus.isEmpty) ? null : reportedCrowdStatus,
     );
   }
 }

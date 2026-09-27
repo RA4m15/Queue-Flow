@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/token.dart';
+import '../../providers/service_graph_provider.dart';
+import '../../providers/swap_provider.dart';
 import '../../providers/token_provider.dart';
 import '../../widgets/token_status_badge.dart';
 import '../../widgets/queue_progress_bar.dart';
@@ -19,6 +22,7 @@ class LiveTokenScreen extends ConsumerStatefulWidget {
 
 class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
   bool _hasShownCompletedPrompt = false;
+  String? _lastTrackedTokenId;
 
   @override
   void initState() {
@@ -32,6 +36,17 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
   bool _isSubmittingFeedback = false;
 
   void _showCancelDialog(TokenModel token) {
+    final tokenState = ref.read(tokenProvider);
+    if (tokenState.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This action requires an internet connection.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -97,6 +112,17 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
   }
 
   void _showFeedbackDialog(TokenModel token) {
+    final tokenState = ref.read(tokenProvider);
+    if (tokenState.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This action requires an internet connection.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
     int rating = 5;
     final commentController = TextEditingController();
 
@@ -197,10 +223,112 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
     );
   }
 
+  Widget _buildConnectionBanner(TokenState tokenState) {
+    if (tokenState.isOffline || tokenState.isCached) {
+      final timeStr = tokenState.cachedAt != null
+          ? DateFormat('HH:mm').format(tokenState.cachedAt!)
+          : 'earlier';
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_rounded, color: AppColors.warning, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'OFFLINE / LAST KNOWN: Showing confirmed status from $timeStr. Updates paused until reconnected.',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (tokenState.isReconnecting) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.warning),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Reconnecting to queue server... Preserving last known state.',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (tokenState.isLive) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.success.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.fiber_manual_record, color: AppColors.success, size: 10),
+            SizedBox(width: 6),
+            Text(
+              'LIVE UPDATES ACTIVE',
+              style: TextStyle(
+                color: AppColors.success,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokenState = ref.watch(tokenProvider);
     final token = tokenState.activeToken;
+
+    // Track the authoritative Service Graph and swap state for the active token.
+    if (token != null && _lastTrackedTokenId != token.id) {
+      _lastTrackedTokenId = token.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(serviceGraphProvider.notifier).track(token);
+        if (token.isActive) {
+          ref.read(swapProvider.notifier).load(token.id);
+        }
+      });
+    }
 
     // Check if token just completed
     if (token != null && token.isCompleted && !_hasShownCompletedPrompt && !token.hasFeedback) {
@@ -224,7 +352,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
       ),
       body: tokenState.isLoading && token == null
           ? const LoadingState(message: 'Checking for active token...')
-          : token == null || !token.isActive && !token.isCompleted
+          : token == null || (!token.isActive && !token.isCompleted)
               ? EmptyState(
                   title: 'No Active Token',
                   message: 'You do not have any active tokens in queue. Browse centers to join a line.',
@@ -239,6 +367,42 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     children: [
+                      // ─── CONNECTION / OFFLINE INDICATOR BANNER ──────────
+                      _buildConnectionBanner(tokenState),
+
+                      // ─── TURN ALERT BANNER ──────────────────────────────
+                      if (tokenState.turnAlert != null) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.secondary, width: 2),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.campaign_rounded, color: AppColors.secondary, size: 28),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  tokenState.turnAlert!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 20, color: Colors.white70),
+                                onPressed: () => ref.read(tokenProvider.notifier).dismissTurnAlert(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       // ─── CALLED / SERVING BANNER ALERT ─────────────────
                       if (token.isCalled)
                         Container(
@@ -398,7 +562,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                             TokenStatusBadge(status: token.status, fontSize: 13),
                             const SizedBox(height: 24),
 
-                            // Stats 3-Column Grid
+                            // Stats 4-Column Grid: Position, Ahead, Serving, Est. Wait
                             Row(
                               children: [
                                 Expanded(
@@ -416,10 +580,16 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                                     label: 'Ahead',
                                     value: token.isCalled || token.isServing
                                         ? '0'
-                                        : (token.currentPosition != null
-                                            ? '${token.currentPosition! > 1 ? token.currentPosition! - 1 : 0}'
-                                            : '--'),
+                                        : '${token.peopleAhead}',
                                     color: AppColors.secondary,
+                                  ),
+                                ),
+                                Container(width: 1, height: 40, color: AppColors.border),
+                                Expanded(
+                                  child: _buildTokenStat(
+                                    label: 'Serving',
+                                    value: token.servingToken ?? '--',
+                                    color: const Color(0xFF00D2FF),
                                   ),
                                 ),
                                 Container(width: 1, height: 40, color: AppColors.border),
@@ -464,6 +634,14 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                               currentPosition: token.currentPosition,
                               status: token.status,
                             ),
+
+                            const SizedBox(height: 18),
+                            // Ghost Queue: backend-authoritative proximity
+                            _buildGhostQueueProximity(token, tokenState),
+
+                            // Service Graph: the next hop is whatever the
+                            // backend reports, never inferred in Dart.
+                            _buildServiceGraphHop(token),
                           ],
                         ),
                       ),
@@ -487,11 +665,14 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: () => _showCancelDialog(token),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.danger,
-                                  side: const BorderSide(color: AppColors.danger, width: 1.5),
+                                  foregroundColor: tokenState.isOffline ? AppColors.textMuted : AppColors.danger,
+                                  side: BorderSide(
+                                    color: tokenState.isOffline ? AppColors.border : AppColors.danger,
+                                    width: 1.5,
+                                  ),
                                 ),
                                 icon: const Icon(Icons.close_rounded, size: 20),
-                                label: const Text('Cancel Token'),
+                                label: Text(tokenState.isOffline ? 'Cancel (Offline)' : 'Cancel Token'),
                               ),
                             ),
                           ],
@@ -523,7 +704,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
           label,
           style: const TextStyle(
             color: AppColors.textMuted,
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -531,11 +712,256 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
         Text(
           value,
           style: AppTheme.monoStyle(
-            fontSize: 18,
+            fontSize: 15,
             color: color,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
+  }
+
+  Widget _buildGhostQueueProximity(TokenModel token, TokenState tokenState) {
+    if (!token.isActive) return const SizedBox.shrink();
+
+    // Step 18: Offline location information must be clearly marked stale.
+    // Do not infer INSIDE, NEAR, APPROACHING, OUTSIDE from old cached data.
+    final isOffline = tokenState.isOffline || tokenState.isCached;
+
+    final label = isOffline ? 'LOCATION STALE' : token.proximityDisplayLabel.toUpperCase();
+    Color badgeColor = isOffline ? AppColors.warning : AppColors.textMuted;
+    Color badgeBg = isOffline ? AppColors.warning.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
+    IconData iconData = isOffline ? Icons.location_off_outlined : Icons.location_on_outlined;
+
+    if (!isOffline) {
+      if (token.isInsideGeofence) {
+        badgeColor = AppColors.primary;
+        badgeBg = AppColors.primary.withValues(alpha: 0.15);
+        iconData = Icons.check_circle_outline;
+      } else if (token.isNearGeofence) {
+        badgeColor = const Color(0xFF00D2FF);
+        badgeBg = const Color(0xFF00D2FF).withValues(alpha: 0.15);
+        iconData = Icons.directions_walk;
+      } else if (token.isApproachingGeofence) {
+        badgeColor = AppColors.warning;
+        badgeBg = AppColors.warning.withValues(alpha: 0.15);
+        iconData = Icons.directions_car;
+      } else if (token.isOutsideGeofence) {
+        badgeColor = AppColors.textSecondary;
+        badgeBg = Colors.white.withValues(alpha: 0.08);
+        iconData = Icons.public;
+      }
+    }
+
+    String? distanceStr;
+    if (isOffline) {
+      distanceStr = 'Location status unconfirmed while offline. Showing last recorded state.';
+    } else if (token.proximityDistanceMeters != null) {
+      final meters = token.proximityDistanceMeters!;
+      if (meters <= 500) {
+        distanceStr = 'Within 500m of center';
+      } else if (meters < 1000) {
+        distanceStr = '~$meters m from center';
+      } else {
+        distanceStr = '~${(meters / 1000).toStringAsFixed(1)} km from center';
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(iconData, size: 16, color: badgeColor),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Ghost Queue',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: badgeColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (distanceStr != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              distanceStr,
+              style: TextStyle(
+                color: isOffline ? AppColors.warning : AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Renders the Service Graph hop exactly as the backend reported it.
+  ///
+  /// Renders nothing when the backend has not opened a next hop, so no graph
+  /// transition is ever invented on the client.
+  Widget _buildServiceGraphHop(TokenModel token) {
+    final graph = ref.watch(serviceGraphProvider);
+    final nextHop = graph.nextHop;
+
+    // Nothing authoritative to show yet, and no hop open.
+    if (nextHop == null || (!nextHop.hasNextService && !nextHop.isJourney)) {
+      return const SizedBox.shrink();
+    }
+
+    final stale = graph.isStale;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: stale ? AppColors.warning.withValues(alpha: 0.5) : AppColors.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                stale ? Icons.sync_problem_rounded : Icons.alt_route_rounded,
+                color: stale ? AppColors.warning : AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  nextHop.isJourney
+                      ? 'Service Journey — Step ${nextHop.journeyHop} of ${nextHop.journeyTotal}'
+                      : 'Service Journey',
+                  style: TextStyle(
+                    color: stale ? AppColors.warning : AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (nextHop.alreadyTransitioned)
+                const Text(
+                  'NEXT STEP CONFIRMED',
+                  style: TextStyle(
+                    color: AppColors.success,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (stale)
+            const Text(
+              'Next service data could not be refreshed. Showing the last confirmed state from the service center.',
+              style: TextStyle(color: AppColors.warning, fontSize: 11),
+            )
+          else if (nextHop.alreadyTransitioned)
+            const Text(
+              'The service center has already issued your next token for this journey.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            )
+          else if (nextHop.hasNextService) ...[
+            Text(
+              nextHop.message ?? 'Choose the next service for this visit:',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            ),
+            const SizedBox(height: 8),
+            for (final candidate in nextHop.nextServices)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.subdirectory_arrow_right_rounded, size: 14, color: AppColors.textMuted),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        candidate.name,
+                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                      ),
+                    ),
+                    if (graph.canTransition)
+                      TextButton(
+                        onPressed: () => _confirmNextHop(token, candidate.serviceId, candidate.name),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: const Text('Proceed', style: TextStyle(fontSize: 11)),
+                      ),
+                  ],
+                ),
+              ),
+          ] else
+            Text(
+              nextHop.message ?? 'No further service is required for this visit.',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmNextHop(
+    TokenModel token,
+    String nextServiceId,
+    String nextServiceName,
+  ) async {
+    final notifier = ref.read(serviceGraphProvider.notifier);
+    try {
+      // The backend creates the next token; the client never renames the
+      // current one locally.
+      await notifier.confirmNextHop(tokenId: token.id, nextServiceId: nextServiceId);
+      await ref.read(tokenProvider.notifier).fetchActiveToken(silent: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$nextServiceName requested. Confirming your new token…')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ApiException.getUserMessage(e)),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 }

@@ -3,6 +3,7 @@
 const { body } = require('express-validator');
 const { Token } = require('../models/Token');
 const queueService = require('../services/queueService');
+const geofenceService = require('../services/geofenceService');
 const { generateQRCodeImage } = require('../utils/tokenUtils');
 const { verifyQRPayload, QR_TTL_SECONDS } = require('../utils/qrSecurity');
 const asyncHandler = require('../utils/asyncHandler');
@@ -44,6 +45,27 @@ const verifyQRValidation = [
     .withMessage('qrPayload is required and must be a string'),
 ];
 
+const locationValidation = [
+  body('latitude')
+    .exists().withMessage('Latitude is required')
+    .custom((val) => typeof val === 'number' && !Number.isNaN(val) && Number.isFinite(val) && val >= -90 && val <= 90)
+    .withMessage('Latitude must be a valid number between -90 and 90'),
+  body('longitude')
+    .exists().withMessage('Longitude is required')
+    .custom((val) => typeof val === 'number' && !Number.isNaN(val) && Number.isFinite(val) && val >= -180 && val <= 180)
+    .withMessage('Longitude must be a valid number between -180 and 180'),
+  body('accuracy')
+    .optional({ nullable: true })
+    .custom((val) => typeof val === 'number' && !Number.isNaN(val) && Number.isFinite(val) && val >= 0)
+    .withMessage('Accuracy must be a non-negative number'),
+  body('timestamp')
+    .optional({ nullable: true }),
+  body('centerId')
+    .optional({ nullable: true })
+    .isMongoId()
+    .withMessage('Invalid centerId format'),
+];
+
 // ─── Controllers ──────────────────────────────────────────────────────────────
 
 /**
@@ -75,6 +97,14 @@ const create = asyncHandler(async (req, res) => {
       },
     });
   } catch (err) {
+    if (err.code === 'DOCUMENT_GATE_BLOCKED' || (err.status === 403 && err.gateData)) {
+      return res.status(403).json({
+        success: false,
+        code: 'DOCUMENT_GATE_BLOCKED',
+        message: err.message || 'Service requires document verification before queueing',
+        data: err.gateData,
+      });
+    }
     if (err.status === 409 || err.code === 11000) {
       return sendConflict(res, err.message || 'You already have an active token for this service at this center');
     }
@@ -416,6 +446,48 @@ const submitFeedback = asyncHandler(async (req, res) => {
   return sendSuccess(res, { message: 'Feedback submitted', data: { feedback: token.feedback } });
 });
 
+/**
+ * POST /api/tokens/:id/location
+ * Tier 4 Feature 1: Customer submits real GPS location to update Ghost Queue proximity state.
+ * Server-authoritative: validates coordinates, calculates distance, evaluates state,
+ * triggers notifications on transitions, and avoids storing raw coordinates.
+ */
+const updateLocation = asyncHandler(async (req, res) => {
+  const { latitude, longitude, accuracy, timestamp, centerId } = req.body;
+
+  const result = await geofenceService.updateCustomerLocation({
+    tokenId: req.params.id,
+    userId: req.user._id,
+    userRole: req.user.role,
+    latitude,
+    longitude,
+    accuracy,
+    timestamp,
+    clientCenterId: centerId,
+  });
+
+  return sendSuccess(res, {
+    message: result.message || 'Location proximity evaluated',
+    data: result,
+  });
+});
+
+/**
+ * GET /api/tokens/:id/proximity
+ * Tier 4 Feature 1: Get current proximity state for token (safe read, includes staleness check).
+ */
+const getProximity = asyncHandler(async (req, res) => {
+  const result = await geofenceService.getTokenProximity(
+    req.params.id,
+    req.user._id,
+    req.user.role
+  );
+
+  return sendSuccess(res, {
+    data: result,
+  });
+});
+
 module.exports = {
   create,
   getMyTokens,
@@ -425,7 +497,10 @@ module.exports = {
   verifyQR,
   cancel,
   submitFeedback,
+  updateLocation,
+  getProximity,
   joinValidation,
   feedbackValidation,
   verifyQRValidation,
+  locationValidation,
 };

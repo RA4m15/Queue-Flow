@@ -41,11 +41,21 @@ export function JoinQrPage() {
           setError('Invalid Service ID format in QR link');
           return;
         }
+        // Sanity guard, matching the app-side parser: a center and a service
+        // are always different objects.
+        if (rawServiceId.trim().toLowerCase() === rawCenterId.trim().toLowerCase()) {
+          setError('QR link contains mismatched service and center references');
+          return;
+        }
         navigate(`/queue/preview?centerId=${rawCenterId.trim()}&serviceId=${rawServiceId.trim()}`, { replace: true });
         return;
       }
 
       navigate(`/center/${rawCenterId.trim()}`, { replace: true });
+    } else {
+      // No center reference at all. Without this the page silently renders its
+      // paste-a-link form, which reads as "nothing happened".
+      setError('This join link does not identify a service center.');
     }
   }, [searchParams, navigate]);
 
@@ -120,13 +130,14 @@ export function JoinQrPage() {
               id="qr-input"
               type="text"
               className="form-input"
-              placeholder="e.g. queueflow://join?centerId=... or https://..."
+              placeholder="e.g. https://<your-domain>/join?centerId=..."
               value={inputUrl}
               onChange={(e) => setInputUrl(e.target.value)}
               required
             />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Supports both custom scheme (queueflow://join) and web links.
+              The canonical format is <code>https://&lt;domain&gt;/join?centerId=…</code>.
+              The legacy <code>queueflow://join</code> scheme is still accepted.
             </span>
           </div>
 

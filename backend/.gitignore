@@ -6,3 +6,20 @@ dist/
 build/
 .DS_Store
 Thumbs.db
+
+# Firebase service-account credentials (Admin SDK / FCM HTTP v1)
+# Defense-in-depth duplicate of the root .gitignore rules. These files contain a
+# raw private key and must NEVER be committed. Supply the path via
+# FIREBASE_SERVICE_ACCOUNT_PATH or GOOGLE_APPLICATION_CREDENTIALS in .env.
+service-account.json
+serviceAccount.json
+service_account.json
+*service-account*.json
+*service_account*.json
+*serviceAccountKey.json
+firebase-adminsdk*.json
+firebase-adminsdk-*.json
+*firebase-adminsdk*.json
+*firebase-adminsdk-*.json
+firebase-service-account*.json
+*firebase-service-account*.json

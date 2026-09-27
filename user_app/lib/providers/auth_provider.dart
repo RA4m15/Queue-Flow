@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/api_exception.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../services/fcm_service.dart';
 import '../services/storage_service.dart';
 import '../services/socket_service.dart';
 import 'app_providers.dart';
@@ -46,6 +49,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required this.apiService,
     required this.storageService,
     required this.socketService,
+    this.fcmService,
     this.onLogout,
   }) : super(const AuthState(isLoading: true)) {
     checkAuthStatus();
@@ -54,7 +58,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final ApiService apiService;
   final StorageService storageService;
   final SocketService socketService;
+  /// Optional so tests and non-FCM platforms can construct this notifier
+  /// without a messaging backend.
+  final FcmService? fcmService;
   final void Function()? onLogout;
+
+  /// Registers this device's FCM token against the authenticated user.
+  ///
+  /// Fire-and-forget by design: the session is already valid at every call
+  /// site, so FCM must never block or fail the auth flow.
+ void _registerFcmToken() {
+  final fcm = fcmService;
+  if (fcm == null) return;
+
+  unawaited(fcm.registerDeviceToken());
+
+  fcm.listenForTokenRefresh();
+  fcm.listenForMessages();
+}
 
   Future<void> checkAuthStatus() async {
     debugPrint('[Startup] AUTH_INIT_START');
@@ -103,6 +124,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
 
         socketService.connect(userId: user.id, token: cachedToken);
+        _registerFcmToken();
 
         state = AuthState(
           isLoading: false,
@@ -195,6 +217,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       try {
         socketService.connect(userId: user.id, token: token);
       } catch (_) {}
+      _registerFcmToken();
 
       state = AuthState(
         isLoading: false,
@@ -255,6 +278,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       try {
         socketService.connect(userId: user.id, token: token);
       } catch (_) {}
+      _registerFcmToken();
 
       state = AuthState(
         isLoading: false,
@@ -303,6 +327,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void handleUnauthorized() {
+    fcmService?.stopListeningForTokenRefresh();
     storageService.clearAuth();
     socketService.disconnect(clearListeners: true);
     onLogout?.call();
@@ -316,6 +341,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
+    // Backend clears the stored device token on logout, so stop re-registering
+    // before this session is torn down.
+    fcmService?.stopListeningForTokenRefresh();
     try {
       await apiService.logout();
     } catch (_) {
@@ -343,6 +371,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     apiService: apiService,
     storageService: storageService,
     socketService: socketService,
+    fcmService: ref.watch(fcmServiceProvider),
     onLogout: () {
       ref.read(tokenProvider.notifier).reset();
       ref.read(notificationsProvider.notifier).reset();

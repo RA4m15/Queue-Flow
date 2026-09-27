@@ -1,34 +1,33 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/config/join_config.dart';
 import 'providers/theme_provider.dart';
 import 'services/firebase_push_messaging_client.dart';
+import 'services/notification_service.dart';
 import 'utils/join_link_service.dart';
 import 'utils/widgets/join_link_listener.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // An Android App Link / iOS Universal Link that launched the app is only
-  // available as the platform's initial route at this point. Capture it before
-  // runApp, because go_router is given an explicit `initialLocation` and would
-  // otherwise never see it.
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await NotificationService.instance.initialize();
+
   captureInitialJoinLink();
 
-  // Must be registered before runApp. The handler runs in a separate isolate
-  // when a message arrives while the app is backgrounded or terminated, so it
-  // cannot rely on anything set up after startup. It only acknowledges the
-  // message; authoritative state is fetched in the main isolate on open.
-  // Registration is guarded because a build without Firebase configured must
-  // still start normally.
   try {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (_) {
-    // Firebase is not available in this build. push_transport.dart reports the
-    // app as push-unavailable rather than pretending delivery works.
+    // Firebase is not available in this build.
   }
 
   runApp(

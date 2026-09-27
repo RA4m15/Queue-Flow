@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/config/join_config.dart';
+import 'providers/theme_provider.dart';
 import 'services/firebase_push_messaging_client.dart';
 import 'utils/join_link_service.dart';
 import 'utils/widgets/join_link_listener.dart';
@@ -43,6 +44,7 @@ class QueueFlowApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     if (!hasConfiguredProductionJoinHost) {
       // Fail visibly rather than silently. Without a configured join host this
@@ -58,7 +60,9 @@ class QueueFlowApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'QueueFlow',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: router,
       // Inbound App Link / Universal Link handling. The link arrives as a route
       // (cold start: the initial route, caught by captureInitialJoinLink above;

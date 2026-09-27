@@ -130,6 +130,37 @@ const tokenSchema = new mongoose.Schema(
       comment: { type: String, maxlength: 500, default: null },
       submittedAt: { type: Date, default: null },
     },
+    // Tier 4 Feature 1: Ghost Queue Geofencing State
+    // Server-authoritative coarse proximity (zero raw coordinates stored for customer privacy)
+    proximityState: {
+      type: String,
+      enum: ['UNKNOWN', 'OUTSIDE', 'APPROACHING', 'NEAR', 'INSIDE', 'LOCATION_UNAVAILABLE', 'STALE'],
+      default: 'UNKNOWN',
+    },
+    proximityUpdatedAt: {
+      type: Date,
+      default: null,
+    },
+    proximityDistanceMeters: {
+      type: Number,
+      default: null,
+    },
+    // Tier 4 Feature 2: Service Graph Multi-Hop Journey Linkage
+    journeyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
+    previousTokenId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Token',
+      default: null,
+    },
+    nextTokenId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Token',
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -154,6 +185,8 @@ tokenSchema.index({ counterId: 1, status: 1 });
 // Tier 3 / Feature 1 — Context-Aware EWT: bounded service-time history lookup
 // for a single service queue (center + service + completion time). Additive only.
 tokenSchema.index({ centerId: 1, serviceId: 1, completedAt: -1 });
+tokenSchema.index({ previousTokenId: 1 });
+tokenSchema.index({ nextTokenId: 1 });
 // Database-level concurrency guarantee: exactly one active token per user per service
 tokenSchema.index(
   { userId: 1, centerId: 1, serviceId: 1 },

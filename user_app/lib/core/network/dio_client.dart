@@ -1,9 +1,12 @@
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import '../../services/storage_service.dart';
+import 'network_status.dart';
 
 class DioClient {
-  DioClient(this._storageService, {this.onUnauthorized}) {
+  DioClient(this._storageService, {this.onUnauthorized, NetworkStatus? networkStatus})
+      : networkStatus = networkStatus ?? NetworkStatus() {
+    final reachability = this.networkStatus;
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
@@ -32,9 +35,21 @@ class DioClient {
           }
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          // Any authoritative response proves the backend is reachable.
+          reachability.markReachable();
+          return handler.next(response);
+        },
         onError: (DioException error, handler) async {
           final isPublicAuth = error.requestOptions.path.contains(ApiConstants.authRegister) ||
               error.requestOptions.path.contains(ApiConstants.authLogin);
+
+          if (NetworkStatus.isTransportFailure(error) && !isPublicAuth) {
+            reachability.markUnreachable();
+          } else if (!isPublicAuth) {
+            // A real server response (4xx/5xx) also proves reachability.
+            reachability.markReachable();
+          }
 
           if (error.response?.statusCode == 401 && !isPublicAuth) {
             // Expired or revoked JWT on protected resources - atomically purge local credentials
@@ -50,6 +65,10 @@ class DioClient {
   }
 
   final StorageService _storageService;
+
+  /// Shared reachability tracker, observed for every authenticated request.
+  final NetworkStatus networkStatus;
+
   void Function()? onUnauthorized;
   late final Dio _dio;
 

@@ -7,6 +7,7 @@ const User = require('../models/User');
 const { Token } = require('../models/Token');
 const QueueEvent = require('../models/QueueEvent');
 const queueService = require('../services/queueService');
+const workloadBalancerService = require('../services/workloadBalancerService');
 const asyncHandler = require('../utils/asyncHandler');
 const {
   sendSuccess,
@@ -155,11 +156,23 @@ const getOperatorCounter = asyncHandler(async (req, res) => {
     }));
   }
 
+  let workload = null;
+  try {
+    workload = await workloadBalancerService.calculateOperatorWorkload({
+      operatorId: req.user._id,
+      counterId: counter._id,
+      centerId: counter.centerId._id || counter.centerId,
+    });
+  } catch (err) {
+    logger.warn('[Counter] Workload calculation failed for operator', { error: err.message });
+  }
+
   return sendSuccess(res, {
     data: {
       counter: populatedCounter,
       queue,
       waitingTokens,
+      workload,
     },
   });
 });
@@ -237,6 +250,9 @@ const updateStatus = asyncHandler(async (req, res) => {
   }
 
   emitToCenter(counter.centerId.toString(), 'counter.updated', { counter: populated });
+
+  // Broadcast operational workload update as counter capacity changed
+  workloadBalancerService.broadcastWorkloadUpdate(counter.centerId);
 
   return sendSuccess(res, { message: `Counter status updated to ${status}`, data: { counter: populated } });
 });
@@ -359,6 +375,9 @@ async function _performCounterMorph(req, res, eventType = 'COUNTER_MORPHED') {
     newServiceId: serviceId || null,
   });
 
+  // Broadcast operational workload update
+  workloadBalancerService.broadcastWorkloadUpdate(counter.centerId);
+
   return sendSuccess(res, {
     message: serviceId ? `Counter morphed to service ${targetService.name}` : 'Counter service unassigned',
     data: { counter: populated },
@@ -428,6 +447,9 @@ const assignStaff = asyncHandler(async (req, res) => {
     .lean({ virtuals: true });
 
   emitToCenter(counter.centerId.toString(), 'counter.updated', { counter: populated });
+
+  // Broadcast operational workload update
+  workloadBalancerService.broadcastWorkloadUpdate(counter.centerId);
 
   return sendSuccess(res, {
     message: staffId ? 'Staff assigned to counter' : 'Staff unassigned from counter',

@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/app_theme.dart';
+import '../models/notification.dart';
 import '../providers/token_provider.dart';
 import '../providers/notification_provider.dart';
+import '../services/push_notification_service.dart';
 
-class MainShell extends ConsumerWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({
     super.key,
     required this.navigationShell,
@@ -14,13 +17,105 @@ class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  StreamSubscription<NotificationModel>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pushService = ref.read(pushNotificationServiceProvider.notifier);
+      // Obtain the platform push token and register it with the backend.
+      // Truthful when no push transport is configured: the state reports
+      // "unavailable" instead of pretending notifications are active.
+      pushService.initialize();
+      _sub = pushService.onForegroundNotification.listen(_showInAppNotification);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _showInAppNotification(NotificationModel notification) {
+    if (!mounted) return;
+
+    final isCalled = notification.type == 'TOKEN_CALLED';
+    final isApproaching = notification.type == 'TOKEN_APPROACHING';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        backgroundColor: isCalled
+            ? AppColors.secondary
+            : (isApproaching ? AppColors.warning : AppColors.surfaceElevated),
+        duration: const Duration(seconds: 5),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isCalled
+                      ? Icons.campaign_rounded
+                      : (isApproaching ? Icons.access_time_filled : Icons.notifications_active_rounded),
+                  color: isCalled ? Colors.black : Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    notification.title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isCalled ? Colors.black : Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              notification.body,
+              style: TextStyle(
+                fontSize: 12,
+                color: isCalled ? Colors.black87 : Colors.white70,
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'View Token',
+          textColor: isCalled ? Colors.black : AppColors.primary,
+          onPressed: () {
+            ref.read(pushNotificationServiceProvider.notifier).handleNotificationTap(
+                  payload: {'tokenId': notification.tokenId},
+                  context: context,
+                  ref: ref,
+                );
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tokenState = ref.watch(tokenProvider);
     final notifState = ref.watch(notificationsProvider);
     final hasActiveToken = tokenState.activeToken != null && tokenState.activeToken!.isActive;
 
     return Scaffold(
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(
@@ -28,11 +123,11 @@ class MainShell extends ConsumerWidget {
           ),
         ),
         child: BottomNavigationBar(
-          currentIndex: navigationShell.currentIndex,
+          currentIndex: widget.navigationShell.currentIndex,
           onTap: (index) {
-            navigationShell.goBranch(
+            widget.navigationShell.goBranch(
               index,
-              initialLocation: index == navigationShell.currentIndex,
+              initialLocation: index == widget.navigationShell.currentIndex,
             );
           },
           items: [

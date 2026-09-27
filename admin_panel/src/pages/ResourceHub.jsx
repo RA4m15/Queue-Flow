@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
-import { serviceCenterAPI, counterAPI, analyticsAPI, serviceAPI } from '../services/api';
+import { serviceCenterAPI, counterAPI, analyticsAPI, serviceAPI, workloadAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorMessage from '../components/common/ErrorMessage';
 import {
@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Zap,
   TrendingUp,
+  Activity,
 } from 'lucide-react';
 
 /**
@@ -105,6 +106,12 @@ export default function ResourceHub() {
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState(null);
   const [forecastHorizon, setForecastHorizon] = useState(6);
+
+  // Tier 4 / Feature 5: Operational Workload Balancer
+  const [workloadOverview, setWorkloadOverview] = useState(null);
+  const [workloadRecommendations, setWorkloadRecommendations] = useState(null);
+  const [workloadLoading, setWorkloadLoading] = useState(false);
+  const [workloadError, setWorkloadError] = useState(null);
 
   // Counter morphing modal state
   const [morphModalOpen, setMorphModalOpen] = useState(false);
@@ -219,6 +226,25 @@ export default function ResourceHub() {
     }
   }, [selectedCenterId, forecastHorizon]);
 
+  // 3c. Fetch Operational Workload & Balancing Recommendations (Tier 4 / Feature 5)
+  const fetchWorkload = useCallback(async () => {
+    if (!selectedCenterId) return;
+    setWorkloadLoading(true);
+    setWorkloadError(null);
+    try {
+      const [ovRes, recRes] = await Promise.all([
+        workloadAPI.getCenterWorkload(selectedCenterId),
+        workloadAPI.getRecommendations(selectedCenterId),
+      ]);
+      setWorkloadOverview(ovRes.data?.data || ovRes.data || null);
+      setWorkloadRecommendations(recRes.data?.data || recRes.data || null);
+    } catch (err) {
+      setWorkloadError(err.message || 'Failed to load operational workload');
+    } finally {
+      setWorkloadLoading(false);
+    }
+  }, [selectedCenterId]);
+
   useEffect(() => {
     if (selectedCenterId) {
       if (activeTab === 'overview') {
@@ -227,9 +253,11 @@ export default function ResourceHub() {
         fetchHistorical();
       } else if (activeTab === 'forecast') {
         fetchForecast();
+      } else if (activeTab === 'workload') {
+        fetchWorkload();
       }
     }
-  }, [selectedCenterId, activeTab, fetchOverview, fetchHistorical, fetchForecast]);
+  }, [selectedCenterId, activeTab, fetchOverview, fetchHistorical, fetchForecast, fetchWorkload]);
 
   // EWT explainability is admin-only; a 403/401 simply hides the panel.
   useEffect(() => {
@@ -254,6 +282,10 @@ export default function ResourceHub() {
       if (isAdmin) fetchEwt();
     };
 
+    const handleWorkloadEvent = () => {
+      fetchWorkload();
+    };
+
     socket.on('counter.updated', handleCounterEvent);
     socket.on('counter.morphed', handleCounterEvent);
     socket.on('queue.updated', handleQueueEvent);
@@ -261,6 +293,7 @@ export default function ResourceHub() {
     socket.on('token.serving', handleQueueEvent);
     socket.on('token.completed', handleQueueEvent);
     socket.on('token.skipped', handleQueueEvent);
+    socket.on('workload.updated', handleWorkloadEvent);
 
     return () => {
       socket.off('counter.updated', handleCounterEvent);
@@ -270,8 +303,9 @@ export default function ResourceHub() {
       socket.off('token.serving', handleQueueEvent);
       socket.off('token.completed', handleQueueEvent);
       socket.off('token.skipped', handleQueueEvent);
+      socket.off('workload.updated', handleWorkloadEvent);
     };
-  }, [socket, selectedCenterId, fetchOverview, fetchEwt, isAdmin]);
+  }, [socket, selectedCenterId, fetchOverview, fetchEwt, fetchWorkload, isAdmin]);
 
   // Handle Center Selection
   const handleCenterChange = (e) => {
@@ -471,15 +505,34 @@ export default function ResourceHub() {
               <TrendingUp size={14} />
               <span>Forecast & Staffing ML</span>
             </button>
+            <button
+              onClick={() => setActiveTab('workload')}
+              style={{
+                background: activeTab === 'workload' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
+                color: activeTab === 'workload' ? '#00E5A8' : '#94A3B8',
+                border: activeTab === 'workload' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Activity size={14} />
+              <span>Workload & Balancing</span>
+            </button>
           </div>
 
           <button
-            onClick={activeTab === 'overview' ? fetchOverview : activeTab === 'historical' ? fetchHistorical : () => fetchForecast(true)}
-            disabled={overviewLoading || historicalLoading || forecastLoading}
+            onClick={activeTab === 'overview' ? fetchOverview : activeTab === 'historical' ? fetchHistorical : activeTab === 'forecast' ? () => fetchForecast(true) : fetchWorkload}
+            disabled={overviewLoading || historicalLoading || forecastLoading || workloadLoading}
             className="btn-secondary"
             style={{ fontSize: '12px', padding: '8px 14px', gap: '6px' }}
           >
-            <RefreshCw size={13} className={overviewLoading || historicalLoading || forecastLoading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={overviewLoading || historicalLoading || forecastLoading || workloadLoading ? 'animate-spin' : ''} />
             <span>Sync</span>
           </button>
         </div>
@@ -665,6 +718,77 @@ export default function ResourceHub() {
                   </span>
                 </div>
               </div>
+
+              {/* Tier 4 Feature 1: Ghost Queue Geofencing Telemetry */}
+              {overview?.ghostQueue && (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    border: '1px solid rgba(0, 229, 168, 0.2)',
+                    borderRadius: '16px',
+                    padding: '20px 24px',
+                    marginBottom: '32px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '18px' }}>📍</span>
+                      <div>
+                        <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
+                          Ghost Queue Geofencing Overview
+                        </h2>
+                        <span style={{ fontSize: '11px', color: '#64748B' }}>
+                          Server-authoritative customer proximity telemetry (Zero individual GPS coordinates exposed)
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '3px 10px',
+                        borderRadius: '8px',
+                        background: overview.ghostQueue.enabled ? 'rgba(0, 229, 168, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                        color: overview.ghostQueue.enabled ? '#00E5A8' : '#94A3B8',
+                        border: `1px solid ${overview.ghostQueue.enabled ? 'rgba(0, 229, 168, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
+                      }}
+                    >
+                      {overview.ghostQueue.enabled ? `GEOFENCE ACTIVE (r: ${overview.ghostQueue.radiusMeters}m)` : overview.ghostQueue.locationConfigured ? 'GEOFENCE DISABLED' : 'LOCATION NOT CONFIGURED'}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                      gap: '12px',
+                      marginTop: '12px',
+                    }}
+                  >
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', display: 'block' }}>Remote (Outside)</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#94A3B8' }}>{overview.ghostQueue.remoteCustomers || 0}</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ fontSize: '11px', color: '#F59E0B', display: 'block' }}>Approaching</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#F59E0B' }}>{overview.ghostQueue.approachingCustomers || 0}</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ fontSize: '11px', color: '#00D2FF', display: 'block' }}>Near Center</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#00D2FF' }}>{overview.ghostQueue.nearCenter || 0}</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ fontSize: '11px', color: '#00E5A8', display: 'block' }}>At Center (Inside)</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#00E5A8' }}>{overview.ghostQueue.atCenter || 0}</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Uncertain / Offline</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#64748B' }}>{overview.ghostQueue.unknownProximity || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ── Counter Heat Grid ────────────────────────── */}
               <div style={{ marginBottom: '32px' }}>
@@ -1782,7 +1906,324 @@ export default function ResourceHub() {
           ) : null}
         </>
       )}
+      {/* ── TAB 4: OPERATIONAL WORKLOAD & BALANCING (TIER 4 / FEATURE 5) ── */}
+      {activeTab === 'workload' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {workloadLoading && !workloadOverview ? (
+            <div style={{ padding: '60px 0', textAlign: 'center' }}>
+              <LoadingSpinner />
+              <p style={{ color: '#94A3B8', marginTop: '12px', fontSize: '13px' }}>
+                Evaluating real-time operational workload metrics across center counters...
+              </p>
+            </div>
+          ) : workloadError ? (
+            <ErrorMessage message={workloadError} />
+          ) : workloadOverview ? (
+            <>
+              {/* Top Operational Metrics Ribbon */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '16px',
+                }}
+              >
+                <div className="q-card" style={{ padding: '20px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Average Workload Score
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#F8FAFC', fontFamily: 'monospace' }}>
+                      {workloadOverview.averageWorkloadScore ?? 0}
+                    </span>
+                    <span style={{ fontSize: '13px', color: '#64748B' }}>/ 100</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#00E5A8', marginTop: '6px' }}>
+                    Max Center Score: {workloadOverview.maxWorkloadScore ?? 0}
+                  </div>
+                </div>
 
+                <div className="q-card" style={{ padding: '20px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Overloaded Units
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: (workloadOverview.overloadedUnits?.length || 0) > 0 ? '#EF4444' : '#00E5A8', fontFamily: 'monospace' }}>
+                      {workloadOverview.overloadedUnits?.length || 0}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#64748B' }}>desks</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                    High or Sustained High load
+                  </div>
+                </div>
+
+                <div className="q-card" style={{ padding: '20px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Available Capacity
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#00E5A8', fontFamily: 'monospace' }}>
+                      {workloadOverview.availableCapacity?.length || 0}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#64748B' }}>desks</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                    Operating at low workload
+                  </div>
+                </div>
+
+                <div className="q-card" style={{ padding: '20px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Active Operators
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#F8FAFC', fontFamily: 'monospace' }}>
+                      {workloadOverview.activeOperatorsCount ?? 0}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#64748B' }}>/ {workloadOverview.totalCountersCount ?? 0} total</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                    Status: {workloadOverview.dataSufficiency}
+                  </div>
+                </div>
+              </div>
+
+              {/* Workload Distribution Grid */}
+              <div className="q-card" style={{ padding: '20px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#F8FAFC', marginBottom: '14px' }}>
+                  Center Operational Load Distribution
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(0, 229, 168, 0.08)', border: '1px solid rgba(0, 229, 168, 0.2)' }}>
+                    <div style={{ fontSize: '11px', color: '#00E5A8', fontWeight: 700 }}>LOW LOAD (0-39)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                      {workloadOverview.distribution?.LOW ?? 0}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Optimal capacity</div>
+                  </div>
+
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                    <div style={{ fontSize: '11px', color: '#60A5FA', fontWeight: 700 }}>MODERATE (40-69)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                      {workloadOverview.distribution?.MODERATE ?? 0}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Balanced throughput</div>
+                  </div>
+
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: 700 }}>HIGH (70-84)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                      {workloadOverview.distribution?.HIGH ?? 0}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Heavy volume / queue</div>
+                  </div>
+
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: 700 }}>SUSTAINED HIGH (85+)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                      {workloadOverview.distribution?.SUSTAINED_HIGH ?? 0}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Requires supervisor rotation</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advisory Balancing Recommendations */}
+              <div className="q-card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
+                      Operational Balancing Recommendations
+                    </h3>
+                    <p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0 0' }}>
+                      Authoritative server-evaluated recommendations to redistribute operational load across compatible counters.
+                    </p>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '8px',
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      color: '#60A5FA',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                    }}
+                  >
+                    ADVISORY (NON-AUTOMATIC)
+                  </span>
+                </div>
+
+                {!workloadRecommendations?.recommendations || workloadRecommendations.recommendations.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '10px' }}>
+                    <CheckCircle2 size={24} color="#00E5A8" style={{ marginBottom: '6px' }} />
+                    <p style={{ margin: 0, fontSize: '13px', color: '#94A3B8' }}>
+                      Current operational workload is balanced across all active units. No balancing adjustments recommended.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {workloadRecommendations.recommendations.map((rec) => (
+                      <div
+                        key={rec.id}
+                        style={{
+                          padding: '16px 18px',
+                          borderRadius: '12px',
+                          background: 'rgba(15, 23, 42, 0.6)',
+                          border: rec.priority === 'HIGH'
+                            ? '1px solid rgba(239, 68, 68, 0.35)'
+                            : rec.priority === 'MEDIUM'
+                            ? '1px solid rgba(245, 158, 11, 0.35)'
+                            : '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '16px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              marginTop: '2px',
+                              background: rec.priority === 'HIGH'
+                                ? 'rgba(239, 68, 68, 0.2)'
+                                : rec.priority === 'MEDIUM'
+                                ? 'rgba(245, 158, 11, 0.2)'
+                                : 'rgba(59, 130, 246, 0.2)',
+                              color: rec.priority === 'HIGH'
+                                ? '#EF4444'
+                                : rec.priority === 'MEDIUM'
+                                ? '#F59E0B'
+                                : '#60A5FA',
+                            }}
+                          >
+                            {rec.type.replace('_', ' ')}
+                          </span>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC', marginBottom: '3px' }}>
+                              {rec.reason}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748B' }}>
+                              Generated at {new Date(rec.createdAt).toLocaleTimeString()} • Priority: {rec.priority}
+                            </div>
+                          </div>
+                        </div>
+
+                        {rec.type === 'MORPH_COUNTER' && rec.sourceCounterId && (
+                          <button
+                            onClick={() => {
+                              const foundCounter = counters.find((c) => c._id === rec.sourceCounterId);
+                              if (foundCounter) openMorphModal(foundCounter);
+                            }}
+                            className="btn-primary"
+                            style={{ fontSize: '11px', padding: '6px 12px', whiteSpace: 'nowrap' }}
+                          >
+                            Morph Counter
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Operator & Counter Workload Table */}
+              <div className="q-card" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', marginBottom: '16px' }}>
+                  Individual Counter & Operator Workload Breakdown
+                </h3>
+
+                {workloadOverview.operatorWorkloads?.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>
+                    No counters configured at this center.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: '#94A3B8' }}>
+                          <th style={{ padding: '10px 12px' }}>COUNTER</th>
+                          <th style={{ padding: '10px 12px' }}>OPERATOR</th>
+                          <th style={{ padding: '10px 12px' }}>SERVICE</th>
+                          <th style={{ padding: '10px 12px' }}>LOAD LEVEL</th>
+                          <th style={{ padding: '10px 12px' }}>WORKLOAD SCORE</th>
+                          <th style={{ padding: '10px 12px' }}>EXPLANATION</th>
+                          <th style={{ padding: '10px 12px' }}>DATA STATE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {workloadOverview.operatorWorkloads.map((op, idx) => (
+                          <tr
+                            key={op.counter?._id || idx}
+                            style={{
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                              background: op.loadLevel === 'SUSTAINED_HIGH' ? 'rgba(239, 68, 68, 0.04)' : 'transparent',
+                            }}
+                          >
+                            <td style={{ padding: '12px', fontWeight: 700, color: '#F8FAFC' }}>
+                              {op.counter?.name || 'Counter'} (#{op.counter?.number ?? '—'})
+                            </td>
+                            <td style={{ padding: '12px', color: '#F8FAFC' }}>
+                              {op.operator?.name || 'Unassigned'}
+                            </td>
+                            <td style={{ padding: '12px', color: '#60A5FA' }}>
+                              {op.counter?.serviceName || 'None'}
+                            </td>
+                            <td style={{ padding: '12px' }}>
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: op.loadLevel === 'SUSTAINED_HIGH'
+                                    ? 'rgba(239, 68, 68, 0.15)'
+                                    : op.loadLevel === 'HIGH'
+                                    ? 'rgba(245, 158, 11, 0.15)'
+                                    : op.loadLevel === 'MODERATE'
+                                    ? 'rgba(59, 130, 246, 0.15)'
+                                    : 'rgba(0, 229, 168, 0.15)',
+                                  color: op.loadLevel === 'SUSTAINED_HIGH'
+                                    ? '#EF4444'
+                                    : op.loadLevel === 'HIGH'
+                                    ? '#F59E0B'
+                                    : op.loadLevel === 'MODERATE'
+                                    ? '#60A5FA'
+                                    : '#00E5A8',
+                                }}
+                              >
+                                {op.loadLevel}
+                              </span>
+                            </td>
+                            <td className="mono" style={{ padding: '12px', fontWeight: 800, fontSize: '14px', color: '#F8FAFC' }}>
+                              {op.workloadScore != null ? `${op.workloadScore}/100` : '—'}
+                            </td>
+                            <td style={{ padding: '12px', color: '#94A3B8', maxWidth: '360px', lineHeight: '1.4' }}>
+                              {op.explanation || '—'}
+                            </td>
+                            <td style={{ padding: '12px', color: '#64748B' }}>
+                              {op.dataSufficiency}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+              No operational workload data available for this center.
+            </div>
+          )}
+        </div>
+      )}
       {/* ── COUNTER MORPHING MODAL ────────────────────────── */}
       {morphModalOpen && selectedCounterForMorph && (
         <div

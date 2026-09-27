@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
-import '../../models/service_center.dart';
-import '../../models/service.dart';
-import '../../providers/app_providers.dart';
+import '../../utils/join_flow_controller.dart';
 import '../../utils/qr_payload_parser.dart';
 
 /// ScanScreen — Customer QR scanner.
@@ -84,164 +80,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     }
   }
 
-  // ─── Join QR handler ──────────────────────────────────────────────────────
-
+  /// Delegates to the shared [JoinFlowController].
+  ///
+  /// The identical payload arriving via an App Link / Universal Link is handled
+  /// by the same controller, so scanning the QR inside the app and opening the
+  /// same link from the OS camera follow exactly one code path.
   Future<void> _handleJoinQr(QrJoinPayload payload) async {
-    // Show a loading indicator while we verify IDs against the backend.
-    _showLoadingSheet();
-
-    try {
-      final api = ref.read(apiServiceProvider);
-
-      // Fetch center and services in parallel.
-      // GET /api/service-centers/:id  → center metadata
-      // GET /api/services?centerId=   → services for this center
-      // Both calls validate the centerId against the authoritative backend.
-      final results = await Future.wait([
-        api.getServiceCenterDetail(payload.centerId),
-        api.getServices(payload.centerId),
-      ]);
-
-      final centerDetail = results[0] as Map<String, dynamic>;
-      final center = centerDetail['center'] as ServiceCenter;
-      final services = results[1] as List<Service>;
-
-      if (!mounted) return;
-
-      // Pop the loading sheet.
-      Navigator.of(context).pop();
-
-      if (payload.hasService) {
-        // Center + Service QR → validate service belongs to this center, then
-        // navigate directly into the existing QueuePreviewScreen.
-        await _routeToServicePreview(
-          center: center,
-          services: services,
-          targetServiceId: payload.serviceId!,
-        );
-      } else {
-        // Center-only QR → navigate to existing ServiceCenterDetailScreen
-        // so the customer can choose their service.
-        _routeToCenterDetail(center.id);
-      }
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Dismiss loading sheet.
-      _showErrorSheet(
-        icon: Icons.cloud_off_rounded,
-        iconColor: AppColors.danger,
-        title: 'Could Not Verify QR',
-        message: e.message,
-        allowRetry: true,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Dismiss loading sheet.
-      _showErrorSheet(
-        icon: Icons.cloud_off_rounded,
-        iconColor: AppColors.danger,
-        title: 'Connection Error',
-        message: 'Could not reach the server. Please check your connection and try again.',
-        allowRetry: true,
-      );
-    }
-  }
-
-  /// Route to the existing queue preview (center + service fully resolved).
-  Future<void> _routeToServicePreview({
-    required ServiceCenter center,
-    required List<Service> services,
-    required String targetServiceId,
-  }) async {
-    // Find the service in the list returned by the backend for this center.
-    // This validates that the serviceId from the QR actually belongs to this center.
-    final matched = services.where((s) => s.id == targetServiceId).firstOrNull;
-
-    if (matched == null) {
-      _showErrorSheet(
-        icon: Icons.error_outline_rounded,
-        iconColor: AppColors.danger,
-        title: 'Service Not Found',
-        message:
-            'The service referenced in this QR code is not available at ${center.name}. '
-            'It may have been removed or transferred.',
-        allowRetry: false,
-        actionLabel: 'View All Services',
-        onAction: () {
-          Navigator.of(context).pop();
-          _routeToCenterDetail(center.id);
-        },
-      );
-      return;
-    }
-
-    if (!matched.isActive) {
-      _showErrorSheet(
-        icon: Icons.pause_circle_outline_rounded,
-        iconColor: AppColors.warning,
-        title: 'Service Unavailable',
-        message:
-            '"${matched.name}" at ${center.name} is currently not accepting new queue entries. '
-            'Please check with the service desk.',
-        allowRetry: false,
-        actionLabel: 'View Other Services',
-        onAction: () {
-          Navigator.of(context).pop();
-          _routeToCenterDetail(center.id);
-        },
-      );
-      return;
-    }
-
     if (!mounted) return;
-
-    // Navigate into the existing QueuePreviewScreen.
-    // QueuePreviewScreen handles: join loading, duplicate-token error, confirmation.
-    context.push('/queue/preview', extra: {
-      'center': center,
-      'service': matched,
-    });
-  }
-
-  /// Navigate to the existing ServiceCenterDetailScreen for service selection.
-  void _routeToCenterDetail(String centerId) {
-    if (!mounted) return;
-    context.push('/center/$centerId');
+    await joinFlowController(ref).handleJoinPayload(context, payload);
   }
 
   // ─── Sheets ───────────────────────────────────────────────────────────────
-
-  void _showLoadingSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 20),
-            Text(
-              'Verifying QR Code…',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Confirming service center details from server',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    ).whenComplete(_onSheetDismissed);
-  }
 
   void _showErrorSheet({
     required IconData icon,

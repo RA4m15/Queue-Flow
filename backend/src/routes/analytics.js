@@ -11,6 +11,10 @@ const {
   getHistoricalReport,
   exportHistoricalReport,
   getDemandAndStaffingForecast,
+  getCenterWorkload,
+  getOperatorWorkloads,
+  getMyWorkload,
+  getWorkloadRecommendations,
 } = require('../controllers/analyticsController');
 
 // Analytics require authentication
@@ -24,6 +28,12 @@ router.get('/:centerId/ewt', requireRole('ADMIN'), validateObjectId('centerId'),
 router.get('/:centerId/forecast', requireRole('ADMIN'), validateObjectId('centerId'), getDemandAndStaffingForecast);
 router.get('/:centerId/historical', requireRole('ADMIN'), validateObjectId('centerId'), getHistoricalReport);
 router.get('/:centerId/historical/export', requireRole('ADMIN'), validateObjectId('centerId'), exportHistoricalReport);
+
+// Tier 4 / Feature 5 — Cognitive Load / Workload Balancer Endpoints
+router.get('/:centerId/workload/me', requireRole('STAFF', 'ADMIN'), validateObjectId('centerId'), getMyWorkload);
+router.get('/:centerId/workload/operators', requireRole('ADMIN', 'STAFF'), validateObjectId('centerId'), getOperatorWorkloads);
+router.get('/:centerId/workload/recommendations', requireRole('ADMIN', 'STAFF'), validateObjectId('centerId'), getWorkloadRecommendations);
+router.get('/:centerId/workload', requireRole('ADMIN', 'STAFF'), validateObjectId('centerId'), getCenterWorkload);
 
 // General Dashboard & Time-series (ADMIN and STAFF)
 router.get('/:centerId', requireRole('ADMIN', 'STAFF'), validateObjectId('centerId'), getDashboard);

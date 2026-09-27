@@ -1,8 +1,20 @@
 import { useState } from 'react';
 import { StatusBadge } from './StatusBadge';
+import { GhostQueueBadge } from './GhostQueueBadge';
+import { NextStepCard } from './NextStepCard';
+import { SwapPanel } from './SwapPanel';
 import { tokenAPI } from '../services/api';
 
-export function TokenCard({ token, onCancelled, onRefresh }) {
+export function TokenCard({ 
+  token, 
+  onCancelled, 
+  onRefresh, 
+  socket,
+  isCached = false,
+  cachedAt = null,
+  isOnline = true,
+  connectionState = null
+}) {
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrData, setQrData] = useState(null);
@@ -30,6 +42,10 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
   const handleOpenQR = async () => {
     setShowQRModal(true);
     if (!qrData) {
+      if (!isOnline) {
+        setQrError("You're offline. Staff verification QR requires a live connection.");
+        return;
+      }
       try {
         setQrLoading(true);
         setQrError(null);
@@ -44,6 +60,10 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
   };
 
   const handleCancel = async () => {
+    if (!isOnline) {
+      alert("You're offline. This action requires a live connection.");
+      return;
+    }
     try {
       setCancelling(true);
       await tokenAPI.cancel(token._id);
@@ -56,6 +76,7 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
       setCancelling(false);
     }
   };
+
 
   return (
     <>
@@ -75,12 +96,33 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
             {centerName}
           </p>
+
+          {Boolean(isCached || !isOnline) && (
+            <div 
+              style={{
+                marginTop: '0.5rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                color: '#FBBF24',
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                padding: '0.25rem 0.6rem',
+                borderRadius: '6px'
+              }}
+            >
+              <span>⚠️</span>
+              <span>Showing last known status{cachedAt ? ` (confirmed ${new Date(cachedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}</span>
+            </div>
+          )}
         </div>
 
         {/* Ticket Body: Token Number */}
         <div className="ticket-body" style={{ textAlign: 'center', padding: '2rem 1.5rem' }}>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
-            Your Token Code
+            {isCached || !isOnline ? 'Last Confirmed Token Code' : 'Your Token Code'}
           </div>
           <div className="token-hero-code" style={{ marginBottom: '1.25rem' }}>
             {token.tokenCode || `#${token.tokenNumber}`}
@@ -102,7 +144,7 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
           >
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                Queue Position
+                {isCached || !isOnline ? 'Last Known Position' : 'Queue Position'}
               </div>
               <div style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--color-cyan)' }}>
                 {token.status === 'CALLED' || token.status === 'SERVING'
@@ -115,7 +157,7 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
 
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                People Ahead
+                {isCached || !isOnline ? 'Last Known Ahead' : 'People Ahead'}
               </div>
               <div style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--color-primary)' }}>
                 {token.status === 'CALLED' || token.status === 'SERVING'
@@ -136,7 +178,7 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
             {token.servingToken && (
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                  Now Serving
+                  {isCached || !isOnline ? 'Last Known Serving' : 'Now Serving'}
                 </div>
                 <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#F59E0B' }}>
                   {token.servingToken.tokenCode}
@@ -150,8 +192,9 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Issued: {token.createdAt ? new Date(token.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</span>
               {(token.estimatedWaitMinutes !== undefined || token.waitEstimateMinutes !== undefined) && (
-                <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
-                  Est. Wait: ~{token.estimatedWaitMinutes ?? token.waitEstimateMinutes}m
+                <span style={{ fontWeight: 600, color: (isCached || !isOnline) ? '#FBBF24' : 'var(--color-primary)' }}>
+                  {isCached || !isOnline ? 'Last Known Est. Wait: ~' : 'Est. Wait: ~'}
+                  {token.estimatedWaitMinutes ?? token.waitEstimateMinutes}m
                 </span>
               )}
             </div>
@@ -165,6 +208,29 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
               </div>
             )}
           </div>
+
+          {/* Tier 4 Feature 1: Ghost Queue Proximity Badge */}
+          <GhostQueueBadge token={token} />
+
+          {/* Tier 4 Feature 3: P2P Slot Swapping — only for WAITING tokens */}
+          {token.status === 'WAITING' && (
+            <SwapPanel
+              token={token}
+              socket={socket}
+              isOnline={isOnline}
+              onSwapComplete={() => { if (onRefresh) onRefresh(); }}
+            />
+          )}
+
+          {/* Tier 4 Feature 2: Service Graph Next Step Card */}
+          {token.status === 'COMPLETED' && (
+            <NextStepCard
+              tokenId={token._id}
+              onTransitionSuccess={() => {
+                if (onRefresh) onRefresh();
+              }}
+            />
+          )}
         </div>
 
         {/* Ticket Footer Actions */}
@@ -189,14 +255,22 @@ export function TokenCard({ token, onCancelled, onRefresh }) {
           {isCancellable && (
             <button
               type="button"
-              onClick={() => setCancelConfirm(true)}
+              onClick={() => {
+                if (!isOnline) {
+                  alert("You're offline. This action requires a live connection.");
+                  return;
+                }
+                setCancelConfirm(true);
+              }}
               className="btn-danger"
-              style={{ flex: 1, fontSize: '0.85rem' }}
+              style={{ flex: 1, fontSize: '0.85rem', opacity: !isOnline ? 0.6 : 1 }}
+              title={!isOnline ? "You're offline. Cancelling requires a live connection." : undefined}
             >
               Cancel Token
             </button>
           )}
         </div>
+
       </article>
 
       {/* Cancel Confirmation Modal */}

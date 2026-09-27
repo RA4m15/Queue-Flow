@@ -59,7 +59,7 @@ const getById = asyncHandler(async (req, res) => {
  * Create a service center. Admin only.
  */
 const create = asyncHandler(async (req, res) => {
-  const { name, code, type, address, phone, email, capacity, capacityAlertThreshold, operatingHours, noShowTimeoutSeconds } = req.body;
+  const { name, code, type, address, phone, email, capacity, capacityAlertThreshold, operatingHours, noShowTimeoutSeconds, location, geofence } = req.body;
 
   const center = await ServiceCenter.create({
     name,
@@ -72,6 +72,8 @@ const create = asyncHandler(async (req, res) => {
     capacityAlertThreshold,
     operatingHours,
     noShowTimeoutSeconds,
+    location,
+    geofence,
   });
 
   return sendCreated(res, { message: 'Service center created', data: { center } });
@@ -82,7 +84,20 @@ const create = asyncHandler(async (req, res) => {
  * Update a service center. Admin only.
  */
 const update = asyncHandler(async (req, res) => {
-  const allowed = ['name', 'type', 'address', 'phone', 'email', 'capacity', 'capacityAlertThreshold', 'isOpen', 'operatingHours', 'noShowTimeoutSeconds'];
+  const allowed = [
+    'name',
+    'type',
+    'address',
+    'phone',
+    'email',
+    'capacity',
+    'capacityAlertThreshold',
+    'isOpen',
+    'operatingHours',
+    'noShowTimeoutSeconds',
+    'location',
+    'geofence',
+  ];
   const updates = {};
 
   for (const key of allowed) {

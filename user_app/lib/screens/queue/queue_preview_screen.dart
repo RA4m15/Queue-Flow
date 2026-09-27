@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/document_readiness.dart';
 import '../../models/service_center.dart';
 import '../../models/service.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/document_gate_provider.dart';
 import '../../providers/token_provider.dart';
 import '../../widgets/loading_state.dart';
 
@@ -48,16 +52,19 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
       _loadError = null;
     });
 
+    // Request the server-authoritative document gate verdict for this service.
+    // Readiness is never computed locally; the backend re-checks it on join.
+    unawaited(ref.read(documentGateProvider.notifier).check(widget.service.id));
+
     try {
       final api = ref.read(apiServiceProvider);
+
+      // Fetch queue details
       final res = await api.getServiceQueue(widget.center.id, widget.service.id);
       final queueData = res['queue'] as Map<String, dynamic>?;
       final calledTokens = (res['calledTokens'] as List?) ?? [];
 
       final waitCount = (queueData?['waitingCount'] as num?)?.toInt() ?? 0;
-
-      // Tier 3 / Feature 1: the backend context-aware EWT engine is the single
-      // authority. Render its value; never derive a second estimate in Dart.
       final ewt = (res['estimatedWaitMinutes'] as num?)?.toInt();
 
       String? servingCode;
@@ -87,6 +94,28 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
   }
 
   Future<void> _handleJoinQueue() async {
+    final tokenState = ref.read(tokenProvider);
+
+    // Step 14: Offline mutations MUST be blocked immediately
+    if (tokenState.isOffline) {
+      setState(() {
+        _error = 'This action requires an internet connection.';
+      });
+      return;
+    }
+
+    // Block the join unless the backend says the document gate is satisfied.
+    // An unknown or stale verdict never permits a join.
+    final gate = ref.read(documentGateProvider);
+    if (!gate.canJoin) {
+      setState(() {
+        _error = gate.isStale
+            ? 'This action requires an internet connection.'
+            : gate.readiness.statusDescription;
+      });
+      return;
+    }
+
     if (_isJoining) return;
     setState(() {
       _isJoining = true;
@@ -117,6 +146,10 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tokenState = ref.watch(tokenProvider);
+    final gate = ref.watch(documentGateProvider);
+    final canJoin = !_isLoading && gate.canJoin && !tokenState.isOffline;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -133,6 +166,35 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // ─── OFFLINE NOTICE ─────────────────────────────────
+                  if (tokenState.isOffline) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.wifi_off_rounded, color: AppColors.warning, size: 20),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Offline mode: Joining queues requires an active internet connection.',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // ─── QUEUE OVERVIEW CARD ───────────────────────────
                   Container(
                     padding: const EdgeInsets.all(24),
@@ -211,7 +273,13 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
+
+                  // ─── DOCUMENT GATE (backend-authoritative readiness) ─
+                  if (gate.readiness.hasRequirements || gate.isStale) ...[
+                    _buildDocumentGateCard(gate),
+                    const SizedBox(height: 20),
+                  ],
 
                   // ─── LOAD ERROR BANNER ─────────────────────────────
                   if (_loadError != null) ...[
@@ -248,6 +316,7 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 16),
                   ],
 
                   // ─── ERROR BANNER ──────────────────────────────────
@@ -331,7 +400,7 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
 
                   // ─── CONFIRM & JOIN BUTTON ─────────────────────────
                   ElevatedButton(
-                    onPressed: _isJoining ? null : _handleJoinQueue,
+                    onPressed: (_isJoining || !canJoin) ? null : _handleJoinQueue,
                     child: _isJoining
                         ? const SizedBox(
                             width: 22,
@@ -341,12 +410,150 @@ class _QueuePreviewScreenState extends ConsumerState<QueuePreviewScreen> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                             ),
                           )
-                        : const Text('Confirm & Join Queue'),
+                        : Text(
+                            tokenState.isOffline
+                                ? 'Unavailable Offline'
+                                : (gate.canJoin
+                                    ? 'Confirm & Join Queue'
+                                    : 'Documentation Required'),
+                          ),
                   ),
                 ],
               ),
             ),
     );
+  }
+
+  /// Renders the backend's own document gate verdict. Nothing here is
+  /// computed locally — status, message and the checklist all come from
+  /// `GET /api/documents/services/:id/readiness`.
+  Widget _buildDocumentGateCard(DocumentGateState gate) {
+    final readiness = gate.readiness;
+    final blocked = !gate.canJoin;
+    final accent = gate.isStale
+        ? AppColors.warning
+        : (readiness.isReady ? AppColors.success : AppColors.danger);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                readiness.isReady && !gate.isStale
+                    ? Icons.verified_user_rounded
+                    : Icons.gavel_rounded,
+                color: accent,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  gate.isStale
+                      ? 'Document Gate: Unverified'
+                      : readiness.statusLabel,
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (gate.isLoading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.warning),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            gate.isStale
+                ? 'Document readiness could not be confirmed. Reconnect to check the requirements for this service.'
+                : readiness.statusDescription,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          if (readiness.checklist.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final item in readiness.checklist)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      _documentStatusIcon(item),
+                      size: 14,
+                      color: _documentStatusColor(item),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item.isRequired
+                            ? '${item.name} (required)'
+                            : '${item.name} (optional)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: item.isBlocking ? AppColors.textPrimary : AppColors.textSecondary,
+                          fontWeight: item.isBlocking ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _documentStatusLabel(item),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: _documentStatusColor(item),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          if (blocked) ...[
+            const SizedBox(height: 8),
+            Text(
+              'The service center will verify these requirements again when you join.',
+              style: TextStyle(
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textMuted.withValues(alpha: 1),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static IconData _documentStatusIcon(DocumentRequirementItem item) {
+    if (item.isVerified) return Icons.check_circle;
+    if (item.isRejected) return Icons.cancel;
+    if (item.isPending) return Icons.hourglass_top;
+    return Icons.radio_button_unchecked;
+  }
+
+  static Color _documentStatusColor(DocumentRequirementItem item) {
+    if (item.isVerified) return AppColors.success;
+    if (item.isRejected) return AppColors.danger;
+    if (item.isPending) return AppColors.warning;
+    return AppColors.textMuted;
+  }
+
+  static String _documentStatusLabel(DocumentRequirementItem item) {
+    if (item.isVerified) return 'Verified';
+    if (item.isRejected) return 'Rejected';
+    if (item.isPending) return 'Pending';
+    return 'Not uploaded';
   }
 
   Widget _buildStatBox({

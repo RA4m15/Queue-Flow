@@ -23,6 +23,23 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<!-- Legacy custom-scheme join links (queueflow://join?centerId=...).
+	     Retained so QR codes printed before the HTTPS format existed keep
+	     opening the app. The canonical HTTPS format is preferred because it also
+	     works when QueueFlow is NOT installed. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>queueflow</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleName</key>
 	<string>user_app</string>
 	<key>CFBundlePackageType</key>
@@ -58,6 +75,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

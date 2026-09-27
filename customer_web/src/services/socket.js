@@ -119,11 +119,21 @@ export function leaveCenterRoom(centerId) {
   }
 }
 
+let currentStatus = 'disconnected';
+
+
+export function getSocketStatus() {
+  if (socket && socket.connected) return 'connected';
+  return currentStatus;
+}
+
 /**
  * Register a callback for connection status updates.
  */
 export function onSocketStatus(callback) {
   statusListeners.add(callback);
+  // Emit current status immediately upon subscribing
+  try { callback(getSocketStatus()); } catch (_) {}
   return () => statusListeners.delete(callback);
 }
 
@@ -136,7 +146,9 @@ export function onSocketReconnect(callback) {
 }
 
 function notifyStatus(status, details) {
+  currentStatus = status;
   statusListeners.forEach((cb) => {
     try { cb(status, details); } catch (_) {}
   });
 }
+

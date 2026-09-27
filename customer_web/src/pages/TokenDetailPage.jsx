@@ -9,13 +9,31 @@ import { OfflineBanner } from '../components/OfflineBanner';
 
 export function TokenDetailPage() {
   const { id } = useParams();
-  const { token, loading, error, turnAlert, dismissTurnAlert, refetch } = useLiveToken(id);
+  const { 
+    token, 
+    loading, 
+    error, 
+    isOnline, 
+    connectionStatus, 
+    connectionState, 
+    isCached, 
+    cachedAt, 
+    isRefreshing, 
+    turnAlert, 
+    dismissTurnAlert, 
+    refetch 
+  } = useLiveToken(id);
   const { refreshActiveToken } = useAuth();
-  const { isOnline } = useNetworkStatus();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <OfflineBanner isOnline={isOnline} />
+      <OfflineBanner 
+        isOnline={isOnline} 
+        cachedAt={cachedAt} 
+        hasData={Boolean(token)} 
+        isRefreshing={isRefreshing} 
+      />
+
 
       {/* Turn Alert Announcement Banner */}
       {turnAlert && (
@@ -110,12 +128,17 @@ export function TokenDetailPage() {
       ) : (
         <TokenCard
           token={token}
+          isCached={isCached}
+          cachedAt={cachedAt}
+          isOnline={isOnline}
+          connectionState={connectionState}
           onCancelled={() => {
             refetch();
             refreshActiveToken();
           }}
           onRefresh={refetch}
         />
+
       )}
     </div>
   );

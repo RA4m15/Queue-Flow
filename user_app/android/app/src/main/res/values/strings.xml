@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The notification channel FCM targets when a message carries no explicit
+  channel. The id MUST match FCM_ANDROID_CHANNEL_ID on the backend and the
+  constant used in MainActivity.kt, because the Android OS discards
+  notifications aimed at a channel that does not exist (API 26+).
+-->
+<resources>
+    <string name="queueflow_alerts_channel_id" translatable="false">queueflow_alerts</string>
+    <string name="queueflow_alerts_channel_name">Queue updates</string>
+    <string name="queueflow_alerts_channel_description">Alerts when your place in the queue is about to be called.</string>
+</resources>

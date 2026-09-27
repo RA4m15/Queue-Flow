@@ -49,6 +49,21 @@ class ApiConstants {
   static const String eventCrowdUpdated = 'crowd.updated';
   static const String eventNotificationCreated = 'notification.created';
 
+  // Document Gate events (emitted on the private user room)
+  static const String eventDocumentUpdated = 'document.updated';
+  static const String eventDocumentVerified = 'document.verified';
+  static const String eventDocumentRejected = 'document.rejected';
+
+  // Ghost Queue proximity
+  static const String eventTokenProximity = 'token:proximity';
+
+  // P2P swap (private user room)
+  static const String eventSwapOfferReceived = 'swap.offer.received';
+  static const String eventSwapOfferDeclined = 'swap.offer.declined';
+  static const String eventSwapOfferCancelled = 'swap.offer.cancelled';
+  static const String eventSwapOfferExpired = 'swap.offer.expired';
+  static const String eventSwapCompleted = 'swap.completed';
+
   // Timeout settings - accommodate Render cold starts gracefully
   static const Duration connectTimeout = Duration(seconds: 60);
   static const Duration receiveTimeout = Duration(seconds: 60);

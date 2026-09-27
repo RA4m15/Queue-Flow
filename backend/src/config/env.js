@@ -11,8 +11,12 @@
 const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
   'https://queue-flow-4308.onrender.com',
 ];
 
@@ -335,8 +339,13 @@ function validateEnv(env = process.env) {
     REDIS_PASSWORD: env.REDIS_PASSWORD || undefined,
     REDIS_TLS: env.REDIS_TLS === 'true',
     REDIS_ENABLED: env.REDIS_ENABLED !== 'false',
-    FCM_SERVER_KEY: env.FCM_SERVER_KEY || undefined,
+    // FCM server-side push. Credentials are read directly from process.env by
+    // channels/fcmPushProvider.js (never from this object) so key material has
+    // exactly one read site. FCM_SERVER_KEY was the legacy FCM HTTP API
+    // credential and is no longer used: firebase-admin authenticates with a
+    // service account instead.
     FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID || undefined,
+    FCM_ANDROID_CHANNEL_ID: env.FCM_ANDROID_CHANNEL_ID || 'queueflow_alerts',
     MONGODB_MAX_POOL_SIZE: maxPoolSize,
     MONGODB_MIN_POOL_SIZE: minPoolSize,
     SHUTDOWN_TIMEOUT_MS: shutdownTimeoutMs,

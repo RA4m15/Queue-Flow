@@ -104,12 +104,32 @@ const getCenterDisplay = asyncHandler(async (req, res) => {
   const Counter = require('../models/Counter');
 
   const center = await ServiceCenter.findById(centerId)
-    .select('name code type address capacity isOpen')
-    .lean();
+    .select('name code type address capacity isOpen currentCrowd crowdUpdatedAt capacityAlertThreshold')
+    .lean({ virtuals: true });
 
   if (!center) {
     return sendNotFound(res, 'Service center not found');
   }
+
+  const jwt = require('jsonwebtoken');
+  const displayToken = jwt.sign(
+    { id: center._id.toString(), role: 'CUSTOMER', isDisplay: true },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  const currentCrowd = typeof center.currentCrowd === 'number' ? center.currentCrowd : 0;
+  const capacity = center.capacity || 200;
+  const crowdPercent = Math.round((currentCrowd / capacity) * 100);
+  const crowdStatus = crowdPercent >= 80 ? 'HIGH' : (crowdPercent >= 50 ? 'MODERATE' : 'LOW');
+
+  // Freshness of the reading above. If the sensor stopped reporting, this stops
+  // advancing and the display shows Unavailable instead of a frozen count.
+  const crowdUpdatedAt = center.crowdUpdatedAt || null;
+  const SENSOR_STALE_MS = 90000;
+  const crowdSensorOnline = Boolean(
+    crowdUpdatedAt && (Date.now() - new Date(crowdUpdatedAt).getTime()) < SENSOR_STALE_MS
+  );
 
   const date = getTodayDateString();
 
@@ -154,7 +174,13 @@ const getCenterDisplay = asyncHandler(async (req, res) => {
       center: {
         ...center,
         id: center._id.toString(),
+        currentCrowd,
+        crowdPercent,
+        crowdStatus,
+        crowdUpdatedAt,
+        crowdSensorOnline,
       },
+      displayToken,
       nowServing,
       nextInQueue,
       counters: counters.map((c) => ({

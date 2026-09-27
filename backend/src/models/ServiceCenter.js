@@ -81,6 +81,55 @@ const serviceCenterSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    // When currentCrowd was last reported by a live sensor. Lets the display tell
+    // a genuine zero-person reading apart from a sensor that stopped reporting.
+    crowdUpdatedAt: {
+      type: Date,
+      default: null,
+    },
+    // Tier 4 Feature 1: Ghost Queue Geofencing Configuration
+    // Location coordinates (latitude / longitude). Centers without coordinates must not participate in geofencing.
+    location: {
+      latitude: {
+        type: Number,
+        min: [-90, 'Latitude must be between -90 and 90'],
+        max: [90, 'Latitude must be between -90 and 90'],
+        default: null,
+      },
+      longitude: {
+        type: Number,
+        min: [-180, 'Longitude must be between -180 and 180'],
+        max: [180, 'Longitude must be between -180 and 180'],
+        default: null,
+      },
+    },
+    geofence: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      // Inner radius: inside center / immediate service area (meters)
+      radiusMeters: {
+        type: Number,
+        min: [10, 'Geofence radius must be at least 10 meters'],
+        max: [50000, 'Geofence radius must not exceed 50,000 meters'],
+        default: 500,
+      },
+      // Near radius: in immediate vicinity of center (meters)
+      nearRadiusMeters: {
+        type: Number,
+        min: [20, 'Near radius must be at least 20 meters'],
+        max: [50000, 'Near radius must not exceed 50,000 meters'],
+        default: 1000,
+      },
+      // Outer radius: approaching notification boundary (meters)
+      approachingRadiusMeters: {
+        type: Number,
+        min: [50, 'Approaching radius must be at least 50 meters'],
+        max: [100000, 'Approaching radius must not exceed 100,000 meters'],
+        default: 2000,
+      },
+    },
   },
   {
     timestamps: true,
@@ -99,6 +148,16 @@ serviceCenterSchema.virtual('crowdStatus').get(function () {
   if (pct >= 80) return 'HIGH';
   if (pct >= 50) return 'MODERATE';
   return 'LOW';
+});
+
+serviceCenterSchema.virtual('isLocationConfigured').get(function () {
+  return Boolean(
+    this.location &&
+    typeof this.location.latitude === 'number' &&
+    typeof this.location.longitude === 'number' &&
+    Number.isFinite(this.location.latitude) &&
+    Number.isFinite(this.location.longitude)
+  );
 });
 
 // ─── Indexes ──────────────────────────────────────

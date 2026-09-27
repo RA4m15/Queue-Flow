@@ -43,6 +43,16 @@ dependencies:
   intl: ^0.20.3
   google_fonts: ^8.2.1
   mobile_scanner: ^7.4.2
+  # Firebase device push transport.
+  #
+  # The transport is compiled in, but it only activates when a Firebase project
+  # is actually configured (android/app/google-services.json and/or
+  # ios/Runner/GoogleService-Info.plist). Without those files the app resolves
+  # PushMessagingClient to UnavailablePushMessagingClient and reports push as
+  # unavailable instead of pretending it works. See
+  # lib/services/push_transport.dart and docs/FCM_SETUP.md.
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 
 dev_dependencies:
   flutter_test:

@@ -23,8 +23,8 @@
  *  16. Raw FCM device tokens never appear in structured logs (Step 6 redaction)
  *  17. Notification payload contains no credentials, passwords, JWTs, or secrets
  *  18. FCM server credentials are not exposed to client-side bundles or source
- *  19. Server-side FCM delivery is correctly identified and documented as stubbed
- *  20. Provider-specific invalid token error handling is verified as NOT APPLICABLE
+ *  19. Server-side FCM delivery exists and is credential-gated, never faked
+ *  20. Provider invalid-token error handling clears the dead device token
  */
 
 process.env.NODE_ENV = 'test';
@@ -402,24 +402,84 @@ async function runSuite() {
 
     await runTest('18. FCM server credentials are not exposed to clients or in repository', () => {
       const pkg = require('../package.json');
-      assert.ok(!pkg.dependencies['firebase-admin'], 'firebase-admin must NOT be installed');
-      assert.strictEqual(process.env.FCM_SERVER_KEY, undefined, 'FCM_SERVER_KEY must not have active credentials');
+      // firebase-admin IS a dependency now: real FCM delivery requires it.
+      assert.ok(pkg.dependencies['firebase-admin'], 'firebase-admin must be installed for real FCM delivery');
+
+      // No Firebase credential may be present in the running test process.
+      assert.strictEqual(process.env.FIREBASE_SERVICE_ACCOUNT_JSON, undefined, 'FIREBASE_SERVICE_ACCOUNT_JSON must not be set in tests');
+      assert.strictEqual(process.env.GOOGLE_APPLICATION_CREDENTIALS, undefined, 'GOOGLE_APPLICATION_CREDENTIALS must not be set in tests');
+      assert.strictEqual(process.env.FIREBASE_PROJECT_ID, undefined, 'FIREBASE_PROJECT_ID must not be set in tests');
+
+      // The shipped template must carry the placeholder, never real key bytes.
+      const envExample = fs.readFileSync(path.join(__dirname, '../.env.example'), 'utf8');
+      assert.ok(
+        /"private_key"\s*:\s*"[^"]*<private_key>[^"]*"/.test(envExample),
+        '.env.example must carry only the <private_key> placeholder'
+      );
+      assert.ok(
+        !/-----BEGIN PRIVATE KEY-----\\n[A-Za-z0-9+/]{40,}/.test(envExample),
+        '.env.example must not contain real key material'
+      );
+      assert.ok(!/[A-Za-z0-9_-]{28,}\.apps\.googleusercontent\.com/.test(envExample), '.env.example must not contain a real client id');
+
+      // No committed service account JSON anywhere in the repo.
+      const repoRoot = path.join(__dirname, '..', '..');
+      for (const dir of ['src', 'test', 'config']) {
+        const full = path.join(repoRoot, dir);
+        if (!fs.existsSync(full)) continue;
+        for (const entry of fs.readdirSync(full, { withFileTypes: true })) {
+          if (!entry.isFile()) continue;
+          const text = fs.readFileSync(path.join(full, entry.name), 'utf8');
+          assert.ok(!text.includes('-----BEGIN PRIVATE KEY-----'), `${dir}/${entry.name} must not contain private key material`);
+        }
+      }
     });
 
-    await runTest('19. Server-side FCM delivery is correctly identified and documented as stubbed', () => {
+    await runTest('19. Server-side FCM delivery exists and is credential-gated, never faked', () => {
       const notifService = require('../src/services/notificationService');
       assert.strictEqual(typeof notifService.sendTokenNotification, 'function');
       assert.strictEqual(typeof notifService.sendBroadcastNotification, 'function');
-      // Documented stub verified in notificationService source code
+
+      const fcm = require('../src/channels/fcmPushProvider');
+      assert.strictEqual(typeof fcm.sendPush, 'function');
+      assert.strictEqual(typeof fcm.isConfigured, 'function');
+
+      // The service must delegate to the provider, not skip delivery.
       const src = fs.readFileSync(path.join(__dirname, '../src/services/notificationService.js'), 'utf8');
-      assert.ok(src.includes('FCM server-side delivery not currently implemented'));
+      assert.ok(src.includes('fcmPushProvider.sendPush'), 'notificationService must call the FCM provider');
+      assert.ok(
+        src.includes('FCM server-side delivery is implemented in channels/fcmPushProvider.js'),
+        'notificationService must document its real FCM state truthfully'
+      );
+
+      // With no credentials present, delivery must be reported as skipped, and
+      // must never claim success.
+      fcm.resetForTesting();
+      const status = fcm.getStatus();
+      assert.strictEqual(status.configured, false, 'no credentials must be detected in the test environment');
+      assert.strictEqual(status.ready, false);
     });
 
-    await runTest('20. Provider-specific invalid token error handling is verified as NOT APPLICABLE', () => {
-      // Explicitly document that provider-level invalid token handling (e.g. UnregisteredDevice error from Google)
-      // is not applicable because server-side FCM dispatch is a stub.
-      // Token-management invalid format handling is tested in Tests 3, 4, 5.
-      assert.ok(true, 'Provider-specific invalid token cleanup is NOT APPLICABLE until FCM delivery exists');
+    await runTest('20. Provider invalid-token error handling clears the dead device token', () => {
+      const fcm = require('../src/channels/fcmPushProvider');
+
+      // Every code Firebase uses for "stop sending to this token" must be
+      // recognised, so the backend stops attempting delivery.
+      for (const code of fcm.INVALID_TOKEN_ERROR_CODES) {
+        assert.ok(fcm.isInvalidTokenError({ code }), `${code} must be treated as an invalid token`);
+      }
+
+      // A transient provider error must NOT be treated as a dead token, or a
+      // temporary outage would silently unsubscribe real users.
+      assert.strictEqual(fcm.isInvalidTokenError({ code: 'messaging/internal-error' }), false);
+      assert.strictEqual(fcm.isInvalidTokenError({ code: 'messaging/too-many-topics' }), false);
+      assert.strictEqual(fcm.isInvalidTokenError(new Error('network down')), false);
+      assert.strictEqual(fcm.isInvalidTokenError(undefined), false);
+
+      // The clearing behaviour is wired into the real notification path.
+      const src = fs.readFileSync(path.join(__dirname, '../src/services/notificationService.js'), 'utf8');
+      assert.ok(src.includes('result.invalidToken'), 'notificationService must act on an invalid-token result');
+      assert.ok(src.includes("fcmToken: null"), 'notificationService must clear the rejected device token');
     });
 
   } finally {

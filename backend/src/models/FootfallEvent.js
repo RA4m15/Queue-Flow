@@ -16,7 +16,7 @@ const footfallEventSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['ENTRY', 'EXIT'],
+      enum: ['ENTRY', 'EXIT', 'COUNT'],
       required: true,
     },
     // Crowd count after this event

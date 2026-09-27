@@ -18,6 +18,8 @@ import {
   Layers,
   ChevronRight,
   ShieldAlert,
+  Activity,
+  Gauge,
 } from 'lucide-react';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
@@ -28,6 +30,7 @@ export default function OperatorPortal() {
   const [counterData, setCounterData] = useState(null);
   const [queueData, setQueueData] = useState(null);
   const [waitingTokens, setWaitingTokens] = useState([]);
+  const [workloadData, setWorkloadData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -43,6 +46,9 @@ export default function OperatorPortal() {
         setCounterData(res.data.counter);
         setQueueData(res.data.queue);
         setWaitingTokens(res.data.waitingTokens || []);
+        if (res.data.workload) {
+          setWorkloadData(res.data.workload);
+        }
         if (res.data.counter?.centerId?._id) {
           setActiveCenterId(res.data.counter.centerId._id);
         }
@@ -88,6 +94,10 @@ export default function OperatorPortal() {
       fetchOperatorState();
     });
 
+    const unsubWorkload = on('workload.updated', () => {
+      fetchOperatorState();
+    });
+
     return () => {
       unsubQueue?.();
       unsubCounter?.();
@@ -95,6 +105,7 @@ export default function OperatorPortal() {
       unsubServing?.();
       unsubCompleted?.();
       unsubSkipped?.();
+      unsubWorkload?.();
     };
   }, [on, counterData?._id, fetchOperatorState]);
 
@@ -658,6 +669,93 @@ export default function OperatorPortal() {
               </div>
             </div>
           </div>
+
+          {/* Tier 4 / Feature 5: Operational Workload Balancer Widget */}
+          {workloadData && workloadData.dataSufficiency !== 'INSUFFICIENT_DATA' && (
+            <div
+              className="q-card"
+              style={{
+                padding: '20px 24px',
+                border: workloadData.loadLevel === 'SUSTAINED_HIGH'
+                  ? '1px solid rgba(239, 68, 68, 0.45)'
+                  : workloadData.loadLevel === 'HIGH'
+                  ? '1px solid rgba(245, 158, 11, 0.45)'
+                  : '1px solid var(--border-subtle)',
+                background: workloadData.loadLevel === 'SUSTAINED_HIGH'
+                  ? 'rgba(239, 68, 68, 0.04)'
+                  : 'var(--bg-card)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <Activity size={16} color={workloadData.loadLevel === 'SUSTAINED_HIGH' ? '#EF4444' : workloadData.loadLevel === 'HIGH' ? '#F59E0B' : 'var(--color-primary)'} />
+                  OPERATIONAL WORKLOAD
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '12px',
+                    background: workloadData.loadLevel === 'SUSTAINED_HIGH'
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : workloadData.loadLevel === 'HIGH'
+                      ? 'rgba(245, 158, 11, 0.15)'
+                      : workloadData.loadLevel === 'MODERATE'
+                      ? 'rgba(59, 130, 246, 0.15)'
+                      : 'rgba(0, 229, 168, 0.15)',
+                    color: workloadData.loadLevel === 'SUSTAINED_HIGH'
+                      ? '#EF4444'
+                      : workloadData.loadLevel === 'HIGH'
+                      ? '#F59E0B'
+                      : workloadData.loadLevel === 'MODERATE'
+                      ? '#60A5FA'
+                      : 'var(--color-primary)',
+                  }}
+                >
+                  {workloadData.loadLevel === 'SUSTAINED_HIGH' ? 'SUSTAINED HIGH' : workloadData.loadLevel} LOAD
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                  {workloadData.workloadScore ?? '--'}
+                </span>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>/ 100</span>
+              </div>
+
+              {/* Contributing factors progress breakdown */}
+              {workloadData.factors && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '12px 0', fontSize: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                    <span>Active Service Load</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.activeServiceLoad?.score ?? 0}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                    <span>Queue Pressure</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.queuePressure?.score ?? 0}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                    <span>Recent Volume</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.recentVolume?.completedCount ?? 0} served</span>
+                  </div>
+                  {workloadData.factors.sustainedWorkload?.continuousMinutes > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                      <span>Continuous Active Duty</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.sustainedWorkload.continuousMinutes} min</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Operational explanation */}
+              {workloadData.explanation && (
+                <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  {workloadData.explanation}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Next in Line Queue List */}
           <div className="q-card" style={{ padding: '24px', flex: 1 }}>

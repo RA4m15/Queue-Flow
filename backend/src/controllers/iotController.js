@@ -20,7 +20,8 @@ const rfidValidation = [
 
 const crowdValidation = [
   body('centerId').isMongoId().withMessage('Valid centerId is required'),
-  body('type').isIn(['ENTRY', 'EXIT']).withMessage('Type must be ENTRY or EXIT'),
+  body('type').isIn(['ENTRY', 'EXIT', 'COUNT']).withMessage('Type must be ENTRY, EXIT, or COUNT'),
+  body('count').optional().isInt({ min: 0 }).withMessage('Count must be a non-negative integer'),
   body('sensorId').optional().isString(),
 ];
 
@@ -77,28 +78,42 @@ const handleRfid = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/iot/crowd
- * ESP32 sensor sends an ENTRY or EXIT event.
+ * ESP32 or crowd_monitor sensor sends an ENTRY, EXIT, or live COUNT event.
  * Updates service center currentCrowd and records FootfallEvent.
  * Auth: x-iot-secret header
  */
 const handleCrowd = asyncHandler(async (req, res) => {
-  const { centerId, type, sensorId, rawPayload } = req.body;
+  const { centerId, type, sensorId, rawPayload, count, currentCrowd } = req.body;
 
   const center = await ServiceCenter.findById(centerId);
   if (!center) return sendNotFound(res, 'Service center not found');
 
-  // Update crowd count atomically
-  const increment = type === 'ENTRY' ? 1 : -1;
-  const updatedCenter = await ServiceCenter.findByIdAndUpdate(
-    centerId,
-    { $inc: { currentCrowd: increment } },
-    { new: true }
-  ).lean({ virtuals: true });
+  let updatedCenter;
+  if (type === 'COUNT') {
+    const rawVal = typeof count === 'number' ? count : (typeof currentCrowd === 'number' ? currentCrowd : 0);
+    const newCount = Math.max(0, parseInt(rawVal, 10) || 0);
+    // A COUNT is an absolute reading of current occupancy, so it replaces the
+    // stored value outright (including 0). crowdUpdatedAt records freshness so the
+    // display can distinguish "zero people" from "sensor stopped reporting".
+    updatedCenter = await ServiceCenter.findByIdAndUpdate(
+      centerId,
+      { $set: { currentCrowd: newCount, crowdUpdatedAt: new Date() } },
+      { new: true }
+    ).lean({ virtuals: true });
+  } else {
+    // Update crowd count atomically for ENTRY / EXIT
+    const increment = type === 'ENTRY' ? 1 : -1;
+    updatedCenter = await ServiceCenter.findByIdAndUpdate(
+      centerId,
+      { $inc: { currentCrowd: increment }, $set: { crowdUpdatedAt: new Date() } },
+      { new: true }
+    ).lean({ virtuals: true });
 
-  // Ensure count doesn't go below 0
-  if (updatedCenter.currentCrowd < 0) {
-    await ServiceCenter.findByIdAndUpdate(centerId, { $set: { currentCrowd: 0 } });
-    updatedCenter.currentCrowd = 0;
+    // Ensure count doesn't go below 0
+    if (updatedCenter.currentCrowd < 0) {
+      await ServiceCenter.findByIdAndUpdate(centerId, { $set: { currentCrowd: 0 } });
+      updatedCenter.currentCrowd = 0;
+    }
   }
 
   // Record the event
@@ -111,13 +126,19 @@ const handleCrowd = asyncHandler(async (req, res) => {
     rawPayload: rawPayload || null,
   });
 
+  const capacity = updatedCenter.capacity || center.capacity || 200;
+  const crowdPercent = Math.round((updatedCenter.currentCrowd / capacity) * 100);
+  const crowdStatus = crowdPercent >= 80 ? 'HIGH' : (crowdPercent >= 50 ? 'MODERATE' : 'LOW');
+
   // Emit real-time update to all admin/user listeners for this center
   emitToCenter(centerId.toString(), 'crowd.updated', {
     centerId,
     currentCrowd: updatedCenter.currentCrowd,
-    crowdPercent: updatedCenter.crowdPercent,
-    crowdStatus: updatedCenter.crowdStatus,
-    capacity: updatedCenter.capacity,
+    crowdPercent,
+    crowdStatus,
+    capacity,
+    // Freshness stamp so clients can age out a silent sensor
+    crowdUpdatedAt: updatedCenter.crowdUpdatedAt,
     event: {
       type,
       sensorId,
@@ -129,8 +150,9 @@ const handleCrowd = asyncHandler(async (req, res) => {
     message: `Crowd ${type} recorded`,
     data: {
       currentCrowd: updatedCenter.currentCrowd,
-      crowdPercent: updatedCenter.crowdPercent,
-      crowdStatus: updatedCenter.crowdStatus,
+      crowdPercent,
+      crowdStatus,
+      crowdUpdatedAt: updatedCenter.crowdUpdatedAt,
     },
   });
 });

@@ -41,6 +41,18 @@ const queueEventSchema = new mongoose.Schema(
         'COUNTER_MORPHED',
         'QUEUE_PAUSED',
         'QUEUE_RESUMED',
+        // Tier 4 Feature 3: P2P Slot Swapping Audit Events
+        'SWAP_OFFER_CREATED',  // Customer created a swap offer
+        'SWAP_COMPLETED',      // Atomic swap executed successfully
+        'SWAP_FAILED',         // Swap execution failed after acceptance
+        // Tier 4 Feature 4: Document-Ready Gatekeeping Audit Events
+        'DOCUMENT_GATE_PASSED',
+        'DOCUMENT_GATE_BLOCKED',
+        'DOCUMENT_VERIFIED',
+        'DOCUMENT_REJECTED',
+        // Tier 4 Feature 5: Cognitive Load / Workload Balancer Audit Events
+        'WORKLOAD_ALERT_TRIGGERED',
+        'WORKLOAD_BALANCED',
       ],
       required: true,
     },

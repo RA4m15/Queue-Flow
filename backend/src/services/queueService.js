@@ -10,6 +10,8 @@ const QueueEvent = require('../models/QueueEvent');
 const { getTodayDateString, formatTokenCode, generateQRData } = require('../utils/tokenUtils');
 const waitTimeService = require('./waitTimeService');
 const notificationService = require('./notificationService');
+const documentGateService = require('./documentGateService');
+const workloadBalancerService = require('./workloadBalancerService');
 const { emitToCenter, emitToUser, emitToCounter } = require('../config/socket');
 
 /**
@@ -82,6 +84,8 @@ async function joinQueue({
   notifySms = false,
   channel = 'WEB',
   channelMetadata = {},
+  journeyId = null,
+  previousTokenId = null,
 }) {
   // 1. Verify service center exists and is open
   const center = await ServiceCenter.findById(centerId);
@@ -132,7 +136,47 @@ async function joinQueue({
     throw err;
   }
 
-  // 3. Atomically increment queue counters and create token inside a MongoDB transaction
+  // 3b. Tier 4 Feature 4: Document-Ready Gatekeeping
+  // Authoritative server-side evaluation of service document requirements
+  if (userId) {
+    const readiness = await documentGateService.checkServiceReadiness({ serviceId, userId });
+    if (!readiness.isReady) {
+      try {
+        await QueueEvent.create({
+          centerId,
+          eventType: 'DOCUMENT_GATE_BLOCKED',
+          performedBy: userId,
+          metadata: {
+            serviceId,
+            status: readiness.status,
+            missingRequirements: readiness.missingRequirements,
+          },
+        });
+      } catch (_) {}
+
+      const err = new Error(readiness.message || 'Service requires document verification before queueing');
+      err.status = 403;
+      err.code = 'DOCUMENT_GATE_BLOCKED';
+      err.gateData = readiness;
+      throw err;
+    }
+
+    if (readiness.status === 'READY') {
+      try {
+        await QueueEvent.create({
+          centerId,
+          eventType: 'DOCUMENT_GATE_PASSED',
+          performedBy: userId,
+          metadata: {
+            serviceId,
+            status: readiness.status,
+          },
+        });
+      } catch (_) {}
+    }
+  }
+
+  // 4. Atomically increment queue counters and create token inside a MongoDB transaction
   const date = getTodayDateString();
   let token;
   let queue;
@@ -219,6 +263,8 @@ async function joinQueue({
               notifySms,
               channel,
               channelMetadata,
+              journeyId: journeyId || null,
+              previousTokenId: previousTokenId || null,
             },
           ],
           { session }
@@ -229,8 +275,15 @@ async function joinQueue({
         created.qrData = finalQrResult.qrData;
         created.qrNonce = finalQrResult.nonce;
         created.qrIssuedAt = finalQrResult.issuedAt;
+        if (!created.journeyId) {
+          created.journeyId = created._id;
+        }
         await created.save({ session });
         token = created;
+
+        if (previousTokenId) {
+          await Token.findByIdAndUpdate(previousTokenId, { nextTokenId: created._id }, { session });
+        }
       });
     } catch (err) {
       if (err.code === 11000) {
@@ -300,6 +353,8 @@ async function joinQueue({
         notifySms,
         channel,
         channelMetadata,
+        journeyId: journeyId || null,
+        previousTokenId: previousTokenId || null,
       });
     } catch (err) {
       if (err.code === 11000) {
@@ -318,7 +373,14 @@ async function joinQueue({
     token.qrData = finalQrResult.qrData;
     token.qrNonce = finalQrResult.nonce;
     token.qrIssuedAt = finalQrResult.issuedAt;
+    if (!token.journeyId) {
+      token.journeyId = token._id;
+    }
     await token.save();
+
+    if (previousTokenId) {
+      await Token.findByIdAndUpdate(previousTokenId, { nextTokenId: token._id });
+    }
   }
 
   // 8. Log the event
@@ -481,6 +543,9 @@ async function callNext({ counterId, centerId, adminId }) {
     serviceName: counter.serviceId?.name,
   });
 
+  // Tier 4 Feature 5: Real-time operational workload broadcast
+  workloadBalancerService.broadcastWorkloadUpdate(centerId);
+
   return { token: populatedToken, counter: populatedCounter };
 }
 
@@ -541,6 +606,9 @@ async function startServing({ tokenId, counterId, adminId }) {
 
   emitToCenter(token.centerId.toString(), 'token.serving', { token: _sanitizeTokenForCenter(populated) });
   emitToUser(token.userId.toString(), 'token.serving', { token: populated });
+
+  // Tier 4 Feature 5: Real-time operational workload broadcast
+  workloadBalancerService.broadcastWorkloadUpdate(token.centerId);
 
   return populated;
 }
@@ -656,6 +724,38 @@ async function completeToken({ tokenId, counterId, adminId }) {
     body: `Thank you! Your service for token ${token.tokenCode} has been completed.`,
   });
 
+  // Tier 4 Feature 2: Service Graph Multi-Hop check for next services
+  try {
+    const { ServiceRelationship } = require('../models/ServiceRelationship');
+    const nextEdges = await ServiceRelationship.find({
+      centerId: token.centerId,
+      sourceServiceId: token.serviceId,
+      isActive: true,
+    }).lean();
+
+    if (nextEdges && nextEdges.length > 0) {
+      await notificationService.sendTokenNotification(token, 'NEXT_SERVICE_AVAILABLE', {
+        title: 'Next Service Available',
+        body: `Your service for token ${token.tokenCode} is complete. Next step is available in your workflow.`,
+        dedupeKey: `next_svc_${token._id}`,
+      });
+    }
+  } catch (_) {
+    // Non-fatal if relationship lookup fails
+  }
+
+  // Tier 4 Feature 5: Real-time operational workload evaluation & broadcast
+  if (token.servedBy) {
+    workloadBalancerService.calculateOperatorWorkload({ operatorId: token.servedBy, centerId: token.centerId })
+      .then((workload) => {
+        if (workload && workload.loadLevel === 'SUSTAINED_HIGH') {
+          workloadBalancerService.checkAndNotifySustainedWorkload(token.servedBy, token.centerId, workload);
+        }
+      })
+      .catch(() => {});
+  }
+  workloadBalancerService.broadcastWorkloadUpdate(token.centerId);
+
   return { token: populated, counter: populatedCounter };
 }
 
@@ -743,6 +843,9 @@ async function skipToken({ tokenId, counterId, adminId }) {
     title: 'Token Skipped',
     body: `Your token ${token.tokenCode} was skipped. Please contact the front desk if you need assistance.`,
   });
+
+  // Tier 4 Feature 5: Real-time operational workload broadcast
+  workloadBalancerService.broadcastWorkloadUpdate(token.centerId);
 
   return populated;
 }
@@ -1026,6 +1129,13 @@ async function _updateWaitingPositions(centerId, serviceId) {
 
   if (bulkOps.length > 0) {
     await Token.bulkWrite(bulkOps);
+  }
+
+  if (queue && queue.waitingCount !== waitingTokens.length) {
+    await Queue.updateOne(
+      { _id: queue._id },
+      { $set: { waitingCount: waitingTokens.length } }
+    );
   }
 
   // Emit position updates to each affected user and evaluate rule-based alerts

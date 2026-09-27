@@ -223,6 +223,51 @@ const channelLimiter = createLimiter({
   message: { success: false, message: 'Too many channel requests, please try again later.' },
 });
 
+// Tier 4 Feature 1: Ghost Queue location rate limiter
+const locationLimiter = createLimiter({
+  prefix: 'rl:loc:',
+  windowMs: 1 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 30, // 30 location pings per minute in prod
+  keyGenerator: userOrIpKeyGenerator,
+  message: { success: false, message: 'Too many location updates, please try again later.' },
+});
+
+// Tier 4 Feature 3: P2P Slot Swapping rate limiters
+// Swap offer creation: tightly limited to prevent offer spam per user
+const swapOfferLimiter = createLimiter({
+  prefix: 'rl:swap_offer:',
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 5, // 5 offers per 15 min per user in prod
+  keyGenerator: userOrIpKeyGenerator,
+  message: { success: false, message: 'Too many swap offer requests, please try again later.' },
+});
+
+// Swap actions (accept/decline/cancel): less strict
+const swapActionLimiter = createLimiter({
+  prefix: 'rl:swap_action:',
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 30,
+  keyGenerator: userOrIpKeyGenerator,
+  message: { success: false, message: 'Too many swap action requests, please try again later.' },
+});
+
+// Tier 4 Feature 4: Document Gate rate limiters
+const documentUploadLimiter = createLimiter({
+  prefix: 'rl:doc_upload:',
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 20, // 20 uploads per 15 min in prod
+  keyGenerator: userOrIpKeyGenerator,
+  message: { success: false, message: 'Too many document uploads, please try again later.' },
+});
+
+const documentActionLimiter = createLimiter({
+  prefix: 'rl:doc_action:',
+  windowMs: 1 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 60,
+  keyGenerator: userOrIpKeyGenerator,
+  message: { success: false, message: 'Too many document requests, please try again later.' },
+});
+
 module.exports = {
   createLimiter,
   QueueFlowDistributedStore,
@@ -235,5 +280,10 @@ module.exports = {
   feedbackLimiter,
   verifyQRLimiter,
   channelLimiter,
+  locationLimiter,
+  swapOfferLimiter,
+  swapActionLimiter,
+  documentUploadLimiter,
+  documentActionLimiter,
 };
 

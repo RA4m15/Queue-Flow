@@ -35,6 +35,9 @@ const iotRoutes = require('./src/routes/iot');
 const devRoutes = require('./src/routes/dev');
 const healthRoutes = require('./src/routes/health');
 const channelRoutes = require('./src/routes/channels');
+const serviceGraphRoutes = require('./src/routes/serviceGraph');
+const swapRoutes = require('./src/routes/swaps');
+const documentRoutes = require('./src/routes/documents');
 
 // ─── App Init ─────────────────────────────────────
 const app = express();
@@ -158,6 +161,9 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/iot', iotRoutes);
 app.use('/api/channels', channelRoutes);
+app.use('/api/service-graph', serviceGraphRoutes);
+app.use('/api/swaps', swapRoutes);
+app.use('/api/documents', documentRoutes);
 
 // Dev simulator — only available in non-production environments when enabled
 if (config.DEV_SIMULATOR_ENABLED) {

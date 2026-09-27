@@ -8,6 +8,10 @@ import '../services/socket_service.dart';
 import 'app_providers.dart';
 import 'token_provider.dart';
 import 'notification_provider.dart';
+import 'document_gate_provider.dart';
+import 'service_graph_provider.dart';
+import 'swap_provider.dart';
+import '../services/push_notification_service.dart';
 
 class AuthState {
   const AuthState({
@@ -333,6 +337,14 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     onLogout: () {
       ref.read(tokenProvider.notifier).reset();
       ref.read(notificationsProvider.notifier).reset();
+      ref.read(documentGateProvider.notifier).clear();
+      ref.read(serviceGraphProvider.notifier).clear();
+      ref.read(swapProvider.notifier).clear();
+      // Detach this device's push token so the next account on this device
+      // cannot inherit the previous account's registration.
+      ref.read(pushNotificationServiceProvider.notifier).unregisterOnLogout();
+      // A previous account's connectivity verdict must not leak into the next.
+      apiService.networkStatus.reset();
     },
   );
 

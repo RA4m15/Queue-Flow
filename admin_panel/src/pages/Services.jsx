@@ -14,9 +14,12 @@ import {
   Clock,
   Tag,
   Hash,
-  AlignLeft,
   Layers,
+  GitCommit,
+  FileText,
 } from 'lucide-react';
+import { ServiceGraphManager } from '../components/ServiceGraphManager';
+import { DocumentRequirementsManager } from '../components/DocumentRequirementsManager';
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
@@ -41,7 +44,7 @@ function StatusBadge({ isActive }) {
   );
 }
 
-function ServiceRow({ service, isActionLoading, onEdit, onToggle, isAdminRole }) {
+function ServiceRow({ service, isActionLoading, onEdit, onToggle, onManageDocs, isAdminRole }) {
   return (
     <tr
       style={{
@@ -140,6 +143,16 @@ function ServiceRow({ service, isActionLoading, onEdit, onToggle, isAdminRole })
       {isAdminRole && (
         <td style={{ padding: '14px 16px', textAlign: 'right' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+            <button
+              className="btn-secondary"
+              onClick={() => onManageDocs(service)}
+              disabled={isActionLoading}
+              style={{ fontSize: '11px', padding: '5px 10px', gap: '4px' }}
+              title="Manage service document requirements and review customer documents"
+            >
+              <FileText size={12} />
+              Documents
+            </button>
             <button
               className="btn-secondary"
               onClick={() => onEdit(service)}
@@ -432,7 +445,9 @@ export default function Services() {
   const [selectedCenterId, setSelectedCenterId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'active' | 'inactive'
+  const [activeTab, setActiveTab] = useState('list'); // 'list' | 'graph'
   const [modal, setModal] = useState(null); // null | { mode:'create' } | { mode:'edit', service }
+  const [docManagerService, setDocManagerService] = useState(null);
   const [toastMsg, setToastMsg] = useState(null);
   const toastTimerRef = useRef(null);
 
@@ -683,8 +698,56 @@ export default function Services() {
         </div>
       </div>
 
-      {/* ── Filters Row ── */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* ── View Mode Tabs ── */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('list')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            border: activeTab === 'list' ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+            background: activeTab === 'list' ? 'rgba(0,229,168,0.1)' : 'transparent',
+            color: activeTab === 'list' ? 'var(--color-primary)' : 'var(--text-secondary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <Layers size={14} />
+          Services List ({services.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('graph')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            border: activeTab === 'graph' ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+            background: activeTab === 'graph' ? 'rgba(0,229,168,0.1)' : 'transparent',
+            color: activeTab === 'graph' ? 'var(--color-primary)' : 'var(--text-secondary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <GitCommit size={14} />
+          Workflow & Service Graph
+        </button>
+      </div>
+
+      {activeTab === 'graph' ? (
+        <ServiceGraphManager centerId={selectedCenterId} isAdmin={isAdmin} />
+      ) : (
+        <>
+          {/* ── Filters Row ── */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
         {/* Search */}
         <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '340px' }}>
           <Search size={13} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
@@ -828,6 +891,7 @@ export default function Services() {
                   isActionLoading={actionLoadingId === service._id}
                   onEdit={(svc) => setModal({ mode: 'edit', service: svc })}
                   onToggle={handleToggle}
+                  onManageDocs={(svc) => setDocManagerService(svc)}
                   isAdminRole={isAdmin}
                 />
               ))}
@@ -852,6 +916,8 @@ export default function Services() {
           </div>
         </div>
       )}
+        </>
+      )}
 
       {/* ── Modals ── */}
       {modal?.mode === 'create' && (
@@ -869,6 +935,14 @@ export default function Services() {
           centerId={selectedCenterId}
           onClose={() => setModal(null)}
           onSubmit={handleUpdate}
+        />
+      )}
+
+      {/* Tier 4 Feature 4: Document Requirements & Verification Review Modal */}
+      {docManagerService && (
+        <DocumentRequirementsManager
+          service={docManagerService}
+          onClose={() => setDocManagerService(null)}
         />
       )}
     </div>

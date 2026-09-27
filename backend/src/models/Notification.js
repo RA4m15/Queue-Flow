@@ -35,6 +35,28 @@ const notificationSchema = new mongoose.Schema(
         'QUEUE_CANCELLED',
         'COUNTER_ASSIGNED',
         'BROADCAST',           // Admin broadcast to all queued users
+        // Tier 4 Feature 1: Ghost Queue Geofencing Alerts
+        'GEOFENCE_APPROACHING', // Approaching service area alert
+        'GEOFENCE_NEAR',        // Near service center alert
+        'GEOFENCE_INSIDE',      // Inside service area alert
+        // Tier 4 Feature 2: Service Graph Multi-Hop Notification
+        'NEXT_SERVICE_AVAILABLE', // Next service in workflow is available
+        // Tier 4 Feature 3: P2P Slot Swapping Notifications
+        'SWAP_OFFER_RECEIVED', // Another customer offered to swap with you
+        'SWAP_ACCEPTED',       // Your swap offer was accepted
+        'SWAP_DECLINED',       // Your swap offer was declined
+        'SWAP_EXPIRED',        // Your swap offer expired
+        'SWAP_CANCELLED',      // Your swap offer was cancelled
+        'SWAP_COMPLETED',      // Swap executed successfully
+        // Tier 4 Feature 4: Document-Ready Gatekeeping Notifications
+        'DOCUMENT_REQUIRED',   // Service requires documentation before queueing
+        'DOCUMENT_UPLOADED',   // Document uploaded and registered
+        'DOCUMENT_VERIFIED',   // Document approved by staff/admin
+        'DOCUMENT_REJECTED',   // Document rejected by staff/admin
+        'DOCUMENT_READY',      // All required documents verified, gate ready
+        // Tier 4 Feature 5: Cognitive Load / Workload Balancer Notifications
+        'OPERATOR_WORKLOAD_ALERT', // Sustained high operational workload alert
+        'WORKLOAD_BALANCING_RECOMMENDED', // Workload imbalance recommendation available
       ],
       required: true,
     },

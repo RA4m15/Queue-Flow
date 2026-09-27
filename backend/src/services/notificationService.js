@@ -4,6 +4,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { emitToUser } = require('../config/socket');
 const { logger } = require('../utils/logger');
+const fcmPushProvider = require('../channels/fcmPushProvider');
 function getChannelManager() {
   try {
     return require('../channels/channelManager').channelManager;
@@ -17,8 +18,11 @@ function getChannelManager() {
  * Stores in MongoDB with database-backed deduplication and delivers
  * across eligible channels based on user preferences and token source.
  *
- * NOTE: FCM server-side delivery not currently implemented.
- * The current application continues using MongoDB + Socket.IO for notification delivery.
+ * NOTE: FCM server-side delivery is implemented in channels/fcmPushProvider.js
+ * and is credential-gated. When no Firebase credentials are present in the
+ * environment, the FCM step reports PROVIDER_NOT_CONFIGURED and the
+ * notification is delivered over the in-app Socket.IO channel only. Delivery is
+ * never reported as successful unless the provider acknowledged it.
  *
  * @param {object} token - Populated or raw Token document
  * @param {string} type  - Notification type (TOKEN_CREATED, TOKEN_APPROACHING, TOKEN_CALLED, NO_SHOW_WARNING, etc.)
@@ -221,12 +225,53 @@ async function sendTokenNotification(token, type, { title, body, dedupeKey = nul
       }
     }
 
-    // 8. FCM Push Notification (if configured and token exists)
-    if (user?.fcmToken && process.env.FCM_SERVER_KEY) {
-      logger.info('notification.delivery.skipped', {
-        channel: 'FCM',
-        reason: 'FCM_SERVER_NOT_CONFIGURED',
+    // 8. FCM Push Delivery
+    // Runs regardless of how the alert originated, because push is what reaches
+    // a user whose app is backgrounded or terminated. Deduplication already
+    // happened above, so this can never double-notify for the same dedupeKey.
+    if (user?.fcmToken && notifyApp) {
+      const result = await fcmPushProvider.sendPush({
+        deviceToken: user.fcmToken,
+        title,
+        body,
+        // Routing hint only. The client re-fetches authoritative queue state on
+        // open; a push payload is never treated as a source of truth.
+        data: {
+          notificationId: notification._id.toString(),
+          type,
+          tokenId: tokenIdStr,
+          dedupeKey: dedupeKey || '',
+        },
       });
+
+      if (result.delivered) {
+        notification.deliveredViaFcm = true;
+        deliveredAny = true;
+        logger.info('notification.delivery.success', {
+          notificationId: notification._id.toString(),
+          channel: 'FCM',
+          userId: userIdStr,
+        });
+      } else {
+        if (result.invalidToken && user._id) {
+          // The device token is permanently dead (app uninstalled or
+          // malformed). Clear it so the backend stops attempting delivery. The
+          // token itself is never logged, here or anywhere else.
+          try {
+            await User.updateOne({ _id: user._id }, { $set: { fcmToken: null } });
+          } catch (clearErr) {
+            logger.warn('fcm.device_token_clear_failed', { reason: clearErr.message });
+          }
+        }
+        // Covers both PROVIDER_NOT_CONFIGURED (credentials absent) and a real
+        // provider rejection. Either way the alert was still persisted and
+        // still reached the user over the in-app channel.
+        logger.info('notification.delivery.skipped', {
+          channel: 'FCM',
+          reason: result.reason,
+          userId: userIdStr,
+        });
+      }
     }
 
     if (deliveredAny) {

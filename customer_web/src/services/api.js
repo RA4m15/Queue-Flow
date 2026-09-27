@@ -97,6 +97,65 @@ export const tokenAPI = {
     api.post(`/tokens/${id}/cancel`),
   getQR: (id) => 
     api.get(`/tokens/${id}/qr`),
+  updateLocation: (id, locationData) => 
+    api.post(`/tokens/${id}/location`, locationData),
+  getProximity: (id) => 
+    api.get(`/tokens/${id}/proximity`),
+  getNextServices: (id) =>
+    api.get(`/tokens/${id}/next-service`),
+  confirmNextHop: (id, nextServiceId) =>
+    api.post(`/tokens/${id}/next-service/confirm`, { nextServiceId }),
+  getJourney: (id) =>
+    api.get(`/tokens/${id}/journey`),
+};
+
+export const serviceGraphAPI = {
+  getByCenter: (centerId) =>
+    api.get(`/service-graph/${centerId}`),
+};
+
+// ─── Tier 4 Feature 3: P2P Slot Swapping ───────────────────────────────────
+export const swapAPI = {
+  /** Get anonymized eligible swap partners for a token */
+  getEligible: (tokenId) =>
+    api.get(`/swaps/eligible?tokenId=${tokenId}`),
+  /** Get own offers + eligible open offers in the queue */
+  getMyOffers: (tokenId) =>
+    api.get(`/swaps/my?tokenId=${tokenId}`),
+  /** Get a single offer by ID (participants only) */
+  getOfferById: (offerId) =>
+    api.get(`/swaps/${offerId}`),
+  /** Create a swap offer */
+  createOffer: (offeringTokenId, targetTokenId = null, reason = null) =>
+    api.post('/swaps', { offeringTokenId, targetTokenId, reason }),
+  /** Accept an offer and execute the atomic position swap */
+  acceptOffer: (offerId, acceptingTokenId) =>
+    api.post(`/swaps/${offerId}/accept`, { acceptingTokenId }),
+  /** Decline a swap offer */
+  declineOffer: (offerId) =>
+    api.post(`/swaps/${offerId}/decline`),
+  /** Cancel your own swap offer */
+  cancelOffer: (offerId) =>
+    api.post(`/swaps/${offerId}/cancel`),
+};
+
+// ─── Tier 4 Feature 4: Document-Ready Gatekeeping ─────────────────────────
+export const documentAPI = {
+  /** Get active requirements for a service */
+  getRequirements: (serviceId) =>
+    api.get(`/documents/services/${serviceId}/requirements`),
+  /** Check server-authoritative document readiness for service */
+  getReadiness: (serviceId) =>
+    api.get(`/documents/services/${serviceId}/readiness`),
+  /** Upload customer document */
+  upload: ({ documentType, fileName, mimeType, fileData, serviceId }) =>
+    api.post('/documents/upload', { documentType, fileName, mimeType, fileData, serviceId }),
+  /** Get customer's uploaded documents */
+  getMyDocuments: () =>
+    api.get('/documents/my'),
+  /** Download customer document file */
+  downloadDocument: (id) =>
+    api.get(`/documents/${id}/download`, { responseType: 'blob' }),
 };
 
 export const notificationAPI = {

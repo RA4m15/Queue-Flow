@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../core/constants/api_constants.dart';
 import '../core/network/api_exception.dart';
+import '../core/network/network_status.dart';
 import '../models/user.dart';
 import '../models/service_center.dart';
 import '../models/service.dart';
@@ -11,9 +12,17 @@ import '../models/token.dart';
 import '../models/notification.dart';
 
 class ApiService {
-  ApiService(this._dio);
+  ApiService(this._dio, {NetworkStatus? networkStatus})
+      : networkStatus = networkStatus ?? NetworkStatus();
 
   final Dio _dio;
+
+  /// Reachability of the backend, observed from real transport outcomes.
+  /// Every backend-authoritative mutation is refused while it reports
+  /// offline, so the app can never simulate a successful join/swap/upload.
+  final NetworkStatus networkStatus;
+
+  bool get isOffline => networkStatus.isOffline;
 
   // ─── AUTHENTICATION ────────────────────────────────────────
 
@@ -122,6 +131,7 @@ class ApiService {
     String? phone,
     String? fcmToken,
   }) async {
+    networkStatus.requireOnline();
     final payload = <String, dynamic>{};
     if (name != null) {
       final cleanName = name.trim();
@@ -156,6 +166,33 @@ class ApiService {
       await _dio.post(ApiConstants.authLogout);
     } catch (_) {
       // Best-effort remote session revocation
+    }
+  }
+
+  Future<void> registerDeviceToken(String fcmToken) async {
+    networkStatus.requireOnline();
+    final clean = fcmToken.trim();
+    if (clean.length < 20 || clean.length > 255) {
+      throw ApiException(message: 'Invalid FCM device token.');
+    }
+    try {
+      await _dio.patch(
+        ApiConstants.authMe,
+        data: {'fcmToken': clean},
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<void> unregisterDeviceToken() async {
+    try {
+      await _dio.patch(
+        ApiConstants.authMe,
+        data: {'fcmToken': null},
+      );
+    } catch (_) {
+      // Best-effort unregistration
     }
   }
 
@@ -295,6 +332,7 @@ class ApiService {
     bool notifyApp = true,
     bool notifySms = false,
   }) async {
+    networkStatus.requireOnline();
     _requireValidId(centerId, 'center ID');
     _requireValidId(serviceId, 'service ID');
     final cleanCenterId = centerId.trim();
@@ -385,6 +423,7 @@ class ApiService {
   }
 
   Future<TokenModel> cancelToken(String tokenId) async {
+    networkStatus.requireOnline();
     _requireValidId(tokenId, 'token ID');
     final cleanId = tokenId.trim();
 
@@ -402,6 +441,7 @@ class ApiService {
     required int rating,
     String? comment,
   }) async {
+    networkStatus.requireOnline();
     _requireValidId(tokenId, 'token ID');
     final cleanId = tokenId.trim();
 
@@ -430,6 +470,51 @@ class ApiService {
       );
       final data = response.data['data'] as Map<String, dynamic>;
       return TokenModel.fromJson(data['token'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  // ─── TIER 4 FEATURE 1: GHOST QUEUE GEOFENCING ─────────────
+
+  Future<Map<String, dynamic>> updateTokenLocation({
+    required String tokenId,
+    required double latitude,
+    required double longitude,
+    double? accuracy,
+    int? timestamp,
+    String? centerId,
+  }) async {
+    // Ghost Queue proximity is backend-authoritative; never fabricate it offline.
+    networkStatus.requireOnline();
+    _requireValidId(tokenId, 'token ID');
+    final cleanId = tokenId.trim();
+
+    try {
+      final response = await _dio.post(
+        '${ApiConstants.tokens}/$cleanId/location',
+        data: {
+          'latitude': latitude,
+          'longitude': longitude,
+          'accuracy': ?accuracy,
+          'timestamp': ?timestamp,
+          'centerId': ?centerId,
+        },
+      );
+      final data = response.data['data'] as Map<String, dynamic>;      return data;
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> getTokenProximity(String tokenId) async {
+    _requireValidId(tokenId, 'token ID');
+    final cleanId = tokenId.trim();
+
+    try {
+      final response = await _dio.get('${ApiConstants.tokens}/$cleanId/proximity');
+      final data = response.data['data'] as Map<String, dynamic>;
+      return data;
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }
@@ -473,6 +558,228 @@ class ApiService {
   Future<void> markAllNotificationsRead() async {
     try {
       await _dio.patch(ApiConstants.notificationsReadAll);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  // ─── TIER 4 FEATURE 2: SERVICE GRAPH MULTI-HOP ────────────
+
+  Future<Map<String, dynamic>> getNextServices(String tokenId) async {
+    _requireValidId(tokenId, 'token ID');
+    final cleanId = tokenId.trim();
+
+    try {
+      final response = await _dio.get('${ApiConstants.tokens}/$cleanId/next-service');
+      return (response.data['data'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<TokenModel> confirmNextHop({
+    required String tokenId,
+    required String nextServiceId,
+    bool notifyApp = true,
+    bool notifySms = false,
+  }) async {
+    networkStatus.requireOnline();
+    _requireValidId(tokenId, 'token ID');
+    _requireValidId(nextServiceId, 'next service ID');
+    final cleanTokenId = tokenId.trim();
+    final cleanServiceId = nextServiceId.trim();
+
+    try {
+      final response = await _dio.post(
+        '${ApiConstants.tokens}/$cleanTokenId/next-service/confirm',
+        data: {
+          'nextServiceId': cleanServiceId,
+          'notifyApp': notifyApp,
+          'notifySms': notifySms,
+        },
+      );
+      final data = response.data['data'] as Map<String, dynamic>;
+      return TokenModel.fromJson(data['token'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> getJourney(String tokenId) async {
+    _requireValidId(tokenId, 'token ID');
+    final cleanId = tokenId.trim();
+
+    try {
+      final response = await _dio.get('${ApiConstants.tokens}/$cleanId/journey');
+      return (response.data['data'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  // ─── TIER 4 FEATURE 3: P2P SLOT SWAPPING ──────────────────
+
+  /// Get anonymized eligible swap partners for a token.
+  /// Returns only position + tokenCode — no customer PII.
+  Future<Map<String, dynamic>> getSwapEligible(String tokenId) async {
+    _requireValidId(tokenId, 'token ID');
+    final cleanId = tokenId.trim();
+
+    try {
+      final response = await _dio.get('/swaps/eligible?tokenId=$cleanId');
+      return (response.data['data'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Get caller's own offers + open eligible offers in their queue.
+  Future<Map<String, dynamic>> getSwapOffers(String tokenId) async {
+    _requireValidId(tokenId, 'token ID');
+    final cleanId = tokenId.trim();
+
+    try {
+      final response = await _dio.get('/swaps/my?tokenId=$cleanId');
+      return (response.data['data'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Create a swap offer for a WAITING token.
+  /// [targetTokenId] — optional; if null, offer is open to any eligible customer.
+  Future<Map<String, dynamic>> createSwapOffer({
+    required String offeringTokenId,
+    String? targetTokenId,
+    String? reason,
+  }) async {
+    // Offline swaps can neither be created nor confirmed; refuse before any
+    // request so a swap is never simulated locally.
+    networkStatus.requireOnline();
+    _requireValidId(offeringTokenId, 'offering token ID');
+    if (targetTokenId != null) {
+      _requireValidId(targetTokenId, 'target token ID');
+    }
+
+    final payload = <String, dynamic>{
+      'offeringTokenId': offeringTokenId.trim(),
+    };
+    if (targetTokenId != null) {
+      payload['targetTokenId'] = targetTokenId.trim();
+    }
+    if (reason != null && reason.trim().isNotEmpty) {
+      payload['reason'] = reason.trim().substring(0, reason.trim().length.clamp(0, 200));
+    }
+
+    try {
+      final response = await _dio.post('/swaps', data: payload);
+      return (response.data['data'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Accept a swap offer and execute the atomic position swap.
+  Future<Map<String, dynamic>> acceptSwapOffer({
+    required String offerId,
+    required String acceptingTokenId,
+  }) async {
+    networkStatus.requireOnline();
+    _requireValidId(offerId, 'offer ID');
+    _requireValidId(acceptingTokenId, 'accepting token ID');
+
+    try {
+      final response = await _dio.post(
+        '/swaps/${offerId.trim()}/accept',
+        data: {'acceptingTokenId': acceptingTokenId.trim()},
+      );
+      return (response.data['data'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Decline an incoming swap offer.
+  Future<void> declineSwapOffer(String offerId) async {
+    networkStatus.requireOnline();
+    _requireValidId(offerId, 'offer ID');
+
+    try {
+      await _dio.post('/swaps/${offerId.trim()}/decline');
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Cancel your own pending swap offer.
+  Future<void> cancelSwapOffer(String offerId) async {
+    networkStatus.requireOnline();
+    _requireValidId(offerId, 'offer ID');
+
+    try {
+      await _dio.post('/swaps/${offerId.trim()}/cancel');
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  // ─── TIER 4 FEATURE 4: DOCUMENT-READY GATEKEEPING ──────────
+
+  /// Fetch active document requirements for a service.
+  Future<List<Map<String, dynamic>>> getServiceDocumentRequirements(String serviceId) async {
+    _requireValidId(serviceId, 'service ID');
+    try {
+      final response = await _dio.get('/documents/services/${serviceId.trim()}/requirements');
+      final list = (response.data['data']?['requirements'] as List<dynamic>?) ?? [];
+      return list.map((e) => e as Map<String, dynamic>).toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Get server-authoritative readiness state for the authenticated customer.
+  Future<Map<String, dynamic>> checkServiceDocumentReadiness(String serviceId) async {
+    _requireValidId(serviceId, 'service ID');
+    try {
+      final response = await _dio.get('/documents/services/${serviceId.trim()}/readiness');
+      return (response.data['data'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Upload customer document with base64 encoded payload.
+  Future<Map<String, dynamic>> uploadCustomerDocument({
+    required String serviceId,
+    required String documentType,
+    required String fileName,
+    required String mimeType,
+    required String base64Data,
+  }) async {
+    // Document submission is backend-authoritative; never queue it for blind
+    // replay and never acknowledge an upload the server never received.
+    networkStatus.requireOnline();
+    _requireValidId(serviceId, 'service ID');
+    try {
+      final response = await _dio.post('/documents/upload', data: {
+        'serviceId': serviceId.trim(),
+        'documentType': documentType.trim().toUpperCase(),
+        'fileName': fileName.trim(),
+        'mimeType': mimeType.trim(),
+        'fileData': base64Data,
+      });
+      return (response.data['data']?['document'] as Map<String, dynamic>?) ?? {};
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Get customer's uploaded documents.
+  Future<List<Map<String, dynamic>>> getMyCustomerDocuments() async {
+    try {
+      final response = await _dio.get('/documents/my');
+      final list = (response.data['data']?['documents'] as List<dynamic>?) ?? [];
+      return list.map((e) => e as Map<String, dynamic>).toList();
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

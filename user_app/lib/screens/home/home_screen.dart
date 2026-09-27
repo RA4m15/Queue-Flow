@@ -164,6 +164,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 Row(
                                   children: [
                                     TokenStatusBadge(status: tokenState.activeToken!.status, fontSize: 10),
+                                    if (tokenState.isOffline) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.warning.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'OFFLINE',
+                                          style: TextStyle(color: AppColors.warning, fontSize: 9, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
@@ -232,11 +246,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
+                          // Values mirror the backend ServiceCenter `type` enum.
                           _buildFilterChip('ALL', 'All Centers'),
                           _buildFilterChip('HOSPITAL', '🏥 Hospital'),
                           _buildFilterChip('BANK', '🏦 Banking'),
-                          _buildFilterChip('GOVT_OFFICE', '🏛️ Govt'),
-                          _buildFilterChip('TELECOM', '📡 Telecom'),
+                          _buildFilterChip('GOVT', '🏛️ Govt'),
+                          _buildFilterChip('RAILWAY', '🚆 Railway'),
+                          _buildFilterChip('SUPPORT', '🎧 Support'),
                         ],
                       ),
                     ),

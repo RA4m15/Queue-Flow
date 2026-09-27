@@ -76,6 +76,45 @@ const getDashboard = asyncHandler(async (req, res) => {
     service: c.serviceId,
   }));
 
+  // ── Ghost Queue Geofencing (Tier 4 / Feature 1) ──────────────────────────────
+  // Exposes aggregate counts only; zero customer PII or raw GPS coordinates
+  const activeTokens = await Token.find({
+    centerId,
+    status: { $in: ['WAITING', 'CALLED', 'SERVING'] },
+  }).select('proximityState').lean();
+
+  let remoteCustomers = 0;
+  let approachingCustomers = 0;
+  let nearCenter = 0;
+  let atCenter = 0;
+  let unknownProximity = 0;
+
+  for (const t of activeTokens) {
+    if (t.proximityState === 'INSIDE') atCenter++;
+    else if (t.proximityState === 'NEAR') nearCenter++;
+    else if (t.proximityState === 'APPROACHING') approachingCustomers++;
+    else if (t.proximityState === 'OUTSIDE') remoteCustomers++;
+    else unknownProximity++;
+  }
+
+  const ghostQueue = {
+    enabled: Boolean(
+      center.geofence?.enabled &&
+      center.location?.latitude != null &&
+      center.location?.longitude != null
+    ),
+    locationConfigured: Boolean(
+      center.location?.latitude != null &&
+      center.location?.longitude != null
+    ),
+    radiusMeters: center.geofence?.radiusMeters || null,
+    remoteCustomers,
+    approachingCustomers,
+    nearCenter,
+    atCenter,
+    unknownProximity,
+  };
+
   return sendSuccess(res, {
     data: {
       summary: {
@@ -89,6 +128,7 @@ const getDashboard = asyncHandler(async (req, res) => {
         crowdPercent: center.crowdPercent,
         crowdStatus: center.crowdStatus,
         avgWaitSeconds,
+        ghostQueue,
       },
       queues: queues.map((q) => ({
         queueId: q._id,
@@ -104,6 +144,7 @@ const getDashboard = asyncHandler(async (req, res) => {
       hourlyFootfall,
       serviceDemand,
       recommendations,
+      ghostQueue,
     },
   });
 });
@@ -301,6 +342,45 @@ const getOperationalOverview = asyncHandler(async (req, res) => {
     };
   });
 
+  // ── Ghost Queue Geofencing (Tier 4 / Feature 1) ──────────────────────────────
+  // Exposes aggregate counts only; zero customer PII or raw GPS coordinates
+  const activeTokens = await Token.find({
+    centerId,
+    status: { $in: ['WAITING', 'CALLED', 'SERVING'] },
+  }).select('proximityState').lean();
+
+  let remoteCustomers = 0;
+  let approachingCustomers = 0;
+  let nearCenter = 0;
+  let atCenter = 0;
+  let unknownProximity = 0;
+
+  for (const t of activeTokens) {
+    if (t.proximityState === 'INSIDE') atCenter++;
+    else if (t.proximityState === 'NEAR') nearCenter++;
+    else if (t.proximityState === 'APPROACHING') approachingCustomers++;
+    else if (t.proximityState === 'OUTSIDE') remoteCustomers++;
+    else unknownProximity++;
+  }
+
+  const ghostQueue = {
+    enabled: Boolean(
+      center.geofence?.enabled &&
+      center.location?.latitude != null &&
+      center.location?.longitude != null
+    ),
+    locationConfigured: Boolean(
+      center.location?.latitude != null &&
+      center.location?.longitude != null
+    ),
+    radiusMeters: center.geofence?.radiusMeters || null,
+    remoteCustomers,
+    approachingCustomers,
+    nearCenter,
+    atCenter,
+    unknownProximity,
+  };
+
   return sendSuccess(res, {
     data: {
       center: {
@@ -326,9 +406,11 @@ const getOperationalOverview = asyncHandler(async (req, res) => {
         totalServing,
         totalCalled: calledCounters,
         avgWaitMinutes,
+        ghostQueue,
       },
       counters: counterOverview,
       services: queuesStatus,
+      ghostQueue,
       recentEvents: recentEvents.map((e) => ({
         _id: e._id,
         eventType: e.eventType,
@@ -899,6 +981,98 @@ const getDemandAndStaffingForecast = asyncHandler(async (req, res) => {
   return sendSuccess(res, { data: forecast });
 });
 
+// ─── Tier 4 / Feature 5: Cognitive Load / Workload Balancer Handlers ─────────
+
+const workloadBalancerService = require('../services/workloadBalancerService');
+
+/**
+ * GET /api/analytics/:centerId/workload
+ * Center-level operational workload distribution and unit states.
+ * ADMIN and STAFF.
+ */
+const getCenterWorkload = asyncHandler(async (req, res) => {
+  const { centerId } = req.params;
+
+  if (req.user.centerId && req.user.centerId.toString() !== centerId) {
+    return sendForbidden(res, 'You are not authorized to view workload for this center');
+  }
+
+  const overview = await workloadBalancerService.getCenterWorkloadOverview(centerId);
+  return sendSuccess(res, {
+    message: 'Center operational workload overview retrieved',
+    data: overview,
+  });
+});
+
+/**
+ * GET /api/analytics/:centerId/workload/operators
+ * Granular workload scores, factors, and explanations for each counter/operator.
+ * ADMIN and STAFF.
+ */
+const getOperatorWorkloads = asyncHandler(async (req, res) => {
+  const { centerId } = req.params;
+  const { serviceId } = req.query;
+
+  if (req.user.centerId && req.user.centerId.toString() !== centerId) {
+    return sendForbidden(res, 'You are not authorized to view operator workloads for this center');
+  }
+
+  const overview = await workloadBalancerService.getCenterWorkloadOverview(centerId);
+  let operators = overview.operatorWorkloads;
+  if (serviceId) {
+    operators = operators.filter(
+      (w) => w.counter?.serviceId?.toString() === serviceId.toString()
+    );
+  }
+
+  return sendSuccess(res, {
+    message: 'Operator workloads retrieved',
+    data: { operators, calculatedAt: overview.calculatedAt },
+  });
+});
+
+/**
+ * GET /api/analytics/:centerId/workload/me
+ * Operator's own transparent operational workload score and factors.
+ * STAFF and ADMIN.
+ */
+const getMyWorkload = asyncHandler(async (req, res) => {
+  const { centerId } = req.params;
+
+  if (req.user.centerId && req.user.centerId.toString() !== centerId) {
+    return sendForbidden(res, 'You are not authorized to access workload for this center');
+  }
+
+  const workload = await workloadBalancerService.calculateOperatorWorkload({
+    operatorId: req.user._id,
+    centerId,
+  });
+
+  return sendSuccess(res, {
+    message: 'Operator workload profile retrieved',
+    data: workload,
+  });
+});
+
+/**
+ * GET /api/analytics/:centerId/workload/recommendations
+ * Operational workload balancing recommendations.
+ * ADMIN and STAFF.
+ */
+const getWorkloadRecommendations = asyncHandler(async (req, res) => {
+  const { centerId } = req.params;
+
+  if (req.user.centerId && req.user.centerId.toString() !== centerId) {
+    return sendForbidden(res, 'You are not authorized to view balancing recommendations for this center');
+  }
+
+  const result = await workloadBalancerService.getBalancingRecommendations(centerId);
+  return sendSuccess(res, {
+    message: 'Workload balancing recommendations retrieved',
+    data: result,
+  });
+});
+
 module.exports = {
   getDashboard,
   getTokenTimeSeries,
@@ -907,5 +1081,9 @@ module.exports = {
   getHistoricalReport,
   exportHistoricalReport,
   getDemandAndStaffingForecast,
+  getCenterWorkload,
+  getOperatorWorkloads,
+  getMyWorkload,
+  getWorkloadRecommendations,
 };
 

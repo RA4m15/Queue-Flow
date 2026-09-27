@@ -7,6 +7,8 @@ import '../../core/theme/app_theme.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/app_providers.dart';
+import '../../services/push_messaging_client.dart';
+import '../../services/push_notification_service.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -282,6 +284,64 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                Builder(builder: (context) {
+                  final pushState = ref.watch(pushNotificationServiceProvider);
+                  final status = pushState.permission;
+                  final color = status.isGranted
+                      ? AppColors.success
+                      : (status == PushPermissionStatus.denied
+                          ? AppColors.danger
+                          : AppColors.warning);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Push Notifications',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          ),
+                          Text(
+                            status.label,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (status != PushPermissionStatus.granted) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          status == PushPermissionStatus.denied
+                              ? 'Alerts are blocked for this device. Live queue updates and your alert history still work.'
+                              : (pushState.unavailableReason ??
+                                  'Push alerts are not available on this build. Live queue updates and your alert history still work.'),
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                      if (status == PushPermissionStatus.denied) ...[
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              ref.read(pushNotificationServiceProvider.notifier).requestPermission(),
+                          icon: const Icon(Icons.notifications_active_outlined, size: 16),
+                          label: const Text('Enable Alerts'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                }),
               ],
             ),
           ),

@@ -118,14 +118,13 @@ export function AuthProvider({ children }) {
     try {
       await authAPI.logout();
     } catch {}
-    storage.removeToken();
-    storage.removeUser();
-    storage.setLastKnownToken(null);
+    storage.clearAllSession();
     setToken(null);
     setUser(null);
     setActiveToken(null);
     disconnectSocket();
   };
+
 
   const value = {
     user,

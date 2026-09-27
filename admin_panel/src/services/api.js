@@ -152,4 +152,32 @@ export const devAPI = {
   resetCrowd: (centerId) => api.post('/dev/simulate/reset-crowd', { centerId }),
 };
 
+export const serviceGraphAPI = {
+  getByCenter: (centerId) => api.get(`/service-graph/${centerId}`),
+  createEdge: (data) => api.post('/service-graph/edges', data),
+  updateEdge: (id, data) => api.patch(`/service-graph/edges/${id}`, data),
+  deleteEdge: (id) => api.delete(`/service-graph/edges/${id}`),
+};
+
+// ─── Tier 4 Feature 4: Document Requirement & Review API ───────────────────
+export const documentAPI = {
+  getRequirements: (serviceId) => api.get(`/documents/services/${serviceId}/requirements`),
+  createRequirement: (serviceId, data) => api.post(`/documents/services/${serviceId}/requirements`, data),
+  updateRequirement: (id, data) => api.patch(`/documents/requirements/${id}`, data),
+  deleteRequirement: (id) => api.delete(`/documents/requirements/${id}`),
+  getPendingReviews: (page = 1, limit = 20) => api.get(`/documents/pending?page=${page}&limit=${limit}`),
+  verifyDocument: (id, status, rejectionReason = '') =>
+    api.patch(`/documents/${id}/verify`, { status, rejectionReason }),
+  downloadDocument: (id) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
+};
+
+// ─── Tier 4 Feature 5: Cognitive Load / Workload Balancer API ────────────────
+export const workloadAPI = {
+  getCenterWorkload: (centerId) => api.get(`/analytics/${centerId}/workload`),
+  getOperatorWorkloads: (centerId, serviceId) =>
+    api.get(`/analytics/${centerId}/workload/operators${serviceId ? `?serviceId=${serviceId}` : ''}`),
+  getMyWorkload: (centerId) => api.get(`/analytics/${centerId}/workload/me`),
+  getRecommendations: (centerId) => api.get(`/analytics/${centerId}/workload/recommendations`),
+};
+
 export default api;

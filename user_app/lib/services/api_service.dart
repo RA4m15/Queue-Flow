@@ -130,6 +130,7 @@ class ApiService {
     String? name,
     String? phone,
     String? fcmToken,
+    Map<String, dynamic>? preferences,
   }) async {
     networkStatus.requireOnline();
     final payload = <String, dynamic>{};
@@ -147,6 +148,9 @@ class ApiService {
     }
     if (fcmToken != null && fcmToken.trim().isNotEmpty) {
       payload['fcmToken'] = fcmToken.trim();
+    }
+    if (preferences != null) {
+      payload['preferences'] = preferences;
     }
 
     try {

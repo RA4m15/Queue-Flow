@@ -1,0 +1,15 @@
+{
+  "name": "queueflow-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QueueFlow Root Workspace Scripts",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:admin": "npm --prefix admin_panel run dev",
+    "start:backend": "npm --prefix backend start",
+    "build:admin": "npm --prefix admin_panel run build",
+    "seed": "npm --prefix backend run seed",
+    "test:backend": "npm --prefix backend test",
+    "test:admin": "npm --prefix admin_panel test"
+  }
+}

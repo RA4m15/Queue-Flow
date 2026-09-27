@@ -51,6 +51,39 @@ class StorageService {
     }
   }
 
+  // ─── GENERAL PREFERENCES (THEME, ALERTS, ETC.) ─────────────
+
+  Future<String?> getString(String key) async {
+    try {
+      return await _storage.read(key: key).timeout(_opTimeout);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setString(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value).timeout(_opTimeout);
+    } catch (_) {}
+  }
+
+  Future<bool> getBool(String key, {bool defaultValue = false}) async {
+    try {
+      final val = await _storage.read(key: key).timeout(_opTimeout);
+      if (val == null) return defaultValue;
+      return val == 'true';
+    } catch (_) {
+      return defaultValue;
+    }
+  }
+
+  Future<void> setBool(String key, bool value) async {
+    try {
+      await _storage.write(key: key, value: value.toString()).timeout(_opTimeout);
+    } catch (_) {}
+  }
+
+
   Future<void> saveUserData({
     required String id,
     required String name,

@@ -18,6 +18,20 @@ class AppColors {
   static const Color secondary = Color(0xFF00D4FF); // Cyan
   static const Color accentPurple = Color(0xFF8B5CF6);
 
+  // Light theme palette
+  static const Color lightBackground = Color(0xFFF6F8F6);
+  static const Color lightSurface = Color(0xFFFFFFFF);
+  static const Color lightSurfaceElevated = Color(0xFFEFF5F1);
+  static const Color lightSurfaceCard = Color(0xFFFFFFFF);
+  static const Color lightBorder = Color(0xFFE2EBE5);
+  static const Color lightBorderLight = Color(0xFFD4E0D8);
+  static const Color lightPrimary = Color(0xFF00A859);
+  static const Color lightPrimaryDark = Color(0xFF008746);
+  static const Color lightSecondary = Color(0xFF0284C7);
+  static const Color lightTextPrimary = Color(0xFF0F1B14);
+  static const Color lightTextSecondary = Color(0xFF4A5D52);
+  static const Color lightTextMuted = Color(0xFF7A8E82);
+
   // Status & Feedback colors
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
@@ -189,6 +203,142 @@ class AppTheme {
     );
   }
 
+  static ThemeData get lightTheme {
+    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.light().textTheme);
+
+    return ThemeData(
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: AppColors.lightBackground,
+      primaryColor: AppColors.lightPrimary,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.lightPrimary,
+        secondary: AppColors.lightSecondary,
+        surface: AppColors.lightSurface,
+        error: AppColors.danger,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: AppColors.lightTextPrimary,
+        onError: Colors.white,
+      ),
+      cardTheme: CardThemeData(
+        color: AppColors.lightSurfaceCard,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.lightBorder, width: 1),
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppColors.lightBackground,
+        elevation: 0,
+        centerTitle: false,
+        scrolledUnderElevation: 0,
+        titleTextStyle: GoogleFonts.inter(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: AppColors.lightTextPrimary,
+        ),
+        iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: AppColors.lightSurface,
+        selectedItemColor: AppColors.lightPrimary,
+        unselectedItemColor: AppColors.lightTextMuted,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.lightPrimary,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.lightPrimary,
+          side: const BorderSide(color: AppColors.lightPrimary, width: 1.5),
+          minimumSize: const Size.fromHeight(50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.lightSurface,
+        hintStyle: GoogleFonts.inter(color: AppColors.lightTextMuted, fontSize: 14),
+        labelStyle: GoogleFonts.inter(color: AppColors.lightTextSecondary, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.lightBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.lightBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.lightPrimary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.danger),
+        ),
+      ),
+      textTheme: baseTextTheme.copyWith(
+        headlineLarge: GoogleFonts.inter(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: AppColors.lightTextPrimary,
+          letterSpacing: -0.5,
+        ),
+        headlineMedium: GoogleFonts.inter(
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          color: AppColors.lightTextPrimary,
+        ),
+        titleLarge: GoogleFonts.inter(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.lightTextPrimary,
+        ),
+        titleMedium: GoogleFonts.inter(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: AppColors.lightTextPrimary,
+        ),
+        bodyLarge: GoogleFonts.inter(
+          fontSize: 15,
+          fontWeight: FontWeight.normal,
+          color: AppColors.lightTextPrimary,
+        ),
+        bodyMedium: GoogleFonts.inter(
+          fontSize: 13,
+          fontWeight: FontWeight.normal,
+          color: AppColors.lightTextSecondary,
+        ),
+        bodySmall: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.normal,
+          color: AppColors.lightTextMuted,
+        ),
+      ),
+    );
+  }
+
   // Mono text style for token codes, statistics, and counters
   static TextStyle monoStyle({
     double fontSize = 16,
@@ -204,3 +354,19 @@ class AppTheme {
     );
   }
 }
+
+extension ThemeColorsExtension on BuildContext {
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+  Color get themeBackground => isDarkMode ? AppColors.background : AppColors.lightBackground;
+  Color get themeSurface => isDarkMode ? AppColors.surface : AppColors.lightSurface;
+  Color get themeSurfaceElevated => isDarkMode ? AppColors.surfaceElevated : AppColors.lightSurfaceElevated;
+  Color get themeSurfaceCard => isDarkMode ? AppColors.surfaceCard : AppColors.lightSurfaceCard;
+  Color get themeBorder => isDarkMode ? AppColors.border : AppColors.lightBorder;
+  Color get themeBorderLight => isDarkMode ? AppColors.borderLight : AppColors.lightBorderLight;
+  Color get themeTextPrimary => isDarkMode ? AppColors.textPrimary : AppColors.lightTextPrimary;
+  Color get themeTextSecondary => isDarkMode ? AppColors.textSecondary : AppColors.lightTextSecondary;
+  Color get themeTextMuted => isDarkMode ? AppColors.textMuted : AppColors.lightTextMuted;
+  Color get themePrimary => isDarkMode ? AppColors.primary : AppColors.lightPrimary;
+  Color get themeSecondary => isDarkMode ? AppColors.secondary : AppColors.lightSecondary;
+}
+

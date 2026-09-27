@@ -280,16 +280,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> updateProfile({String? name, String? phone}) async {
+  Future<void> updateProfile({
+    String? name,
+    String? phone,
+    Map<String, dynamic>? preferences,
+  }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final updated = await apiService.updateProfile(name: name, phone: phone);
+      final updated = await apiService.updateProfile(
+        name: name,
+        phone: phone,
+        preferences: preferences,
+      );
       state = state.copyWith(isLoading: false, user: updated);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: ApiException.getUserMessage(e),
       );
+      rethrow;
     }
   }
 

@@ -398,9 +398,9 @@ export default function ResourceHub() {
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: 'rgba(0, 229, 168, 0.12)',
-                color: '#00E5A8',
-                border: '1px solid rgba(0, 229, 168, 0.3)',
+                background: 'rgba(255, 230, 0, 0.12)',
+                color: '#FFE600',
+                border: '1px solid rgba(255, 230, 0, 0.3)',
               }}
             >
               TIER 2 OPERATIONS
@@ -419,7 +419,7 @@ export default function ResourceHub() {
               value={selectedCenterId}
               onChange={handleCenterChange}
               style={{
-                background: 'rgba(17, 27, 44, 0.8)',
+                background: 'rgba(26, 30, 14, 0.8)',
                 border: '1px solid var(--border-subtle)',
                 color: '#F8FAFC',
                 borderRadius: '10px',
@@ -451,9 +451,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('overview')}
               style={{
-                background: activeTab === 'overview' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'overview' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'overview' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'overview' ? 'rgba(255, 230, 0, 0.15)' : 'transparent',
+                color: activeTab === 'overview' ? '#FFE600' : '#94A3B8',
+                border: activeTab === 'overview' ? '1px solid rgba(255, 230, 0, 0.3)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -470,9 +470,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('historical')}
               style={{
-                background: activeTab === 'historical' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'historical' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'historical' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'historical' ? 'rgba(255, 230, 0, 0.15)' : 'transparent',
+                color: activeTab === 'historical' ? '#FFE600' : '#94A3B8',
+                border: activeTab === 'historical' ? '1px solid rgba(255, 230, 0, 0.3)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -489,9 +489,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('forecast')}
               style={{
-                background: activeTab === 'forecast' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'forecast' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'forecast' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'forecast' ? 'rgba(255, 230, 0, 0.15)' : 'transparent',
+                color: activeTab === 'forecast' ? '#FFE600' : '#94A3B8',
+                border: activeTab === 'forecast' ? '1px solid rgba(255, 230, 0, 0.3)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -508,9 +508,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('workload')}
               style={{
-                background: activeTab === 'workload' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'workload' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'workload' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'workload' ? 'rgba(255, 230, 0, 0.15)' : 'transparent',
+                color: activeTab === 'workload' ? '#FFE600' : '#94A3B8',
+                border: activeTab === 'workload' ? '1px solid rgba(255, 230, 0, 0.3)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -542,7 +542,7 @@ export default function ResourceHub() {
       {centerInfo && (
         <div
           style={{
-            background: 'linear-gradient(90deg, rgba(17, 27, 44, 0.7) 0%, rgba(13, 20, 34, 0.7) 100%)',
+            background: 'linear-gradient(90deg, rgba(26, 30, 14, 0.7) 0%, rgba(22, 25, 12, 0.7) 100%)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '16px',
             padding: '14px 20px',
@@ -560,12 +560,12 @@ export default function ResourceHub() {
                 width: '42px',
                 height: '42px',
                 borderRadius: '12px',
-                background: 'rgba(0, 229, 168, 0.12)',
-                border: '1px solid rgba(0, 229, 168, 0.25)',
+                background: 'rgba(255, 230, 0, 0.12)',
+                border: '1px solid rgba(255, 230, 0, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#00E5A8',
+                color: '#FFE600',
               }}
             >
               <Building2 size={22} />
@@ -582,9 +582,9 @@ export default function ResourceHub() {
                     fontWeight: 700,
                     padding: '2px 8px',
                     borderRadius: '6px',
-                    background: centerInfo.isOpen ? 'rgba(0, 229, 168, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    color: centerInfo.isOpen ? '#00E5A8' : '#EF4444',
-                    border: `1px solid ${centerInfo.isOpen ? 'rgba(0, 229, 168, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    background: centerInfo.isOpen ? 'rgba(255, 230, 0, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    color: centerInfo.isOpen ? '#FFE600' : '#EF4444',
+                    border: `1px solid ${centerInfo.isOpen ? 'rgba(255, 230, 0, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
                   }}
                 >
                   {centerInfo.isOpen ? 'OPEN' : 'CLOSED'}
@@ -616,13 +616,13 @@ export default function ResourceHub() {
                         ? 'rgba(239, 68, 68, 0.2)'
                         : centerInfo.crowdStatus === 'MODERATE'
                         ? 'rgba(245, 158, 11, 0.2)'
-                        : 'rgba(0, 229, 168, 0.2)',
+                        : 'rgba(255, 230, 0, 0.2)',
                     color:
                       centerInfo.crowdStatus === 'HIGH'
                         ? '#EF4444'
                         : centerInfo.crowdStatus === 'MODERATE'
                         ? '#F59E0B'
-                        : '#00E5A8',
+                        : '#FFE600',
                   }}
                 >
                   {centerInfo.crowdStatus || 'LOW'} ({centerInfo.crowdPercent || 0}%)
@@ -638,11 +638,11 @@ export default function ResourceHub() {
                     width: '8px',
                     height: '8px',
                     borderRadius: '50%',
-                    background: isConnected ? '#00E5A8' : '#F59E0B',
-                    boxShadow: isConnected ? '0 0 10px #00E5A8' : 'none',
+                    background: isConnected ? '#FFE600' : '#F59E0B',
+                    boxShadow: isConnected ? '0 0 10px #FFE600' : 'none',
                   }}
                 />
-                <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: isConnected ? '#00E5A8' : '#F59E0B' }}>
+                <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: isConnected ? '#FFE600' : '#F59E0B' }}>
                   {isConnected ? 'LIVE SYNC' : 'RECONNECTING'}
                 </span>
               </div>
@@ -680,7 +680,7 @@ export default function ResourceHub() {
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Active / Serving</span>
-                  <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: '#FFE600', marginTop: '4px' }}>
                     {metrics.servingCounters || 0}
                   </span>
                   <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
@@ -724,7 +724,7 @@ export default function ResourceHub() {
                 <div
                   style={{
                     background: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid rgba(0, 229, 168, 0.2)',
+                    border: '1px solid rgba(255, 230, 0, 0.2)',
                     borderRadius: '16px',
                     padding: '20px 24px',
                     marginBottom: '32px',
@@ -749,9 +749,9 @@ export default function ResourceHub() {
                         fontWeight: 700,
                         padding: '3px 10px',
                         borderRadius: '8px',
-                        background: overview.ghostQueue.enabled ? 'rgba(0, 229, 168, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                        color: overview.ghostQueue.enabled ? '#00E5A8' : '#94A3B8',
-                        border: `1px solid ${overview.ghostQueue.enabled ? 'rgba(0, 229, 168, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
+                        background: overview.ghostQueue.enabled ? 'rgba(255, 230, 0, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                        color: overview.ghostQueue.enabled ? '#FFE600' : '#94A3B8',
+                        border: `1px solid ${overview.ghostQueue.enabled ? 'rgba(255, 230, 0, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
                       }}
                     >
                       {overview.ghostQueue.enabled ? `GEOFENCE ACTIVE (r: ${overview.ghostQueue.radiusMeters}m)` : overview.ghostQueue.locationConfigured ? 'GEOFENCE DISABLED' : 'LOCATION NOT CONFIGURED'}
@@ -775,12 +775,12 @@ export default function ResourceHub() {
                       <span style={{ fontSize: '20px', fontWeight: 800, color: '#F59E0B' }}>{overview.ghostQueue.approachingCustomers || 0}</span>
                     </div>
                     <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <span style={{ fontSize: '11px', color: '#00D2FF', display: 'block' }}>Near Center</span>
-                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#00D2FF' }}>{overview.ghostQueue.nearCenter || 0}</span>
+                      <span style={{ fontSize: '11px', color: '#FFF176', display: 'block' }}>Near Center</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#FFF176' }}>{overview.ghostQueue.nearCenter || 0}</span>
                     </div>
                     <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <span style={{ fontSize: '11px', color: '#00E5A8', display: 'block' }}>At Center (Inside)</span>
-                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#00E5A8' }}>{overview.ghostQueue.atCenter || 0}</span>
+                      <span style={{ fontSize: '11px', color: '#FFE600', display: 'block' }}>At Center (Inside)</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#FFE600' }}>{overview.ghostQueue.atCenter || 0}</span>
                     </div>
                     <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
                       <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Uncertain / Offline</span>
@@ -804,7 +804,7 @@ export default function ResourceHub() {
                 {counters.length === 0 ? (
                   <div
                     style={{
-                      background: 'rgba(17, 27, 44, 0.4)',
+                      background: 'rgba(26, 30, 14, 0.4)',
                       border: '1px dashed var(--border-subtle)',
                       borderRadius: '16px',
                       padding: '40px',
@@ -830,7 +830,7 @@ export default function ResourceHub() {
                       const isClosed = c.status === 'CLOSED';
 
                       const borderColor = isServing
-                        ? 'rgba(0, 229, 168, 0.4)'
+                        ? 'rgba(255, 230, 0, 0.4)'
                         : isCalled
                         ? 'rgba(56, 189, 248, 0.4)'
                         : isBreak
@@ -843,7 +843,7 @@ export default function ResourceHub() {
                         <div
                           key={c._id}
                           style={{
-                            background: 'rgba(17, 27, 44, 0.65)',
+                            background: 'rgba(26, 30, 14, 0.65)',
                             border: `1px solid ${borderColor}`,
                             borderRadius: '16px',
                             padding: '18px',
@@ -885,7 +885,7 @@ export default function ResourceHub() {
                                   padding: '3px 8px',
                                   borderRadius: '6px',
                                   background: isServing
-                                    ? 'rgba(0, 229, 168, 0.15)'
+                                    ? 'rgba(255, 230, 0, 0.15)'
                                     : isCalled
                                     ? 'rgba(56, 189, 248, 0.15)'
                                     : isBreak
@@ -894,7 +894,7 @@ export default function ResourceHub() {
                                     ? 'rgba(239, 68, 68, 0.15)'
                                     : 'rgba(148, 163, 184, 0.15)',
                                   color: isServing
-                                    ? '#00E5A8'
+                                    ? '#FFE600'
                                     : isCalled
                                     ? '#38BDF8'
                                     : isBreak
@@ -963,7 +963,7 @@ export default function ResourceHub() {
                               style={{
                                 background: c.currentToken
                                   ? isServing
-                                    ? 'rgba(0, 229, 168, 0.08)'
+                                    ? 'rgba(255, 230, 0, 0.08)'
                                     : 'rgba(56, 189, 248, 0.08)'
                                   : 'rgba(15, 23, 42, 0.4)',
                                 border: `1px solid ${c.currentToken ? borderColor : 'rgba(255, 255, 255, 0.05)'}`,
@@ -1016,9 +1016,9 @@ export default function ResourceHub() {
                                 transition: 'all 0.15s ease',
                               }}
                               onMouseOver={(e) => {
-                                e.currentTarget.style.background = 'rgba(0, 229, 168, 0.15)';
-                                e.currentTarget.style.color = '#00E5A8';
-                                e.currentTarget.style.borderColor = 'rgba(0, 229, 168, 0.3)';
+                                e.currentTarget.style.background = 'rgba(255, 230, 0, 0.15)';
+                                e.currentTarget.style.color = '#FFE600';
+                                e.currentTarget.style.borderColor = 'rgba(255, 230, 0, 0.3)';
                               }}
                               onMouseOut={(e) => {
                                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
@@ -1042,7 +1042,7 @@ export default function ResourceHub() {
                 {/* Active Services Queue Depth */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'rgba(26, 30, 14, 0.6)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
@@ -1079,8 +1079,8 @@ export default function ResourceHub() {
                               fontWeight: 800,
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              background: 'rgba(0, 229, 168, 0.15)',
-                              color: '#00E5A8',
+                              background: 'rgba(255, 230, 0, 0.15)',
+                              color: '#FFE600',
                             }}
                           >
                             [{svc.tokenPrefix}]
@@ -1117,7 +1117,7 @@ export default function ResourceHub() {
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <span style={{ fontSize: '10px', color: '#64748B' }}>Serving</span>
-                            <div className="mono" style={{ fontSize: '14px', fontWeight: 800, color: '#00E5A8' }}>
+                            <div className="mono" style={{ fontSize: '14px', fontWeight: 800, color: '#FFE600' }}>
                               {svc.servingCount}
                             </div>
                           </div>
@@ -1144,7 +1144,7 @@ export default function ResourceHub() {
                 {/* Recent Operational Events / Audit Trail */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'rgba(26, 30, 14, 0.6)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
@@ -1205,7 +1205,7 @@ export default function ResourceHub() {
           {/* Controls Bar */}
           <div
             style={{
-              background: 'rgba(17, 27, 44, 0.6)',
+              background: 'rgba(26, 30, 14, 0.6)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '16px',
               padding: '16px 20px',
@@ -1228,9 +1228,9 @@ export default function ResourceHub() {
                     setHistoricalPage(1);
                   }}
                   style={{
-                    background: timeRange === range ? 'rgba(0, 229, 168, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                    color: timeRange === range ? '#00E5A8' : '#94A3B8',
-                    border: timeRange === range ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                    background: timeRange === range ? 'rgba(255, 230, 0, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                    color: timeRange === range ? '#FFE600' : '#94A3B8',
+                    border: timeRange === range ? '1px solid rgba(255, 230, 0, 0.3)' : '1px solid transparent',
                     borderRadius: '8px',
                     padding: '6px 12px',
                     fontSize: '12px',
@@ -1280,10 +1280,10 @@ export default function ResourceHub() {
               <button
                 onClick={handleExportCsv}
                 style={{
-                  background: 'rgba(0, 229, 168, 0.12)',
-                  border: '1px solid rgba(0, 229, 168, 0.3)',
+                  background: 'rgba(255, 230, 0, 0.12)',
+                  border: '1px solid rgba(255, 230, 0, 0.3)',
                   borderRadius: '8px',
-                  color: '#00E5A8',
+                  color: '#FFE600',
                   padding: '7px 14px',
                   fontSize: '12px',
                   fontWeight: 700,
@@ -1325,7 +1325,7 @@ export default function ResourceHub() {
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Completed Services</span>
-                  <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: '#FFE600', marginTop: '4px' }}>
                     {historicalData.summary?.totalCompleted || 0}
                   </span>
                   <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
@@ -1365,14 +1365,14 @@ export default function ResourceHub() {
                     alignItems: 'flex-start',
                     border:
                       historicalData.sla?.status === 'CONFIGURED'
-                        ? '1px solid rgba(0, 229, 168, 0.3)'
+                        ? '1px solid rgba(255, 230, 0, 0.3)'
                         : '1px solid var(--border-subtle)',
                   }}
                 >
                   <span className="stat-pill-label">SLA Compliance</span>
                   {historicalData.sla?.status === 'CONFIGURED' ? (
                     <>
-                      <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '4px' }}>
+                      <span className="stat-pill-val" style={{ color: '#FFE600', marginTop: '4px' }}>
                         {historicalData.sla.compliancePercent}%
                       </span>
                       <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
@@ -1404,7 +1404,7 @@ export default function ResourceHub() {
                 {/* Counter Performance Breakdown */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'rgba(26, 30, 14, 0.6)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
@@ -1432,7 +1432,7 @@ export default function ResourceHub() {
                           <td className="mono" style={{ padding: '10px 0', color: '#94A3B8' }}>
                             {cu.totalHandled}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#00E5A8', fontWeight: 700 }}>
+                          <td className="mono" style={{ padding: '10px 0', color: '#FFE600', fontWeight: 700 }}>
                             {cu.completed}
                           </td>
                           <td className="mono" style={{ padding: '10px 0', color: '#F59E0B' }}>
@@ -1450,7 +1450,7 @@ export default function ResourceHub() {
                 {/* Service Demand Breakdown */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'rgba(26, 30, 14, 0.6)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
@@ -1477,7 +1477,7 @@ export default function ResourceHub() {
                           <td className="mono" style={{ padding: '10px 0', color: '#94A3B8' }}>
                             {sp.totalIssued}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#00E5A8', fontWeight: 700 }}>
+                          <td className="mono" style={{ padding: '10px 0', color: '#FFE600', fontWeight: 700 }}>
                             {sp.completed}
                           </td>
                           <td className="mono" style={{ padding: '10px 0', color: '#EF4444' }}>
@@ -1493,7 +1493,7 @@ export default function ResourceHub() {
               {/* Paginated Historical Tokens Log Table */}
               <div
                 style={{
-                  background: 'rgba(17, 27, 44, 0.6)',
+                  background: 'rgba(26, 30, 14, 0.6)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: '16px',
                   padding: '20px',
@@ -1526,7 +1526,7 @@ export default function ResourceHub() {
                     <tbody>
                       {historicalData.tokens?.map((t) => (
                         <tr key={t._id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                          <td className="mono" style={{ padding: '10px 12px', fontWeight: 800, color: '#00E5A8' }}>
+                          <td className="mono" style={{ padding: '10px 12px', fontWeight: 800, color: '#FFE600' }}>
                             {t.tokenCode}
                           </td>
                           <td style={{ padding: '10px 12px', color: '#E2E8F0' }}>
@@ -1548,7 +1548,7 @@ export default function ResourceHub() {
                                 borderRadius: '4px',
                                 background:
                                   t.status === 'COMPLETED'
-                                    ? 'rgba(0, 229, 168, 0.15)'
+                                    ? 'rgba(255, 230, 0, 0.15)'
                                     : t.status === 'SKIPPED'
                                     ? 'rgba(245, 158, 11, 0.15)'
                                     : t.status === 'CANCELLED'
@@ -1556,7 +1556,7 @@ export default function ResourceHub() {
                                     : 'rgba(148, 163, 184, 0.15)',
                                 color:
                                   t.status === 'COMPLETED'
-                                    ? '#00E5A8'
+                                    ? '#FFE600'
                                     : t.status === 'SKIPPED'
                                     ? '#F59E0B'
                                     : t.status === 'CANCELLED'
@@ -1621,7 +1621,7 @@ export default function ResourceHub() {
           {/* Controls Bar */}
           <div
             style={{
-              background: 'rgba(17, 27, 44, 0.6)',
+              background: 'rgba(26, 30, 14, 0.6)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '16px',
               padding: '16px 20px',
@@ -1642,9 +1642,9 @@ export default function ResourceHub() {
                   key={hrs}
                   onClick={() => setForecastHorizon(hrs)}
                   style={{
-                    background: forecastHorizon === hrs ? 'rgba(0, 229, 168, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                    color: forecastHorizon === hrs ? '#00E5A8' : '#94A3B8',
-                    border: forecastHorizon === hrs ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                    background: forecastHorizon === hrs ? 'rgba(255, 230, 0, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                    color: forecastHorizon === hrs ? '#FFE600' : '#94A3B8',
+                    border: forecastHorizon === hrs ? '1px solid rgba(255, 230, 0, 0.3)' : '1px solid transparent',
                     borderRadius: '8px',
                     padding: '6px 12px',
                     fontSize: '12px',
@@ -1691,7 +1691,7 @@ export default function ResourceHub() {
           ) : forecastData?.status === 'INSUFFICIENT_DATA' ? (
             <div
               style={{
-                background: 'rgba(17, 27, 44, 0.65)',
+                background: 'rgba(26, 30, 14, 0.65)',
                 border: '1px solid rgba(245, 158, 11, 0.3)',
                 borderRadius: '16px',
                 padding: '36px',
@@ -1749,7 +1749,7 @@ export default function ResourceHub() {
                 </div>
                 <div>
                   <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>History Window</span>
-                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: '#00E5A8' }}>
+                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: '#FFE600' }}>
                     {forecastData.sufficiency?.historicalWindowDays || 14} days
                   </span>
                 </div>
@@ -1760,7 +1760,7 @@ export default function ResourceHub() {
               {/* Model Provenance & Metadata Banner */}
               <div
                 style={{
-                  background: 'rgba(17, 27, 44, 0.6)',
+                  background: 'rgba(26, 30, 14, 0.6)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: '14px',
                   padding: '14px 18px',
@@ -1775,7 +1775,7 @@ export default function ResourceHub() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ShieldCheck size={16} color="#00E5A8" />
+                    <ShieldCheck size={16} color="#FFE600" />
                     <span style={{ fontWeight: 700, color: '#F8FAFC' }}>
                       Model: {forecastData.modelMetadata?.modelType} ({forecastData.modelMetadata?.modelVersion})
                     </span>
@@ -1820,7 +1820,7 @@ export default function ResourceHub() {
                     <div
                       key={idx}
                       style={{
-                        background: 'rgba(17, 27, 44, 0.7)',
+                        background: 'rgba(26, 30, 14, 0.7)',
                         border: `1px solid ${isUnderstaffed ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-subtle)'}`,
                         borderRadius: '14px',
                         padding: '16px',
@@ -1846,8 +1846,8 @@ export default function ResourceHub() {
                                 ? 'rgba(245, 158, 11, 0.2)'
                                 : isOverstaffed
                                 ? 'rgba(56, 189, 248, 0.15)'
-                                : 'rgba(0, 229, 168, 0.15)',
-                              color: isUnderstaffed ? '#F59E0B' : isOverstaffed ? '#38BDF8' : '#00E5A8',
+                                : 'rgba(255, 230, 0, 0.15)',
+                              color: isUnderstaffed ? '#F59E0B' : isOverstaffed ? '#38BDF8' : '#FFE600',
                             }}
                           >
                             {isUnderstaffed
@@ -1881,7 +1881,7 @@ export default function ResourceHub() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                             <span style={{ fontSize: '11px', color: '#94A3B8' }}>Recommended Desks:</span>
-                            <span className="mono" style={{ fontSize: '12px', fontWeight: 800, color: '#00E5A8' }}>
+                            <span className="mono" style={{ fontSize: '12px', fontWeight: 800, color: '#FFE600' }}>
                               {slot.staffing?.recommendedActiveCounters} active
                             </span>
                           </div>
@@ -1938,7 +1938,7 @@ export default function ResourceHub() {
                     </span>
                     <span style={{ fontSize: '13px', color: '#64748B' }}>/ 100</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#00E5A8', marginTop: '6px' }}>
+                  <div style={{ fontSize: '11px', color: '#FFE600', marginTop: '6px' }}>
                     Max Center Score: {workloadOverview.maxWorkloadScore ?? 0}
                   </div>
                 </div>
@@ -1948,7 +1948,7 @@ export default function ResourceHub() {
                     Overloaded Units
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 800, color: (workloadOverview.overloadedUnits?.length || 0) > 0 ? '#EF4444' : '#00E5A8', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: (workloadOverview.overloadedUnits?.length || 0) > 0 ? '#EF4444' : '#FFE600', fontFamily: 'monospace' }}>
                       {workloadOverview.overloadedUnits?.length || 0}
                     </span>
                     <span style={{ fontSize: '12px', color: '#64748B' }}>desks</span>
@@ -1963,7 +1963,7 @@ export default function ResourceHub() {
                     Available Capacity
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#00E5A8', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#FFE600', fontFamily: 'monospace' }}>
                       {workloadOverview.availableCapacity?.length || 0}
                     </span>
                     <span style={{ fontSize: '12px', color: '#64748B' }}>desks</span>
@@ -1995,8 +1995,8 @@ export default function ResourceHub() {
                   Center Operational Load Distribution
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
-                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(0, 229, 168, 0.08)', border: '1px solid rgba(0, 229, 168, 0.2)' }}>
-                    <div style={{ fontSize: '11px', color: '#00E5A8', fontWeight: 700 }}>LOW LOAD (0-39)</div>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(255, 230, 0, 0.08)', border: '1px solid rgba(255, 230, 0, 0.2)' }}>
+                    <div style={{ fontSize: '11px', color: '#FFE600', fontWeight: 700 }}>LOW LOAD (0-39)</div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
                       {workloadOverview.distribution?.LOW ?? 0}
                     </div>
@@ -2057,7 +2057,7 @@ export default function ResourceHub() {
 
                 {!workloadRecommendations?.recommendations || workloadRecommendations.recommendations.length === 0 ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '10px' }}>
-                    <CheckCircle2 size={24} color="#00E5A8" style={{ marginBottom: '6px' }} />
+                    <CheckCircle2 size={24} color="#FFE600" style={{ marginBottom: '6px' }} />
                     <p style={{ margin: 0, fontSize: '13px', color: '#94A3B8' }}>
                       Current operational workload is balanced across all active units. No balancing adjustments recommended.
                     </p>
@@ -2187,14 +2187,14 @@ export default function ResourceHub() {
                                     ? 'rgba(245, 158, 11, 0.15)'
                                     : op.loadLevel === 'MODERATE'
                                     ? 'rgba(59, 130, 246, 0.15)'
-                                    : 'rgba(0, 229, 168, 0.15)',
+                                    : 'rgba(255, 230, 0, 0.15)',
                                   color: op.loadLevel === 'SUSTAINED_HIGH'
                                     ? '#EF4444'
                                     : op.loadLevel === 'HIGH'
                                     ? '#F59E0B'
                                     : op.loadLevel === 'MODERATE'
                                     ? '#60A5FA'
-                                    : '#00E5A8',
+                                    : '#FFE600',
                                 }}
                               >
                                 {op.loadLevel}
@@ -2241,7 +2241,7 @@ export default function ResourceHub() {
         >
           <div
             style={{
-              background: '#0D1422',
+              background: '#14170A',
               border: '1px solid var(--border-subtle)',
               borderRadius: '20px',
               maxWidth: '500px',
@@ -2256,8 +2256,8 @@ export default function ResourceHub() {
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  background: 'rgba(0, 229, 168, 0.15)',
-                  color: '#00E5A8',
+                  background: 'rgba(255, 230, 0, 0.15)',
+                  color: '#FFE600',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2304,11 +2304,11 @@ export default function ResourceHub() {
             {morphSuccess && (
               <div
                 style={{
-                  background: 'rgba(0, 229, 168, 0.15)',
-                  border: '1px solid rgba(0, 229, 168, 0.3)',
+                  background: 'rgba(255, 230, 0, 0.15)',
+                  border: '1px solid rgba(255, 230, 0, 0.3)',
                   borderRadius: '10px',
                   padding: '10px 14px',
-                  color: '#00E5A8',
+                  color: '#FFE600',
                   fontSize: '13px',
                   fontWeight: 600,
                   marginBottom: '16px',
@@ -2388,15 +2388,15 @@ export default function ResourceHub() {
                   style={{
                     background: selectedCounterForMorph.currentToken
                       ? 'rgba(148, 163, 184, 0.2)'
-                      : 'linear-gradient(135deg, #00E5A8 0%, #008f6b 100%)',
-                    color: selectedCounterForMorph.currentToken ? '#64748B' : '#05070D',
+                      : 'linear-gradient(135deg, #FFE600 0%, #FFB300 100%)',
+                    color: selectedCounterForMorph.currentToken ? '#64748B' : '#0A0B05',
                     border: 'none',
                     borderRadius: '10px',
                     padding: '9px 20px',
                     fontSize: '13px',
                     fontWeight: 800,
                     cursor: selectedCounterForMorph.currentToken ? 'not-allowed' : 'pointer',
-                    boxShadow: selectedCounterForMorph.currentToken ? 'none' : '0 0 20px rgba(0, 229, 168, 0.3)',
+                    boxShadow: selectedCounterForMorph.currentToken ? 'none' : '0 0 20px rgba(255, 230, 0, 0.3)',
                   }}
                 >
                   {morphLoading ? 'Morphing...' : 'Confirm Morph'}

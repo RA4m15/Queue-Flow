@@ -2,12 +2,12 @@ import React from 'react';
 import { Activity } from 'lucide-react';
 
 const TAG_STYLES = {
-  called: { bg: 'rgba(0, 210, 255, 0.12)', color: '#00D2FF', border: 'rgba(0, 210, 255, 0.3)' },
-  done: { bg: 'rgba(0, 229, 168, 0.12)', color: '#00E5A8', border: 'rgba(0, 229, 168, 0.3)' },
+  called: { bg: 'rgba(255, 241, 118, 0.14)', color: '#FFF176', border: 'rgba(255, 241, 118, 0.35)' },
+  done: { bg: 'rgba(255, 230, 0, 0.14)', color: '#FFE600', border: 'rgba(255, 230, 0, 0.35)' },
   break: { bg: 'rgba(100, 116, 139, 0.18)', color: '#94A3B8', border: 'rgba(100, 116, 139, 0.3)' },
-  skip: { bg: 'rgba(239, 68, 68, 0.14)', color: '#EF4444', border: 'rgba(239, 68, 68, 0.3)' },
-  waiting: { bg: 'rgba(245, 158, 11, 0.14)', color: '#FBBF24', border: 'rgba(245, 158, 11, 0.3)' },
-  serving: { bg: 'rgba(0, 229, 168, 0.16)', color: '#00E5A8', border: 'rgba(0, 229, 168, 0.4)' },
+  skip: { bg: 'rgba(255, 61, 61, 0.14)', color: '#FF3D3D', border: 'rgba(255, 61, 61, 0.3)' },
+  waiting: { bg: 'rgba(255, 179, 0, 0.14)', color: '#FFB300', border: 'rgba(255, 179, 0, 0.3)' },
+  serving: { bg: 'rgba(255, 230, 0, 0.18)', color: '#FFE600', border: 'rgba(255, 230, 0, 0.45)' },
   info: { bg: 'rgba(100, 116, 139, 0.12)', color: '#94A3B8', border: 'rgba(100, 116, 139, 0.2)' },
 };
 
@@ -20,10 +20,10 @@ export default function LiveLog({ log = [] }) {
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span className="pulsing-dot">
-            <span className="pulsing-dot-ping" style={{ backgroundColor: '#00E5A8' }} />
-            <span className="pulsing-dot-core" style={{ backgroundColor: '#00E5A8' }} />
+            <span className="pulsing-dot-ping" style={{ backgroundColor: '#FFE600' }} />
+            <span className="pulsing-dot-core" style={{ backgroundColor: '#FFE600' }} />
           </span>
-          <span className="mono" style={{ fontSize: '10px', color: '#00E5A8', fontWeight: 700 }}>
+          <span className="mono" style={{ fontSize: '10px', color: '#FFE600', fontWeight: 700 }}>
             REALTIME
           </span>
         </div>
@@ -33,7 +33,7 @@ export default function LiveLog({ log = [] }) {
         className="q-card"
         style={{
           overflow: 'hidden',
-          background: 'rgba(13, 20, 34, 0.8)',
+          background: 'rgba(22, 25, 12, 0.8)',
           border: '1px solid var(--border-subtle)',
           maxHeight: '340px',
           overflowY: 'auto',

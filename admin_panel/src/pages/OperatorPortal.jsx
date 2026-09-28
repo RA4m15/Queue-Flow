@@ -401,7 +401,7 @@ export default function OperatorPortal() {
                 ? '0 0 30px rgba(59, 130, 246, 0.12)'
                 : 'none',
               background: isServing
-                ? 'linear-gradient(135deg, rgba(17, 27, 44, 0.95) 0%, rgba(13, 20, 34, 0.85) 100%)'
+                ? 'linear-gradient(135deg, rgba(26, 30, 14, 0.95) 0%, rgba(22, 25, 12, 0.85) 100%)'
                 : 'var(--bg-card)',
             }}
           >
@@ -513,9 +513,9 @@ export default function OperatorPortal() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  background: isCalled ? 'rgba(0, 229, 168, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  background: isCalled ? 'rgba(255, 230, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)',
                   color: isCalled ? 'var(--color-primary)' : 'var(--text-disabled)',
-                  border: isCalled ? '1px solid rgba(0, 229, 168, 0.4)' : '1px solid var(--border-subtle)',
+                  border: isCalled ? '1px solid rgba(255, 230, 0, 0.4)' : '1px solid var(--border-subtle)',
                 }}
               >
                 <CheckCircle2 size={16} />
@@ -535,9 +535,9 @@ export default function OperatorPortal() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  background: isServing || isCalled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isServing || isCalled ? '#34D399' : 'var(--text-disabled)',
-                  border: isServing || isCalled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-subtle)',
+                  background: isServing || isCalled ? 'rgba(255, 230, 0, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                  color: isServing || isCalled ? 'var(--color-primary)' : 'var(--text-disabled)',
+                  border: isServing || isCalled ? '1px solid rgba(255, 230, 0, 0.4)' : '1px solid var(--border-subtle)',
                 }}
               >
                 <CheckCircle2 size={16} />
@@ -593,7 +593,7 @@ export default function OperatorPortal() {
                   padding: '8px 14px',
                   fontSize: '0.8rem',
                   fontWeight: 600,
-                  background: isActive ? 'rgba(0, 229, 168, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  background: isActive ? 'rgba(255, 230, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)',
                   color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
                   border: isActive ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
                 }}
@@ -835,7 +835,7 @@ export default function OperatorPortal() {
         >
           <div
             style={{
-              background: '#0D1422',
+              background: '#14170A',
               border: '1px solid var(--border-subtle)',
               borderRadius: '16px',
               padding: '28px',

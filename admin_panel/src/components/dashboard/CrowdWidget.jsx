@@ -10,7 +10,7 @@ export default function CrowdWidget({ crowdData, onSimulate, onReset }) {
     ? (crowdData?.crowdPercent ?? Math.min(100, Math.round((currentCrowd / capacity) * 100)))
     : null;
 
-  const statusColor = (crowdPercent ?? 0) >= 80 ? '#EF4444' : (crowdPercent ?? 0) >= 50 ? '#F59E0B' : '#00E5A8';
+  const statusColor = (crowdPercent ?? 0) >= 80 ? '#FF3D3D' : (crowdPercent ?? 0) >= 50 ? '#FF9800' : '#FFE600';
 
   const handleSimulate = async (type) => {
     if (!onSimulate) return;
@@ -36,8 +36,8 @@ export default function CrowdWidget({ crowdData, onSimulate, onReset }) {
     <div
       className="q-card"
       style={{
-        background: 'linear-gradient(135deg, rgba(13, 20, 34, 0.85) 0%, rgba(8, 14, 25, 0.8) 100%)',
-        border: '1px solid rgba(0, 210, 255, 0.22)',
+        background: 'linear-gradient(135deg, rgba(24, 27, 13, 0.85) 0%, rgba(16, 18, 9, 0.8) 100%)',
+        border: '1px solid rgba(255, 230, 0, 0.25)',
         borderRadius: '18px',
         padding: '18px 22px',
         marginBottom: '24px',
@@ -46,19 +46,19 @@ export default function CrowdWidget({ crowdData, onSimulate, onReset }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '20px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(0, 210, 255, 0.03)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(255, 230, 0, 0.04)',
       }}
     >
       {/* Sensor Info */}
       <div style={{ flex: '1', minWidth: '240px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
           <span className="pulsing-dot">
-            <span className="pulsing-dot-ping" style={{ backgroundColor: '#00D2FF' }} />
-            <span className="pulsing-dot-core" style={{ backgroundColor: '#00D2FF' }} />
+            <span className="pulsing-dot-ping" style={{ backgroundColor: '#FFE600' }} />
+            <span className="pulsing-dot-core" style={{ backgroundColor: '#FFE600' }} />
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Cpu size={14} color="#00D2FF" />
-            <p className="mono" style={{ fontSize: '11px', fontWeight: 700, color: '#00D2FF', letterSpacing: '0.05em' }}>
+            <Cpu size={14} color="#FFE600" />
+            <p className="mono" style={{ fontSize: '11px', fontWeight: 700, color: '#FFE600', letterSpacing: '0.05em' }}>
               IOT LIVE FOOTFALL SENSOR
             </p>
           </div>
@@ -122,7 +122,7 @@ export default function CrowdWidget({ crowdData, onSimulate, onReset }) {
                   height: '100%',
                   borderRadius: '9999px',
                   width: `${Math.min(100, crowdPercent ?? 0)}%`,
-                  background: `linear-gradient(90deg, #00E5A8 0%, ${statusColor} 100%)`,
+                  background: `linear-gradient(90deg, #FFE600 0%, ${statusColor} 100%)`,
                   boxShadow: `0 0 10px ${statusColor}60`,
                   transition: 'width 0.5s ease',
                 }}
@@ -149,7 +149,7 @@ export default function CrowdWidget({ crowdData, onSimulate, onReset }) {
             style={{ padding: '6px 12px', fontSize: '11px', gap: '5px' }}
             title="Simulate 1 IoT Entry"
           >
-            <UserPlus size={13} color="#00E5A8" />
+            <UserPlus size={13} color="#FFE600" />
             <span>+ Entry</span>
           </button>
           <button

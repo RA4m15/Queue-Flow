@@ -1,63 +1,64 @@
 :root {
-  /* ─── Backgrounds & Surfaces (Dark Cinematic) ─── */
-  --bg-app: #05070D;
-  --bg-app-gradient: radial-gradient(circle at 50% 10%, #0F1D38 0%, #05070D 70%, #030408 100%);
-  --bg-card: rgba(13, 20, 34, 0.85);
-  --bg-card-subtle: rgba(17, 27, 44, 0.65);
-  --bg-card-hover: rgba(22, 34, 56, 0.95);
-  --bg-surface: #0D1422;
-  --bg-surface-elevated: #111B2C;
-  --bg-surface-high: #162033;
-  --bg-input: rgba(11, 18, 30, 0.85);
+  /* ─── Backgrounds & Surfaces (Zesty Lemon Dark Obsidian) ─── */
+  --bg-app: #0A0B05;
+  --bg-app-gradient: radial-gradient(circle at 50% 10%, #1A1D0B 0%, #0A0B05 70%, #040502 100%);
+  --bg-card: rgba(22, 25, 12, 0.85);
+  --bg-card-subtle: rgba(29, 33, 16, 0.65);
+  --bg-card-hover: rgba(38, 43, 21, 0.95);
+  --bg-surface: #14170A;
+  --bg-surface-elevated: #1D210F;
+  --bg-surface-high: #262B14;
+  --bg-input: rgba(18, 21, 9, 0.88);
 
   /* ─── Borders ─── */
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.14);
-  --border-strong: rgba(255, 255, 255, 0.22);
-  --border-accent: rgba(0, 229, 168, 0.35);
-  --border-cyan: rgba(0, 210, 255, 0.35);
+  --border-subtle: rgba(255, 230, 0, 0.1);
+  --border-medium: rgba(255, 230, 0, 0.2);
+  --border-strong: rgba(255, 230, 0, 0.35);
+  --border-accent: rgba(255, 230, 0, 0.45);
+  --border-cyan: rgba(255, 241, 118, 0.35);
 
-  /* ─── Primary Accent: Bright Mint / Neon Green ─── */
-  --color-primary: #00E5A8;
-  --color-primary-hover: #00F0A8;
-  --color-primary-gradient: linear-gradient(135deg, #00E5A8 0%, #00B386 100%);
-  --color-primary-subtle: rgba(0, 229, 168, 0.12);
-  --color-primary-glow: rgba(0, 229, 168, 0.25);
+  /* ─── Primary Accent: Zesty Lemon ─── */
+  --color-primary: #FFE600;
+  --color-primary-hover: #FFF14D;
+  --color-primary-gradient: linear-gradient(135deg, #FFE600 0%, #FFB300 100%);
+  --color-primary-subtle: rgba(255, 230, 0, 0.14);
+  --color-primary-glow: rgba(255, 230, 0, 0.35);
 
-  /* ─── Secondary Accent: Cyan / Teal Glow ─── */
-  --color-cyan: #00D2FF;
-  --color-cyan-hover: #38BDF8;
-  --color-cyan-subtle: rgba(0, 210, 255, 0.12);
-  --color-cyan-glow: rgba(0, 210, 255, 0.25);
+  /* ─── Secondary Accent: Lemon Sorbet / Citron ─── */
+  --color-cyan: #FFF176;
+  --color-cyan-hover: #FFF59D;
+  --color-cyan-subtle: rgba(255, 241, 118, 0.14);
+  --color-cyan-glow: rgba(255, 241, 118, 0.3);
 
   /* ─── Semantic Colors ─── */
-  --color-success: #00E5A8;
-  --color-success-subtle: rgba(0, 229, 168, 0.12);
+  --color-success: #FFE600;
+  --color-success-subtle: rgba(255, 230, 0, 0.14);
   --color-warning: #F59E0B;
-  --color-warning-subtle: rgba(245, 158, 11, 0.12);
+  --color-warning-subtle: rgba(245, 158, 11, 0.14);
   --color-danger: #EF4444;
-  --color-danger-subtle: rgba(239, 68, 68, 0.12);
-  --color-blue: #3B82F6;
-  --color-blue-subtle: rgba(59, 130, 246, 0.12);
-  --color-purple: #A855F7;
-  --color-purple-subtle: rgba(168, 85, 247, 0.12);
+  --color-danger-subtle: rgba(239, 68, 68, 0.14);
+  --color-blue: #38BDF8;
+  --color-blue-subtle: rgba(56, 189, 248, 0.14);
+  --color-purple: #C084FC;
+  --color-purple-subtle: rgba(192, 132, 252, 0.14);
 
   /* ─── Typography Colors ─── */
-  --text-main: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --text-subtle: #475569;
+  --text-main: #FEFCE8;
+  --text-secondary: #E4E4E7;
+  --text-muted: #A1A1AA;
+  --text-subtle: #71717A;
 
   /* ─── Fonts ─── */
   --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* ─── Shadows & Glows ─── */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
-  --shadow-glow-mint: 0 0 25px rgba(0, 229, 168, 0.25);
-  --shadow-glow-cyan: 0 0 25px rgba(0, 210, 255, 0.25);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.65);
+  --shadow-glow-mint: 0 0 25px rgba(255, 230, 0, 0.3);
+  --shadow-glow-cyan: 0 0 25px rgba(255, 241, 118, 0.25);
+  --shadow-glow-lemon: 0 0 28px rgba(255, 230, 0, 0.35);
 }
 
 * {
@@ -141,20 +142,20 @@ button {
   justify-content: center;
   gap: 0.5rem;
   background: var(--color-primary-gradient);
-  color: #05070D;
+  color: #0A0B05;
   font-weight: 700;
   font-size: 1rem;
   padding: 0.85rem 1.5rem;
   border-radius: 12px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(0, 229, 168, 0.3);
+  box-shadow: 0 4px 14px rgba(255, 230, 0, 0.35);
   text-align: center;
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 229, 168, 0.45);
+  box-shadow: 0 6px 20px rgba(255, 230, 0, 0.45);
 }
 
 .btn-primary:disabled {
@@ -259,12 +260,12 @@ button {
   border-radius: 20px;
   overflow: hidden;
   position: relative;
-  box-shadow: var(--shadow-glow-mint), var(--shadow-lg);
+  box-shadow: var(--shadow-glow-lemon), var(--shadow-lg);
 }
 
 .ticket-header {
   padding: 1.5rem 1.5rem 1rem 1.5rem;
-  background: linear-gradient(180deg, rgba(0, 229, 168, 0.08) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(255, 230, 0, 0.08) 0%, transparent 100%);
   border-bottom: 1px dashed var(--border-subtle);
   position: relative;
 }
@@ -297,7 +298,7 @@ button {
 
 .ticket-footer {
   padding: 1.25rem 1.5rem;
-  background: rgba(8, 12, 22, 0.7);
+  background: rgba(14, 16, 7, 0.7);
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -307,12 +308,13 @@ button {
   font-weight: 800;
   letter-spacing: 0.05em;
   color: var(--color-primary);
-  text-shadow: 0 0 20px rgba(0, 229, 168, 0.4);
+  text-shadow: 0 0 20px rgba(255, 230, 0, 0.45);
   line-height: 1.1;
 }
 
 /* Pulse Animation for Live Status */
-.pulse-mint {
+.pulse-mint,
+.pulse-lemon {
   animation: pulse-glow 2s infinite;
 }
 

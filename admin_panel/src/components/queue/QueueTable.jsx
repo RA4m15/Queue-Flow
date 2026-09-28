@@ -28,7 +28,7 @@ export default function QueueTable({ queues = [] }) {
         className="q-card"
         style={{
           overflow: 'hidden',
-          background: 'rgba(13, 20, 34, 0.8)',
+          background: 'rgba(22, 25, 12, 0.8)',
           border: '1px solid var(--border-subtle)',
         }}
       >
@@ -37,7 +37,7 @@ export default function QueueTable({ queues = [] }) {
             <thead>
               <tr
                 style={{
-                  background: 'rgba(17, 27, 44, 0.85)',
+                  background: 'rgba(26, 30, 14, 0.85)',
                   borderBottom: '1px solid var(--border-subtle)',
                   color: '#94A3B8',
                   fontSize: '11px',
@@ -87,9 +87,9 @@ export default function QueueTable({ queues = [] }) {
                           fontSize: '11px',
                           padding: '2px 8px',
                           borderRadius: '6px',
-                          background: 'rgba(0, 229, 168, 0.12)',
-                          color: '#00E5A8',
-                          border: '1px solid rgba(0, 229, 168, 0.25)',
+                          background: 'rgba(255, 230, 0, 0.14)',
+                          color: '#FFE600',
+                          border: '1px solid rgba(255, 230, 0, 0.3)',
                           fontWeight: 700,
                         }}
                       >
@@ -103,14 +103,14 @@ export default function QueueTable({ queues = [] }) {
                         style={{
                           fontSize: '14px',
                           fontWeight: 700,
-                          color: waiting > 10 ? '#EF4444' : waiting > 5 ? '#FBBF24' : '#F8FAFC',
+                          color: waiting > 10 ? '#FF3D3D' : waiting > 5 ? '#FFB300' : '#FEFCE8',
                         }}
                       >
                         {waiting}
                       </span>
                     </td>
 
-                    <td style={{ padding: '13px 16px', color: '#00E5A8', fontWeight: 600 }} className="mono">
+                    <td style={{ padding: '13px 16px', color: '#FFE600', fontWeight: 600 }} className="mono">
                       {completed}
                     </td>
 
@@ -127,9 +127,9 @@ export default function QueueTable({ queues = [] }) {
                         className="badge"
                         style={{
                           fontSize: '9px',
-                          background: q.status === 'OPEN' ? 'rgba(0, 229, 168, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                          color: q.status === 'OPEN' ? '#00E5A8' : '#EF4444',
-                          borderColor: q.status === 'OPEN' ? 'rgba(0, 229, 168, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                          background: q.status === 'OPEN' ? 'rgba(255, 230, 0, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                          color: q.status === 'OPEN' ? '#FFE600' : '#EF4444',
+                          borderColor: q.status === 'OPEN' ? 'rgba(255, 230, 0, 0.3)' : 'rgba(239, 68, 68, 0.3)',
                         }}
                       >
                         {q.status || '—'}

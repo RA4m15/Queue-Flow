@@ -18,6 +18,23 @@ id_rsa
 *.p8
 *.p12
 
+# Firebase service-account credentials (Admin SDK / FCM HTTP v1)
+# These files contain a raw private key and grant project-wide push authority.
+# They must NEVER be committed. Reference them by absolute path from .env
+# (FIREBASE_SERVICE_ACCOUNT_PATH) or from GOOGLE_APPLICATION_CREDENTIALS.
+service-account.json
+serviceAccount.json
+service_account.json
+*service-account*.json
+*service_account*.json
+*serviceAccountKey.json
+firebase-adminsdk*.json
+firebase-adminsdk-*.json
+*firebase-adminsdk*.json
+*firebase-adminsdk-*.json
+firebase-service-account*.json
+*firebase-service-account*.json
+
 # Node dependencies
 node_modules/
 backend/node_modules/

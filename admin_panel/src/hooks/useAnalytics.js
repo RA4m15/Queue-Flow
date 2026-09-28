@@ -10,11 +10,14 @@ export function useAnalytics(centerId) {
     serviceDemand: [],
     recommendations: [],
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchAnalytics = useCallback(async () => {
-    if (!centerId) return;
+    if (!centerId) {
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const res = await analyticsAPI.getDashboard(centerId);

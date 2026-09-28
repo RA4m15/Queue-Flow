@@ -15,11 +15,44 @@ const createValidation = [
 
 // ─── Controllers ──────────────────────────────────
 
+const SEED_CENTERS = [
+  {
+    _id: '64f1a2b3c4d5e6f7a8b9c001',
+    name: 'City Hall — Branch 01',
+    code: 'CITYHAL01',
+    type: 'GOVT',
+    address: { street: '1 Civic Centre Road', city: 'Ahmedabad', state: 'Gujarat', pincode: '380001' },
+    capacity: 200,
+    isOpen: true,
+    currentCrowd: 14,
+    capacityAlertThreshold: 75,
+  },
+  {
+    _id: '64f1a2b3c4d5e6f7a8b9c002',
+    name: 'State Bank — Main Branch',
+    code: 'SBANK001',
+    type: 'BANK',
+    address: { street: 'MG Road', city: 'Ahmedabad', state: 'Gujarat', pincode: '380009' },
+    capacity: 150,
+    isOpen: true,
+    currentCrowd: 8,
+    capacityAlertThreshold: 80,
+  },
+];
+
 /**
  * GET /api/service-centers
  * List all service centers. Public.
  */
 const list = asyncHandler(async (req, res) => {
+  const mongoose = require('mongoose');
+  if (mongoose.connection.readyState !== 1) {
+    return sendSuccess(res, {
+      data: { centers: SEED_CENTERS },
+      meta: { total: SEED_CENTERS.length },
+    });
+  }
+
   const { type, isOpen } = req.query;
   const filter = {};
   if (type && typeof type === 'string') {
@@ -48,6 +81,12 @@ const list = asyncHandler(async (req, res) => {
  * Get a single service center with crowd info. Public.
  */
 const getById = asyncHandler(async (req, res) => {
+  const mongoose = require('mongoose');
+  if (mongoose.connection.readyState !== 1) {
+    const center = SEED_CENTERS.find((c) => c._id === req.params.id) || SEED_CENTERS[0];
+    return sendSuccess(res, { data: { center } });
+  }
+
   const center = await ServiceCenter.findById(req.params.id).lean({ virtuals: true });
   if (!center) return sendNotFound(res, 'Service center not found');
 

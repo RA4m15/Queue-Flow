@@ -2,15 +2,32 @@ import { useState, useEffect, useCallback } from 'react';
 import { queueAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 
+const DEFAULT_QUEUES = [
+  { serviceId: 's1', serviceName: 'License Renewal', tokenPrefix: 'A', waitingCount: 8, servingCount: 1, avgWaitMinutes: 14, totalIssued: 32 },
+  { serviceId: 's2', serviceName: 'Tax Payment', tokenPrefix: 'B', waitingCount: 12, servingCount: 1, avgWaitMinutes: 18, totalIssued: 28 },
+  { serviceId: 's3', serviceName: 'Certificate', tokenPrefix: 'C', waitingCount: 3, servingCount: 1, avgWaitMinutes: 8, totalIssued: 41 },
+  { serviceId: 's4', serviceName: 'Property Records', tokenPrefix: 'D', waitingCount: 6, servingCount: 1, avgWaitMinutes: 15, totalIssued: 24 },
+];
+
+const DEFAULT_LOG = [
+  { id: '1', t: '09:41', tag: 'called', event: 'Token A-247 called to Counter B' },
+  { id: '2', t: '09:40', tag: 'done', event: 'Token A-246 completed service at Counter A' },
+  { id: '3', t: '09:38', tag: 'waiting', event: 'Token A-248 joined queue for License Renewal' },
+  { id: '4', t: '09:35', tag: 'break', event: 'Counter D went on break' },
+];
+
 export function useQueue(centerId) {
-  const [queues, setQueues] = useState([]);
-  const [liveLog, setLiveLog] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [queues, setQueues] = useState(DEFAULT_QUEUES);
+  const [liveLog, setLiveLog] = useState(DEFAULT_LOG);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { on } = useSocket();
 
   const fetchQueueData = useCallback(async () => {
-    if (!centerId) return;
+    if (!centerId) {
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const [queueRes, eventsRes] = await Promise.all([

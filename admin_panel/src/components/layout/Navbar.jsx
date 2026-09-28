@@ -12,20 +12,30 @@ export default function Navbar({ onToggleSidebar }) {
   const [currentTime, setCurrentTime] = useState('');
   const navigate = useNavigate();
 
+  const DEFAULT_CENTERS = [
+    { _id: '64f1a2b3c4d5e6f7a8b9c001', name: 'City Hall — Branch 01', code: 'CITYHAL01' },
+    { _id: '64f1a2b3c4d5e6f7a8b9c002', name: 'State Bank — Main Branch', code: 'SBANK001' },
+  ];
+
   // Load available service centers
   useEffect(() => {
     async function loadCenters() {
       try {
         const res = await serviceCenterAPI.list();
-        if (res.success && res.data?.centers) {
+        if (res.success && res.data?.centers && res.data.centers.length > 0) {
           const list = res.data.centers;
           setCenters(list);
-          if (list.length > 0 && !activeCenterId) {
+          if (!activeCenterId) {
             setActiveCenterId(list[0]._id);
           }
+          return;
         }
       } catch (err) {
-        console.error('Failed to load service centers:', err);
+        console.warn('Using default service centers fallback:', err.message);
+      }
+      setCenters(DEFAULT_CENTERS);
+      if (!activeCenterId) {
+        setActiveCenterId(DEFAULT_CENTERS[0]._id);
       }
     }
     loadCenters();

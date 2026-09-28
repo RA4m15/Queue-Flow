@@ -43,6 +43,8 @@ dependencies:
   intl: ^0.20.3
   google_fonts: ^8.2.1
   mobile_scanner: ^7.4.2
+  google_generative_ai: ^0.4.7
+  dash_chat_2: ^0.0.21
   # Firebase device push transport.
   #
   # The transport is compiled in, but it only activates when a Firebase project
@@ -67,6 +69,7 @@ dev_dependencies:
 
 dependency_overrides:
   path_provider_foundation: 2.4.0
+  intl: ^0.20.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

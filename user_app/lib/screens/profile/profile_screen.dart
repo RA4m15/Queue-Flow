@@ -596,14 +596,35 @@ class ProfileScreen extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryColor,
-                          foregroundColor: context.isDarkMode ? Colors.black : Colors.white,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.auto_awesome, size: 18),
+                        label: const Text(
+                          'Chat with Gemini AI Assistant',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          context.push('/support-chat');
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primaryColor,
+                          side: BorderSide(color: primaryColor.withValues(alpha: 0.5)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         icon: const Icon(Icons.report_problem_outlined, size: 18),
                         label: const Text(
                           'Report an Issue / Submit Ticket',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         onPressed: () {
                           Navigator.of(ctx).pop();
@@ -1001,81 +1022,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showLiveSupportPreviewDialog(BuildContext context) {
-    final surfaceColor = context.themeSurface;
-    final textColor = context.themeTextPrimary;
-    final textSecondary = context.themeTextSecondary;
-    final primaryColor = context.themePrimary;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: surfaceColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: primaryColor.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.support_agent_rounded, color: primaryColor, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Live Concierge',
-                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'PRIVATE BETA / COMING SOON',
-                style: TextStyle(
-                  color: AppColors.warning,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Real-time Live Chat Concierge is currently being rolled out across select service centers. It will allow you to chat with a live queue officer, request counter priority, or get immediate guidance.',
-              style: TextStyle(color: textSecondary, fontSize: 13, height: 1.45),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'In the meantime, please utilize Help & Support or reach our team directly at support@queueflow.io.',
-              style: TextStyle(color: textSecondary, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: context.isDarkMode ? Colors.black : Colors.white,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Got It'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showFeedbackDialog(BuildContext context, WidgetRef ref, TokenModel token) {
     int rating = 5;
@@ -1699,7 +1645,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  // Live Support Card (Requested: just the option, not workable)
+                  // Live Support / Gemini AI Assistant Card
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     leading: Stack(
@@ -1708,10 +1654,14 @@ class ProfileScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: primaryColor.withValues(alpha: 0.15),
+                            gradient: const LinearGradient(
+                              colors: [AppColors.primary, AppColors.secondary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.support_agent_rounded, color: primaryColor, size: 22),
+                          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
                         ),
                         Positioned(
                           top: -2,
@@ -1731,7 +1681,7 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Live Concierge Support',
+                            'AI Support Assistant',
                             style: TextStyle(
                               color: textColor,
                               fontSize: 14,
@@ -1742,13 +1692,13 @@ class ProfileScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.secondary.withValues(alpha: 0.15),
+                            color: AppColors.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
-                            'LIVE CHAT',
+                            'GEMINI AI',
                             style: TextStyle(
-                              color: AppColors.secondary,
+                              color: AppColors.primary,
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1757,11 +1707,11 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
                     subtitle: Text(
-                      'Live 1-on-1 assistance with queue officers and center agents',
+                      'Direct chat with Gemini 1.5 Flash queue assistant',
                       style: TextStyle(color: textSecondary, fontSize: 11),
                     ),
                     trailing: Icon(Icons.chevron_right_rounded, color: textSecondary, size: 20),
-                    onTap: () => _showLiveSupportPreviewDialog(context),
+                    onTap: () => context.push('/support-chat'),
                   ),
                   const Divider(height: 1),
 

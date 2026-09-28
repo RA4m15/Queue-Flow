@@ -12,6 +12,7 @@ import '../../widgets/token_status_badge.dart';
 import '../../widgets/queue_progress_bar.dart';
 import '../../widgets/loading_state.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/interactive_queue_graphic.dart';
 
 class LiveTokenScreen extends ConsumerStatefulWidget {
   const LiveTokenScreen({super.key});
@@ -353,12 +354,28 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
       body: tokenState.isLoading && token == null
           ? const LoadingState(message: 'Checking for active token...')
           : token == null || (!token.isActive && !token.isCompleted)
-              ? EmptyState(
-                  title: 'No Active Token',
-                  message: 'You do not have any active tokens in queue. Browse centers to join a line.',
-                  icon: Icons.confirmation_number_outlined,
-                  actionLabel: 'Browse Centers',
-                  onAction: () => context.go('/home'),
+              ? ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  children: [
+                    EmptyState(
+                      title: 'No Active Token',
+                      message: 'You do not have any active tokens in queue. Browse centers to join a line.',
+                      icon: Icons.confirmation_number_outlined,
+                      actionLabel: 'Browse Centers',
+                      onAction: () => context.go('/home'),
+                    ),
+                    const SizedBox(height: 24),
+                    const InteractiveQueueGraphic(
+                      isDemo: true,
+                      tokenCode: 'A-104',
+                      position: 3,
+                      peopleAhead: 2,
+                      servingToken: 'A-102',
+                      counterName: 'Counter 1',
+                      waitMinutes: 6,
+                      status: 'WAITING',
+                    ),
+                  ],
                 )
               : RefreshIndicator(
                   color: AppColors.primary,
@@ -632,6 +649,18 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                             QueueProgressBar(
                               initialPosition: token.initialPosition,
                               currentPosition: token.currentPosition,
+                              status: token.status,
+                            ),
+
+                            const SizedBox(height: 18),
+                            // Interactive Queue Flow Graphic
+                            InteractiveQueueGraphic(
+                              tokenCode: token.tokenCode,
+                              position: token.currentPosition ?? 1,
+                              peopleAhead: token.peopleAhead,
+                              servingToken: token.servingToken ?? (token.counterName ?? 'Counter 1'),
+                              counterName: token.counterName ?? 'Counter 1',
+                              waitMinutes: token.waitEstimateMinutes ?? 5,
                               status: token.status,
                             ),
 

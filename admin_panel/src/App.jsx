@@ -64,16 +64,9 @@ export default function App() {
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <Dashboard initialTab="overview" />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/queues"
-              element={
-                <ProtectedRoute>
-                  <Dashboard initialTab="queues" />
+                  <AdminLayout>
+                    <Dashboard />
+                  </AdminLayout>
                 </ProtectedRoute>
               }
             />
@@ -82,7 +75,9 @@ export default function App() {
               path="/analytics"
               element={
                 <ProtectedRoute>
-                  <Dashboard initialTab="analytics" />
+                  <AdminLayout>
+                    <Analytics />
+                  </AdminLayout>
                 </ProtectedRoute>
               }
             />
@@ -91,7 +86,9 @@ export default function App() {
               path="/alerts"
               element={
                 <ProtectedRoute>
-                  <Dashboard initialTab="alerts" />
+                  <AdminLayout>
+                    <Alerts />
+                  </AdminLayout>
                 </ProtectedRoute>
               }
             />

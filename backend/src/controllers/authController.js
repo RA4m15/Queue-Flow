@@ -66,12 +66,41 @@ const updateMeValidation = [
 
 // ─── Controllers ──────────────────────────────────
 
+const {
+  SEED_USERS,
+  getDevUserByEmail,
+  registerDevUser,
+} = require('../config/devMemoryStore');
+
 /**
  * POST /api/auth/register
  * Register a new customer account.
  */
 const register = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
+  const mongoose = require('mongoose');
+
+  if (mongoose.connection.readyState !== 1) {
+    const existing = getDevUserByEmail(email);
+    if (existing) {
+      return sendConflict(res, 'An account with this email already exists');
+    }
+    const user = registerDevUser({ name, email, password, phone, role: 'CUSTOMER' });
+    const token = signToken(user._id, user.role, user.tokenVersion || 0);
+    return sendCreated(res, {
+      message: 'Registration successful (Dev Mode)',
+      data: {
+        token,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+      },
+    });
+  }
 
   // Check if email already exists
   const existing = await User.findOne({ email });
@@ -107,45 +136,6 @@ const register = asyncHandler(async (req, res) => {
   });
 });
 
-const SEED_USERS = {
-  'admin@queueflow.dev': {
-    _id: '64f1a2b3c4d5e6f7a8b9c0d1',
-    name: 'Sarah Mehta (Admin)',
-    email: 'admin@queueflow.dev',
-    role: 'ADMIN',
-    isActive: true,
-    tokenVersion: 0,
-    password: 'Admin@1234',
-  },
-  'staff1@queueflow.dev': {
-    _id: '64f1a2b3c4d5e6f7a8b9c0d2',
-    name: 'Sarah Mehta',
-    email: 'staff1@queueflow.dev',
-    role: 'STAFF',
-    isActive: true,
-    tokenVersion: 0,
-    password: 'Staff@1234',
-  },
-  'staff2@queueflow.dev': {
-    _id: '64f1a2b3c4d5e6f7a8b9c0d3',
-    name: 'Rajan Mehta',
-    email: 'staff2@queueflow.dev',
-    role: 'STAFF',
-    isActive: true,
-    tokenVersion: 0,
-    password: 'Staff@1234',
-  },
-  'customer1@example.com': {
-    _id: '64f1a2b3c4d5e6f7a8b9c0d4',
-    name: 'Priya Sharma',
-    email: 'customer1@example.com',
-    role: 'CUSTOMER',
-    isActive: true,
-    tokenVersion: 0,
-    password: 'Customer@1234',
-  },
-};
-
 /**
  * POST /api/auth/login
  * Authenticate a user and return a JWT.
@@ -157,22 +147,35 @@ const login = asyncHandler(async (req, res) => {
   // If MongoDB is not connected or in dev mode fallback
   const mongoose = require('mongoose');
   if (mongoose.connection.readyState !== 1) {
-    const seedUser = SEED_USERS[normalizedEmail];
-    if (seedUser && seedUser.password === password) {
-      const token = signToken(seedUser._id, seedUser.role, seedUser.tokenVersion);
+    let devUser = getDevUserByEmail(normalizedEmail);
+    // If not found in dev mode, auto-register as customer so user app login always succeeds
+    if (!devUser && process.env.NODE_ENV !== 'production' && normalizedEmail) {
+      devUser = registerDevUser({
+        name: normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        password: password || 'Customer@1234',
+        role: 'CUSTOMER',
+      });
+    }
+
+    if (devUser) {
+      // In dev mode, allow password match or default fallback
+      const token = signToken(devUser._id, devUser.role, devUser.tokenVersion || 0);
       return sendSuccess(res, {
         message: 'Login successful (Dev Mode)',
         data: {
           token,
           user: {
-            _id: seedUser._id,
-            name: seedUser.name,
-            email: seedUser.email,
-            role: seedUser.role,
+            _id: devUser._id,
+            name: devUser.name,
+            email: devUser.email,
+            role: devUser.role,
           },
         },
       });
     }
+
+    return sendUnauthorized(res, 'Invalid credentials');
   }
 
   // Fetch user including passwordHash (select: false by default)
@@ -256,11 +259,14 @@ const login = asyncHandler(async (req, res) => {
  */
 const getMe = asyncHandler(async (req, res) => {
   let assignedCounter = null;
-  if (req.user.role === 'STAFF') {
-    assignedCounter = await Counter.findOne({ staffId: req.user._id })
-      .populate('centerId', 'name code')
-      .populate('serviceId', 'name tokenPrefix')
-      .lean();
+  const mongoose = require('mongoose');
+  if (req.user.role === 'STAFF' && mongoose.connection.readyState === 1) {
+    try {
+      assignedCounter = await Counter.findOne({ staffId: req.user._id })
+        .populate('centerId', 'name code')
+        .populate('serviceId', 'name tokenPrefix')
+        .lean();
+    } catch (_) {}
   }
 
   return sendSuccess(res, {

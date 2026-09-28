@@ -207,6 +207,11 @@ async function _enrichTokenWithLiveQueue(token) {
  * Get the user's currently active token (WAITING/CALLED/SERVING) enriched with live queue transparency.
  */
 const getActiveToken = asyncHandler(async (req, res) => {
+  const mongoose = require('mongoose');
+  if (mongoose.connection.readyState !== 1) {
+    return sendSuccess(res, { data: { token: null } });
+  }
+
   const token = await Token.findOne({
     userId: req.user._id,
     status: { $in: ['WAITING', 'CALLED', 'SERVING'] },

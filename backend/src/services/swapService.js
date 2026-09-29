@@ -827,6 +827,11 @@ async function acceptOffer({ offerId, acceptingTokenId, userId }) {
     // Notification failures must not roll back a completed swap
   }
 
+  // Centralized Resource Allocation: a swap reorders the real waiting line, so
+  // a free counter may now be able to serve a customer it previously could not
+  // reach. Re-evaluate rather than assume the queue is unchanged.
+  require('./resourceAllocationService').triggerAllocation(swapResult.centerId);
+
   return {
     offerId: offer._id,
     offeringTokenId: swapResult.offeringTokenId,

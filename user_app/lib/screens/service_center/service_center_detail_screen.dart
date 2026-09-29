@@ -21,11 +21,22 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(serviceCenterDetailProvider(centerId));
+    // `GET /api/service-centers/:id` returns the center alone — it has no
+    // `services` key. The service list comes from `GET /api/services?centerId=`,
+    // which the backend filters to `isActive: true`.
+    final servicesAsync = ref.watch(centerServicesProvider(centerId));
     final crowdAsync = ref.watch(centerCrowdProvider(centerId));
     final queueAsync = ref.watch(centerQueueStatusProvider(centerId));
 
+    void refreshAll() {
+      ref.invalidate(serviceCenterDetailProvider(centerId));
+      ref.invalidate(centerServicesProvider(centerId));
+      ref.invalidate(centerCrowdProvider(centerId));
+      ref.invalidate(centerQueueStatusProvider(centerId));
+    }
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -36,27 +47,19 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
-            onPressed: () {
-              ref.invalidate(serviceCenterDetailProvider(centerId));
-              ref.invalidate(centerCrowdProvider(centerId));
-              ref.invalidate(centerQueueStatusProvider(centerId));
-            },
+            onPressed: refreshAll,
           ),
         ],
       ),
       body: detailAsync.when(
         data: (data) {
           final center = data['center'] as ServiceCenter;
-          final services = data['services'] as List<Service>;
+          final services = servicesAsync.valueOrNull ?? const <Service>[];
 
           return RefreshIndicator(
-            color: AppColors.primary,
-            backgroundColor: AppColors.surface,
-            onRefresh: () async {
-              ref.invalidate(serviceCenterDetailProvider(centerId));
-              ref.invalidate(centerCrowdProvider(centerId));
-              ref.invalidate(centerQueueStatusProvider(centerId));
-            },
+            color: context.themePrimary,
+            backgroundColor: context.themeSurface,
+            onRefresh: () async => refreshAll(),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -64,9 +67,9 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.themeSurface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.themeBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,9 +82,9 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                             height: 56,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceElevated,
+                              color: context.themeSurfaceElevated,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.border),
+                              border: Border.all(color: context.themeBorder),
                             ),
                             child: Text(
                               center.typeEmoji,
@@ -133,14 +136,14 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Divider(color: AppColors.border),
+                      Divider(color: context.themeBorder),
                       const SizedBox(height: 12),
 
                       // Address info
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 18, color: AppColors.textMuted),
+                          Icon(Icons.location_on_outlined, size: 18, color: context.themeTextMuted),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -155,7 +158,7 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Icon(Icons.phone_outlined, size: 18, color: AppColors.textMuted),
+                            Icon(Icons.phone_outlined, size: 18, color: context.themeTextMuted),
                             const SizedBox(width: 8),
                             Text(
                               center.phone!,
@@ -171,9 +174,9 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                         data: (crowd) => Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceElevated,
+                            color: context.themeSurfaceElevated,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: context.themeBorder),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -190,7 +193,7 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                                     '${crowd.currentCrowd} people inside',
                                     style: AppTheme.monoStyle(
                                       fontSize: 15,
-                                      color: AppColors.textPrimary,
+                                      color: context.themeTextPrimary,
                                     ),
                                   ),
                                 ],
@@ -222,7 +225,9 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                           ),
                     ),
                     Text(
-                      '${services.length} services',
+                      servicesAsync.isLoading
+                          ? 'Loading…'
+                          : '${services.length} services',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -230,7 +235,38 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // ─── SERVICES LIST ───────────────────────────────────
-                if (services.isEmpty)
+                if (servicesAsync.isLoading)
+                  ...const [3, 4, 5].map((i) => Container(
+                        height: 96 + i.toDouble(),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: context.themeSurfaceElevated,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: context.themeBorder),
+                        ),
+                      ))
+                else if (servicesAsync.hasError)
+                  // The centre loaded but its services did not. Saying "no
+                  // services" here would be a lie: the truth is unknown.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Service list unavailable. The service center could '
+                          'not be reached.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12.5, height: 1.5),
+                        ),
+                        const SizedBox(height: 14),
+                        OutlinedButton(
+                          onPressed: refreshAll,
+                          child: const Text('RETRY'),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (services.isEmpty)
                   const EmptyState(
                     title: 'No services available',
                     message: 'This center has not published any active queue services.',
@@ -241,9 +277,9 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: context.themeSurface,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.themeBorder),
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -270,46 +306,52 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                             queueAsync.when(
                               data: (queues) {
                                 final q = queues.where((item) => item.serviceId == service.id).firstOrNull;
-                                final waitCount = q?.waitingCount ?? 0;
+                                final waitCount = q?.waitingCount;
                                 // Tier 3 / Feature 1: consume the server-authoritative
-                                // context-aware EWT. Never recompute it in Dart.
-                                final estMins = q?.estimatedWaitMinutes ?? service.estimatedDuration;
+                                // context-aware EWT. Never recompute it in Dart, and
+                                // never fall back to the average service time — that
+                                // number is a handling duration, not a wait.
+                                final estMins = q?.estimatedWaitMinutes;
 
                                 return Row(
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(alpha: 0.1),
+                                        color: context.themePrimary.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        '$waitCount waiting',
-                                        style: const TextStyle(
-                                          color: AppColors.primary,
+                                        waitCount == null ? 'n/a waiting' : '$waitCount waiting',
+                                        style: TextStyle(
+                                          color: context.themePrimary,
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      estMins != null && estMins > 0 ? '~$estMins min wait' : 'Wait time unavailable',
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                    Flexible(
+                                      child: Text(
+                                        estMins != null
+                                            ? '~$estMins min wait'
+                                            : 'Wait time not reported',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                      ),
                                     ),
                                   ],
                                 );
                               },
                               loading: () => Text(
-                                service.estimatedDuration != null
-                                    ? '~${service.estimatedDuration} min avg service'
+                                service.avgServiceTimeMinutes != null
+                                    ? '~${service.avgServiceTimeMinutes} min avg service'
                                     : 'Queue available',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               error: (_, _) => Text(
-                                service.estimatedDuration != null
-                                    ? '~${service.estimatedDuration} min avg service'
-                                    : 'Queue available',
+                                'Queue figures not reported',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -317,15 +359,13 @@ class ServiceCenterDetailScreen extends ConsumerWidget {
                         ),
                         trailing: ElevatedButton(
                           onPressed: center.isOpen
-                              ? () {
-                                  context.push(
-                                    '/queue/preview',
-                                    extra: {
-                                      'center': center,
-                                      'service': service,
-                                    },
-                                  );
-                                }
+                              // Ids only, so the destination is the same
+                              // addressable join route a QR opens.
+                              ? () => context.push(
+                                    '/join/preview'
+                                    '?centerId=${center.id}'
+                                    '&serviceId=${service.id}',
+                                  )
                               : null,
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(80, 36),

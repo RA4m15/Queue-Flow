@@ -26,8 +26,19 @@ import QRCode from 'qrcode';
 
 const configuredBase = (import.meta.env.VITE_CUSTOMER_WEB_URL || '').trim();
 
-/** Base URL of the deployed Customer Web app. Never contains a trailing slash. */
-export const CUSTOMER_WEB_BASE = (configuredBase || 'http://localhost:5173').replace(/\/$/, '');
+/**
+ * Base URL of the deployed Customer Web app. Never contains a trailing slash.
+ *
+ * The dev fallback is the Customer Web dev server (port 5175). It must NOT be
+ * the Admin Panel (5173) or the Live Counter (5174): a customer scanning the QR
+ * has to land on the /join route, and a wrong port silently sends them to an
+ * operator login screen instead.
+ *
+ * A real deployment must set VITE_CUSTOMER_WEB_URL to its public https origin;
+ * `isPublicCustomerWebBase()` then reports any localhost/IP/reserved-TLD value
+ * as a configuration error rather than printing an unscannable code.
+ */
+export const CUSTOMER_WEB_BASE = (configuredBase || 'http://localhost:5175').replace(/\/$/, '');
 
 /** Hosts that must never appear in a QR intended for a public display. */
 const LOCAL_ONLY_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1']);

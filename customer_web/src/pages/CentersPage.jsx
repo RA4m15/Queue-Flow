@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { serviceCenterAPI } from '../services/api';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { ErrorAlert } from '../components/ErrorAlert';
+import { BackButton } from '../components/BackButton';
 
 export function CentersPage() {
   const [centers, setCenters] = useState([]);
@@ -43,6 +44,7 @@ export function CentersPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div>
+        <BackButton label="Back" fallback="/" />
         <h1 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.25rem' }}>
           Select Service Center
         </h1>
@@ -137,7 +139,7 @@ export function CentersPage() {
                           fontWeight: '700',
                           padding: '0.15rem 0.45rem',
                           borderRadius: '4px',
-                          background: 'rgba(255, 255, 255, 0.08)',
+                          background: 'var(--bg-card-alt)',
                           color: 'var(--text-secondary)',
                           textTransform: 'uppercase',
                         }}

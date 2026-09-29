@@ -149,6 +149,16 @@ function resolveCredentials() {
   return cachedCredentialState;
 }
 
+let fcmAdapterInstance = null;
+function getFcmAdapter() {
+  if (!fcmAdapterInstance) {
+    try {
+      fcmAdapterInstance = require('./fcmAdapter').fcmAdapter;
+    } catch (_) {}
+  }
+  return fcmAdapterInstance;
+}
+
 /**
  * True when real Firebase credentials are present in the environment.
  * Mirrors the `isConfigured()` convention of the other channel adapters.
@@ -156,6 +166,10 @@ function resolveCredentials() {
  * @returns {boolean}
  */
 function isConfigured() {
+  const adapter = getFcmAdapter();
+  if (adapter && adapter.isConfigured()) {
+    return true;
+  }
   return resolveCredentials().configured;
 }
 
@@ -275,7 +289,7 @@ function buildMessage({ deviceToken, title, body, data }) {
       notification: {
         // Without a channel id, Android drops the notification on API 26+.
         channelId: process.env.FCM_ANDROID_CHANNEL_ID || 'queueflow_alerts',
-        sound: 'default',
+        sound: 'token_approaching',
       },
     },
     apns: {
@@ -301,6 +315,21 @@ async function sendPush({ deviceToken, title, body, data }) {
   }
   if (!isConfigured()) {
     return { delivered: false, reason: FcmSkipReason.NOT_CONFIGURED, invalidToken: false };
+  }
+
+  const adapter = getFcmAdapter();
+  if (adapter && adapter.isConfigured()) {
+    const res = await adapter.sendPush({
+      token: deviceToken,
+      title,
+      body,
+      data,
+    });
+    return {
+      delivered: Boolean(res.delivered || res.success),
+      reason: res.reason || (res.success ? null : res.errorCode),
+      invalidToken: Boolean(res.invalidToken),
+    };
   }
 
   const messaging = getMessaging();

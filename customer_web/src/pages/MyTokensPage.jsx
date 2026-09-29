@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { ErrorAlert } from '../components/ErrorAlert';
+import { BackButton } from '../components/BackButton';
 
 export function MyTokensPage() {
   const { isAuthenticated } = useAuth();
@@ -64,6 +65,7 @@ export function MyTokensPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div>
+        <BackButton label="Back" fallback="/" />
         <h1 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.2rem' }}>
           My Tokens
         </h1>

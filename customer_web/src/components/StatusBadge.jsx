@@ -7,44 +7,44 @@ export function StatusBadge({ status }) {
     WAITING: {
       className: 'badge badge-waiting',
       label: 'Waiting in Queue',
-      dotColor: '#60A5FA',
+      dotColor: 'var(--color-cyan)',
     },
     CALLED: {
       className: 'badge badge-called pulse-mint',
       label: 'Now Called',
-      dotColor: '#00E5A8',
+      dotColor: 'var(--color-primary)',
     },
     SERVING: {
       className: 'badge badge-serving',
       label: 'Being Served',
-      dotColor: '#00D2FF',
+      dotColor: 'var(--color-cyan)',
     },
     COMPLETED: {
       className: 'badge badge-completed',
       label: 'Completed',
-      dotColor: '#00E5A8',
+      dotColor: 'var(--color-primary)',
     },
     SKIPPED: {
       className: 'badge badge-skipped',
       label: 'Skipped',
-      dotColor: '#F59E0B',
+      dotColor: 'var(--color-warning)',
     },
     CANCELLED: {
       className: 'badge badge-cancelled',
       label: 'Cancelled',
-      dotColor: '#EF4444',
+      dotColor: 'var(--color-danger)',
     },
     EXPIRED: {
       className: 'badge badge-expired',
       label: 'Expired',
-      dotColor: '#94A3B8',
+      dotColor: 'var(--text-secondary)',
     },
   };
 
   const current = config[normalized] || {
     className: 'badge',
     label: normalized,
-    dotColor: '#94A3B8',
+    dotColor: 'var(--text-secondary)',
   };
 
   return (

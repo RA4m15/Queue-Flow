@@ -5,12 +5,30 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f97316'><path d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QueueFlow — Admin & Counter Management</title>
-    <!-- Fonts from UI Reference: Outfit and JetBrains Mono -->
+    <!-- Shared product type stack: Inter + JetBrains Mono (matches the mobile app) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
+    <!-- QueueFlow theme bootstrap: applies the saved Dark/Light preference before
+         first paint so a reload never flashes the default dark palette. Kept in
+         sync with src/services/theme.js (same storage key, same values). -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('queueflow_admin_theme');
+          if (stored === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          } else {
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

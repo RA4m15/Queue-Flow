@@ -12,7 +12,7 @@ import { MyTokensPage } from './pages/MyTokensPage';
 import { JoinQrPage } from './pages/JoinQrPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { QueueDisplayPage } from './pages/QueueDisplayPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 function App() {
   return (
@@ -28,9 +28,8 @@ function App() {
             <Route path="/token/:id" element={<TokenDetailPage />} />
             <Route path="/my-tokens" element={<MyTokensPage />} />
             <Route path="/my-token" element={<Navigate to="/my-tokens" replace />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/join" element={<JoinQrPage />} />
-            <Route path="/display" element={<QueueDisplayPage />} />
-            <Route path="/display/:centerId" element={<QueueDisplayPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

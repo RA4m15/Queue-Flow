@@ -53,8 +53,19 @@ export const authAPI = {
 };
 
 export const serviceCenterAPI = {
-  list: () => api.get('/service-centers'),
+  /**
+   * List service centers.
+   *
+   * The backend owns what "available" means, so this never filters locally or
+   * hardcodes a center list. Pass `{ isOpen: true }` for the operational
+   * facility picker so it shows only centers customers can actually queue at.
+   * Omitting the option keeps the full list, which management/history views
+   * need in order to inspect deactivated facilities and their past data.
+   */
+  list: ({ isOpen } = {}) =>
+    api.get(`/service-centers${isOpen === undefined ? '' : `?isOpen=${isOpen}`}`),
   getById: (id) => api.get(`/service-centers/${id}`),
+  update: (id, payload) => api.patch(`/service-centers/${id}`, payload),
 };
 
 export const serviceAPI = {
@@ -80,17 +91,48 @@ export const queueAPI = {
 export const counterAPI = {
   list: (centerId) => api.get(`/counters${centerId ? `?centerId=${centerId}` : ''}`),
   getById: (id) => api.get(`/counters/${id}`),
-  getOperatorCounter: (centerId, counterId) =>
-    api.get(`/counters/operator/me${counterId ? `?counterId=${counterId}` : (centerId ? `?centerId=${centerId}` : '')}`),
-  updateStatus: (id, status) => api.patch(`/counters/${id}/status`, { status }),
+
+  /**
+   * Operator panel state for ONE counter.
+   *
+   * `centerId` is the ACTIVE FACILITY and `counterId` the counter chosen from
+   * the "CHOOSE COUNTER" list. Both are sent whenever known so the backend can
+   * reject any request that pairs a counter with a facility it does not belong
+   * to — that pairing is what previously let one screen show two different
+   * service centers at once.
+   */
+  getOperatorCounter: (centerId, counterId) => {
+    const params = new URLSearchParams();
+    if (centerId) params.set('centerId', centerId);
+    if (counterId) params.set('counterId', counterId);
+    const qs = params.toString();
+    return api.get(`/counters/operator/me${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
+   * Real counters the operator may consider running, for the currently selected
+   * facility. Always fetched from the backend — the counter list is never
+   * hardcoded in the client.
+   */
+  getOperableCounters: (centerId) =>
+    api.get(`/counters/operable${centerId ? `?centerId=${centerId}` : ''}`),
+
+  updateStatus: (id, status, centerId) =>
+    api.patch(`/counters/${id}/status`, { status, centerId }),
   assignService: (id, serviceId) => api.patch(`/counters/${id}/assign`, { serviceId }),
   morph: (id, serviceId, reason) => api.patch(`/counters/${id}/morph`, { serviceId, reason }),
+  getOperators: (centerId) => api.get(`/counters/operators${centerId ? `?centerId=${centerId}` : ''}`),
   assignStaff: (id, staffId) => api.patch(`/counters/${id}/assign-staff`, { staffId }),
-  callNext: (id) => api.post(`/counters/${id}/call-next`),
-  recall: (id) => api.post(`/counters/${id}/recall`),
-  startServing: (id) => api.post(`/counters/${id}/start-serving`),
-  complete: (id) => api.post(`/counters/${id}/complete`),
-  skip: (id, tokenId) => api.post(`/counters/${id}/skip`, { tokenId }),
+  callNext: (id, centerId) => api.post(`/counters/${id}/call-next`, { centerId }),
+  recall: (id, centerId) => api.post(`/counters/${id}/recall`, { centerId }),
+  startServing: (id, centerId) => api.post(`/counters/${id}/start-serving`, { centerId }),
+  complete: (id, centerId) => api.post(`/counters/${id}/complete`, { centerId }),
+  skip: (id, tokenId, centerId) => api.post(`/counters/${id}/skip`, { tokenId, centerId }),
+  // Centralized resource allocation: authoritative per-center snapshot read
+  // straight from the backend allocator. No client-side derivation.
+  getAllocationOverview: (centerId) =>
+    api.get(`/counters/allocation/overview${centerId ? `?centerId=${centerId}` : ''}`),
+  runAllocation: (centerId) => api.post('/counters/allocation/trigger', { centerId }),
 };
 
 export const tokenAPI = {

@@ -16,19 +16,50 @@ import 'utils/widgets/join_link_listener.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  await NotificationService.instance.initialize();
+  try {
+    if (DefaultFirebaseOptions.currentPlatform.apiKey.isNotEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
+    await NotificationService.instance.initialize();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('[Firebase/Notification] Initialization skipped: $e');
+  }
 
   captureInitialJoinLink();
 
-  try {
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  } catch (_) {
-    // Firebase is not available in this build.
-  }
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: Colors.transparent,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.textSecondary),
+              const SizedBox(height: 12),
+              const Text(
+                'Something went wrong displaying this view.',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Please pull to refresh or navigate back.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
 
   runApp(
     const ProviderScope(
@@ -66,8 +97,10 @@ class QueueFlowApp extends ConsumerWidget {
       // Inbound App Link / Universal Link handling. The link arrives as a route
       // (cold start: the initial route, caught by captureInitialJoinLink above;
       // warm start: pushed onto the navigation channel, matched by the `/join`
-      // route in app_router.dart). This widget parks the payload until the user
-      // is signed in, then runs the one shared join flow.
+      // route in app_router.dart). This widget parks the validated payload; the
+      // router redirect (after sign-in) and the `/join` transit screen (while
+      // already signed in) are what turn it into a destination, because a
+      // `builder` context here has no router or overlay in scope.
       builder: (context, child) => JoinLinkListener(
         child: child ?? const SizedBox.shrink(),
       ),

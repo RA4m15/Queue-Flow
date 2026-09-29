@@ -211,9 +211,12 @@ class ApiService {
 
   // ─── SERVICE CENTERS ───────────────────────────────────────
 
-  Future<List<ServiceCenter>> getServiceCenters() async {
+  Future<List<ServiceCenter>> getServiceCenters({bool? isOpen = true}) async {
     try {
-      final response = await _dio.get(ApiConstants.serviceCenters);
+      final response = await _dio.get(
+        ApiConstants.serviceCenters,
+        queryParameters: isOpen != null ? {'isOpen': isOpen.toString()} : null,
+      );
       final data = response.data['data'];
       final List list;
       if (data is Map && data.containsKey('centers')) {
@@ -335,6 +338,10 @@ class ApiService {
     required String serviceId,
     bool notifyApp = true,
     bool notifySms = false,
+    double? latitude,
+    double? longitude,
+    double? accuracy,
+    DateTime? timestamp,
   }) async {
     networkStatus.requireOnline();
     _requireValidId(centerId, 'center ID');
@@ -343,19 +350,67 @@ class ApiService {
     final cleanServiceId = serviceId.trim();
 
     try {
+      final payload = <String, dynamic>{
+        'centerId': cleanCenterId,
+        'serviceId': cleanServiceId,
+        'notifyApp': notifyApp,
+        'notifySms': notifySms,
+      };
+      if (latitude != null) payload['latitude'] = latitude;
+      if (longitude != null) payload['longitude'] = longitude;
+      if (accuracy != null) payload['accuracy'] = accuracy;
+      if (timestamp != null) payload['timestamp'] = timestamp.toIso8601String();
+
       final response = await _dio.post(
         ApiConstants.tokens,
-        data: {
-          'centerId': cleanCenterId,
-          'serviceId': cleanServiceId,
-          'notifyApp': notifyApp,
-          'notifySms': notifySms,
-        },
+        data: payload,
       );
       final data = response.data['data'] as Map<String, dynamic>;
       return TokenModel.fromJson(data['token'] as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Shares one live location reading for an active token (Phase 2 heartbeat).
+  ///
+  /// Reuses the Phase 1 geofence endpoint: there is no second location system.
+  /// The returned map is the backend's own verdict
+  /// (`locationStatus`, `distanceMeters`, `updatedAt`); the app never derives
+  /// in-range status itself.
+  ///
+  /// Returns null when the sample could not be accepted. This is an expected
+  /// outcome on a flaky connection, not an error worth interrupting the user
+  /// over, so it is not thrown.
+  Future<Map<String, dynamic>?> shareTokenLocation({
+    required String tokenId,
+    required double latitude,
+    required double longitude,
+    double? accuracy,
+    DateTime? timestamp,
+  }) async {
+    _requireValidId(tokenId, 'token ID');
+
+    final payload = <String, dynamic>{
+      'latitude': latitude,
+      'longitude': longitude,
+      'timestamp': (timestamp ?? DateTime.now()).toUtc().toIso8601String(),
+    };
+    if (accuracy != null) payload['accuracy'] = accuracy;
+
+    try {
+      final response = await _dio.post(
+        '${ApiConstants.tokens}/$tokenId/location',
+        data: payload,
+      );
+      final data = response.data['data'];
+      if (data is Map<String, dynamic>) return data;
+      return null;
+    } on DioException {
+      // Swallowed deliberately: the heartbeat must never surface a transport
+      // failure to the customer. A reading we could not send simply leaves the
+      // previous one in place, which the backend will age into LOCATION_STALE.
+      return null;
     }
   }
 
@@ -778,11 +833,36 @@ class ApiService {
     }
   }
 
-  /// Get customer's uploaded documents.
-  Future<List<Map<String, dynamic>>> getMyCustomerDocuments() async {
+  /// Create a real persistent support ticket on backend.
+  Future<Map<String, dynamic>> createSupportTicket({
+    required String category,
+    required String subject,
+    required String description,
+  }) async {
+    networkStatus.requireOnline();
     try {
-      final response = await _dio.get('/documents/my');
-      final list = (response.data['data']?['documents'] as List<dynamic>?) ?? [];
+      final response = await _dio.post(
+        ApiConstants.supportTickets,
+        data: {
+          'category': category.trim(),
+          'subject': subject.trim(),
+          'description': description.trim(),
+        },
+      );
+      final data = response.data['data'] as Map<String, dynamic>;
+      return (data['ticket'] as Map<String, dynamic>?) ?? data;
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// Get real support tickets created by the current user.
+  Future<List<Map<String, dynamic>>> getMySupportTickets() async {
+    networkStatus.requireOnline();
+    try {
+      final response = await _dio.get(ApiConstants.supportTickets);
+      final data = response.data['data'] as Map<String, dynamic>;
+      final list = (data['tickets'] as List<dynamic>?) ?? [];
       return list.map((e) => e as Map<String, dynamic>).toList();
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);

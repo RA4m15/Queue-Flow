@@ -66,7 +66,13 @@ const getServiceQueue = asyncHandler(async (req, res) => {
     name: c.name,
     displayLabel: c.displayLabel || c.name,
     status: c.status,
-    currentToken: c.currentTokenId ? c.currentTokenId.tokenCode : null,
+    // Only a token that is genuinely still CALLED or SERVING counts as the
+    // counter's current customer. A counter whose pointer still references a
+    // finished token is idle, and must read as idle on every surface.
+    currentToken:
+      c.currentTokenId && ['CALLED', 'SERVING'].includes(c.currentTokenId.status)
+        ? c.currentTokenId.tokenCode
+        : null,
   }));
 
   const serviceDoc = await Service.findById(serviceId).select('avgServiceTimeMinutes').lean();
@@ -102,6 +108,7 @@ const getServiceQueue = asyncHandler(async (req, res) => {
 const getCenterDisplay = asyncHandler(async (req, res) => {
   const { centerId } = req.params;
   const ServiceCenter = require('../models/ServiceCenter');
+const { computeCrowdPercent, computeCrowdStatus, isCrowdSensorOnline } = require('../utils/crowdMetrics');
   const Counter = require('../models/Counter');
 
   const center = await ServiceCenter.findById(centerId)
@@ -121,16 +128,16 @@ const getCenterDisplay = asyncHandler(async (req, res) => {
 
   const currentCrowd = typeof center.currentCrowd === 'number' ? center.currentCrowd : 0;
   const capacity = center.capacity || 200;
-  const crowdPercent = Math.round((currentCrowd / capacity) * 100);
-  const crowdStatus = crowdPercent >= 80 ? 'HIGH' : (crowdPercent >= 50 ? 'MODERATE' : 'LOW');
+  // Percentage, status and freshness come from the shared helper so this
+  // display, the Admin dashboard and the crowd.updated payload can never
+  // classify the same reading differently.
+  const crowdPercent = computeCrowdPercent(currentCrowd, capacity);
+  const crowdStatus = computeCrowdStatus(crowdPercent);
 
   // Freshness of the reading above. If the sensor stopped reporting, this stops
   // advancing and the display shows Unavailable instead of a frozen count.
   const crowdUpdatedAt = center.crowdUpdatedAt || null;
-  const SENSOR_STALE_MS = 90000;
-  const crowdSensorOnline = Boolean(
-    crowdUpdatedAt && (Date.now() - new Date(crowdUpdatedAt).getTime()) < SENSOR_STALE_MS
-  );
+  const crowdSensorOnline = isCrowdSensorOnline(crowdUpdatedAt);
 
   const date = getTodayDateString();
 
@@ -201,13 +208,14 @@ const getCenterDisplay = asyncHandler(async (req, res) => {
         displayLabel: c.displayLabel || c.name,
         status: c.status,
         service: c.serviceId ? { name: c.serviceId.name, tokenPrefix: c.serviceId.tokenPrefix } : null,
-        servingToken: c.currentTokenId
-          ? {
-              tokenCode: c.currentTokenId.tokenCode,
-              status: c.currentTokenId.status,
-              calledAt: c.currentTokenId.calledAt,
-            }
-          : null,
+        servingToken:
+          c.currentTokenId && ['CALLED', 'SERVING'].includes(c.currentTokenId.status)
+            ? {
+                tokenCode: c.currentTokenId.tokenCode,
+                status: c.currentTokenId.status,
+                calledAt: c.currentTokenId.calledAt,
+              }
+            : null,
       })),
       queues: await Promise.all(
         queues.map(async (q) => {

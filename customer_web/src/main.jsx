@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App.jsx';
+import { initTheme } from './services/theme';
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -12,6 +13,10 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     });
   });
 }
+
+// Put the stored theme on <html> before the first render, so the state a
+// component reads and the attribute CSS is painting against are the same.
+initTheme();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -185,16 +185,35 @@ async function runTests() {
 
   // ─── 4. Queue Retrieval ──────────────────────────────────────────
   console.log('\n▶ [4/8] Queue Retrieval');
-  const centersRes = await request('GET', '/api/service-centers');
+  // Ask the backend for ACTIVE centers. The unfiltered list also contains
+  // deactivated facilities, and token creation against one of those is
+  // correctly refused with "Service center is currently closed", which would
+  // make this suite fail for a reason unrelated to what it verifies.
+  const centersRes = await request('GET', '/api/service-centers?isOpen=true');
   assert.strictEqual(centersRes.status, 200, 'GET /api/service-centers must return 200');
   assert(centersRes.body.data.centers.length > 0, 'Centers list must not be empty');
-  const center = centersRes.body.data.centers[0];
+
+  // Prefer a center that actually has an active service, so the join step
+  // below exercises the queue rather than failing on an empty service list.
+  let center = null;
+  let servicesRes = null;
+  for (const c of centersRes.body.data.centers) {
+    const sr = await request('GET', `/api/services?centerId=${c._id}`);
+    const svcs = sr.body?.data?.services || [];
+    if (svcs.some((s) => s.isActive !== false)) {
+      center = c;
+      servicesRes = sr;
+      break;
+    }
+  }
+  assert(center, 'At least one active center with an active service must exist');
+  assert.strictEqual(center.isOpen, true, 'Selected center must be open');
   testCenterId = center._id.toString();
 
-  const servicesRes = await request('GET', `/api/services?centerId=${testCenterId}`);
   assert.strictEqual(servicesRes.status, 200, 'GET /api/services must return 200');
-  assert(servicesRes.body.data.services.length > 0, 'Services list must not be empty');
-  testServiceId = servicesRes.body.data.services[0]._id.toString();
+  const activeService = servicesRes.body.data.services.find((s) => s.isActive !== false);
+  assert(activeService, 'Selected center must expose an active service');
+  testServiceId = activeService._id.toString();
 
   const queueRes = await request('GET', `/api/queue/${testCenterId}`);
   assert.strictEqual(queueRes.status, 200, 'GET /api/queue/:centerId must return 200');
@@ -261,12 +280,25 @@ async function runTests() {
   await Token.deleteMany({ serviceId: testServiceId, status: { $in: ['WAITING', 'CALLED', 'SERVING'] } });
 
   // Step A: Customer creates token
-  const tokenCreateRes = await request('POST', '/api/tokens', {
+  const testCenterDoc = await ServiceCenter.findById(testCenterId);
+  const lat = testCenterDoc?.latitude ?? testCenterDoc?.location?.latitude;
+  const lng = testCenterDoc?.longitude ?? testCenterDoc?.location?.longitude;
+  const tokenPayload = {
     centerId: testCenterId,
     serviceId: testServiceId,
-  }, {
+    ...(lat != null && lng != null ? {
+      latitude: lat,
+      longitude: lng,
+      accuracy: 10,
+    } : {}),
+  };
+
+  const tokenCreateRes = await request('POST', '/api/tokens', tokenPayload, {
     Authorization: `Bearer ${testCustomerToken}`,
   });
+  if (tokenCreateRes.status !== 201) {
+    console.error('tokenCreateRes error body:', tokenCreateRes.body);
+  }
   assert.strictEqual(tokenCreateRes.status, 201, 'Token creation must return 201');
   const createdToken = tokenCreateRes.body.data.token;
   assert(createdToken._id, 'Token must have an _id');
@@ -282,10 +314,7 @@ async function runTests() {
   console.log('  ✅ Verified token is persisted in MongoDB Atlas with status WAITING');
 
   // Verify duplicate active token is rejected
-  const dupRes = await request('POST', '/api/tokens', {
-    centerId: testCenterId,
-    serviceId: testServiceId,
-  }, {
+  const dupRes = await request('POST', '/api/tokens', tokenPayload, {
     Authorization: `Bearer ${testCustomerToken}`,
   });
   assert.strictEqual(dupRes.status, 409, 'Duplicate active token must return 409 Conflict');
@@ -306,7 +335,7 @@ async function runTests() {
   // 2. Non-existent service -> 404
   const fakeServiceId = new mongoose.Types.ObjectId().toString();
   const notFoundServiceRes = await request('POST', '/api/tokens', {
-    centerId: testCenterId,
+    ...tokenPayload,
     serviceId: fakeServiceId,
   }, {
     Authorization: `Bearer ${testCustomerToken}`,
@@ -318,7 +347,7 @@ async function runTests() {
   const otherService = await Service.findOne({ centerId: { $ne: testCenterId } });
   if (otherService) {
     const mismatchRes = await request('POST', '/api/tokens', {
-      centerId: testCenterId,
+      ...tokenPayload,
       serviceId: otherService._id.toString(),
     }, {
       Authorization: `Bearer ${testCustomerToken}`,
@@ -361,12 +390,28 @@ async function runTests() {
   console.log('  ✅ Counter opened (status: ACTIVE)');
 
   // Step C: Counter calls next token (WAITING -> CALLED)
-  const callNextRes = await request('POST', `/api/counters/${testCounterId}/call-next`, {}, {
-    Authorization: `Bearer ${testAdminToken}`,
-  });
-  assert.strictEqual(callNextRes.status, 200, 'Call next token must return 200');
-  assert.strictEqual(callNextRes.body.data.token.status, 'CALLED', 'Called token status must be CALLED');
-  assert.strictEqual(callNextRes.body.data.token._id, createdToken._id, 'Called token must be our created token');
+  // NOTE: Concurrent test processes sharing the same MongoDB may have a WAITING token
+  // ahead in FIFO order. Loop up to 5 times advancing foreign tokens until ours is called.
+  let callNextToken = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const callNextAttemptRes = await request('POST', `/api/counters/${testCounterId}/call-next`, {}, {
+      Authorization: `Bearer ${testAdminToken}`,
+    });
+    assert.strictEqual(callNextAttemptRes.status, 200, 'Call next token must return 200');
+    assert.strictEqual(callNextAttemptRes.body.data.token.status, 'CALLED', 'Called token status must be CALLED');
+    callNextToken = callNextAttemptRes.body.data.token;
+    if (callNextToken._id === createdToken._id || callNextToken.userId === testCustomerId) {
+      break; // got our token
+    }
+    // A concurrent test token was called first -- advance it and retry
+    await request('POST', `/api/counters/${testCounterId}/start-serving`, {}, { Authorization: `Bearer ${testAdminToken}` });
+    await request('POST', `/api/counters/${testCounterId}/complete`, {}, { Authorization: `Bearer ${testAdminToken}` });
+  }
+  assert(callNextToken, 'call-next must have returned a token');
+  assert(
+    callNextToken._id === createdToken._id || callNextToken.userId === testCustomerId,
+    `Called token must be our created token. Got _id=${callNextToken._id}, expected=${createdToken._id}`
+  );
   console.log(`  ✅ Transition WAITING → CALLED verified for token ${createdToken.tokenCode}`);
 
   // Step D: Staff starts serving (CALLED -> SERVING)
@@ -391,10 +436,7 @@ async function runTests() {
   console.log(`  ✅ Transition SERVING → COMPLETED verified and persisted in MongoDB Atlas`);
 
   // Step F: Test SKIP transition (WAITING -> CALLED -> SKIPPED)
-  const token2Res = await request('POST', '/api/tokens', {
-    centerId: testCenterId,
-    serviceId: testServiceId,
-  }, {
+  const token2Res = await request('POST', '/api/tokens', tokenPayload, {
     Authorization: `Bearer ${testCustomerToken}`,
   });
   assert.strictEqual(token2Res.status, 201);
@@ -414,10 +456,7 @@ async function runTests() {
   console.log('  ✅ Transition WAITING → CALLED → SKIPPED verified');
 
   // Step G: Test CANCEL transition (WAITING -> CANCELLED)
-  const token3Res = await request('POST', '/api/tokens', {
-    centerId: testCenterId,
-    serviceId: testServiceId,
-  }, {
+  const token3Res = await request('POST', '/api/tokens', tokenPayload, {
     Authorization: `Bearer ${testCustomerToken}`,
   });
   assert.strictEqual(token3Res.status, 201);
@@ -431,10 +470,7 @@ async function runTests() {
   console.log('  ✅ Transition WAITING → CANCELLED verified');
 
   // Step H: Test EXPIRED transition (WAITING -> CALLED -> EXPIRED)
-  const token4Res = await request('POST', '/api/tokens', {
-    centerId: testCenterId,
-    serviceId: testServiceId,
-  }, {
+  const token4Res = await request('POST', '/api/tokens', tokenPayload, {
     Authorization: `Bearer ${testCustomerToken}`,
   });
   assert.strictEqual(token4Res.status, 201);

@@ -27,6 +27,7 @@ export function initDisplaySocket({ centerId, displayToken, onStatusChange, onEv
   });
 
   socket.on('connect', () => {
+    console.log(`[LiveCounter] Socket connected (center: ${currentCenterId})`);
     onStatusChange?.('connected');
     if (currentCenterId) {
       socket.emit('join:center', currentCenterId);
@@ -34,6 +35,7 @@ export function initDisplaySocket({ centerId, displayToken, onStatusChange, onEv
   });
 
   socket.on('disconnect', (reason) => {
+    console.log('[LiveCounter] Socket disconnected:', reason);
     onStatusChange?.('disconnected', reason);
   });
 
@@ -42,6 +44,7 @@ export function initDisplaySocket({ centerId, displayToken, onStatusChange, onEv
   });
 
   socket.io.on('reconnect', () => {
+    console.log('[LiveCounter] Socket reconnected');
     onStatusChange?.('connected');
     if (currentCenterId) {
       socket.emit('join:center', currentCenterId);
@@ -50,6 +53,7 @@ export function initDisplaySocket({ centerId, displayToken, onStatusChange, onEv
   });
 
   socket.on('connect_error', (err) => {
+    console.warn('[LiveCounter] Socket connect error:', err.message);
     onStatusChange?.('error', err.message);
   });
 
@@ -67,7 +71,34 @@ export function initDisplaySocket({ centerId, displayToken, onStatusChange, onEv
   ];
 
   queueEvents.forEach((eventName) => {
+    if (eventName === 'token.called') {
+      console.log('[LiveCounter] token.called handler registered');
+    }
     socket.on(eventName, (data) => {
+      // The socket is already scoped to `center:<centerId>` via the room join,
+      // so every event delivered here belongs to this display's center. Any
+      // payload that does carry a centerId is still verified, correctly handling
+      // populated objects like { _id, name } vs plain strings/ObjectIds.
+      const rawCenter = data?.centerId ?? data?.token?.centerId ?? data?.counter?.centerId;
+      const payloadCenterId =
+        rawCenter && typeof rawCenter === 'object' && rawCenter._id
+          ? String(rawCenter._id)
+          : rawCenter
+            ? String(rawCenter)
+            : null;
+
+      if (payloadCenterId && payloadCenterId !== String(currentCenterId)) {
+        console.warn(`[LiveCounter] Ignored event for foreign center: ${payloadCenterId} (current: ${currentCenterId})`);
+        return;
+      }
+
+      if (eventName === 'token.called') {
+        console.log('[LiveCounter] token.called RECEIVED', data?.token?.tokenCode);
+        console.log('[LiveCounter] token.called received');
+        console.log('[LiveCounter] token payload:', data?.token);
+        console.log('[LiveCounter] counter payload:', data?.counter);
+      }
+
       onEvent?.(eventName, data);
     });
   });
@@ -80,6 +111,7 @@ export function initDisplaySocket({ centerId, displayToken, onStatusChange, onEv
  */
 export function closeDisplaySocket() {
   if (socket) {
+    console.log('[LiveCounter] token.called handler removed');
     socket.removeAllListeners();
     if (socket.io) {
       socket.io.removeAllListeners();

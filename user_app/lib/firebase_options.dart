@@ -53,7 +53,7 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDfQqsdU8A8wIb7h9LOWVOhrTEfoKZ1ZSQ',
+    apiKey: String.fromEnvironment('FIREBASE_ANDROID_API_KEY', defaultValue: ''),
     appId: '1:53878652164:android:bf10f609d98ba8c069a451',
     messagingSenderId: '53878652164',
     projectId: 'queueflow-173b5',

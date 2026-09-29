@@ -28,6 +28,7 @@ class ApiException implements Exception {
     final statusCode = e.response?.statusCode;
     final data = e.response?.data;
     String? serverMessage;
+    String? serverCode;
 
     if (data is Map<String, dynamic>) {
       if (data['errors'] is List && (data['errors'] as List).isNotEmpty) {
@@ -42,6 +43,13 @@ class ApiException implements Exception {
       if (serverMessage == null && data['error'] is Map) {
         serverMessage = data['error']['message']?.toString();
       }
+      // The backend names its refusals (`DOCUMENT_GATE_BLOCKED`, …). Keeping
+      // the code lets the UI distinguish "documents required" from a generic
+      // 403 instead of guessing from the message text.
+      final code = data['code'];
+      if (code is String && code.trim().isNotEmpty) {
+        serverCode = code.trim();
+      }
     }
 
     switch (statusCode) {
@@ -49,6 +57,7 @@ class ApiException implements Exception {
         return ApiException(
           message: serverMessage ?? 'Invalid request. Please check your input and try again.',
           statusCode: 400,
+          code: serverCode,
         );
       case 401:
         return ApiException(
@@ -59,6 +68,7 @@ class ApiException implements Exception {
         return ApiException(
           message: serverMessage ?? 'You do not have permission to perform this action.',
           statusCode: 403,
+          code: serverCode,
         );
       case 404:
         return ApiException(
@@ -66,7 +76,9 @@ class ApiException implements Exception {
           statusCode: 404,
         );
       case 409:
-        if (serverMessage != null && serverMessage.contains('already have an active token')) {
+        if (serverMessage != null &&
+            (serverMessage.contains('already have an active token') ||
+                serverCode == 'ACTIVE_TOKEN_EXISTS')) {
           return ApiException(
             message: 'You already have an active token for this queue.',
             statusCode: 409,
@@ -76,11 +88,13 @@ class ApiException implements Exception {
         return ApiException(
           message: serverMessage ?? 'Conflict. An active token or resource already exists.',
           statusCode: 409,
+          code: serverCode,
         );
       case 422:
         return ApiException(
           message: serverMessage ?? 'Validation error. Please verify the entered data.',
           statusCode: 422,
+          code: serverCode,
         );
       case 429:
         return ApiException(

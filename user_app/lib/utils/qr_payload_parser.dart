@@ -108,6 +108,24 @@ final class QrJoinPayload extends QrParseResult {
   final QrJoinFormat format;
 
   bool get hasService => serviceId != null;
+
+  /// Value equality over the identifiers only.
+  ///
+  /// [format] is excluded on purpose: the same queue is the same queue whether
+  /// the customer scanned a freshly printed HTTPS code or an old custom-scheme
+  /// one, and callers use this to recognise "the link we are holding is still
+  /// the link we parked" rather than to distinguish formats.
+  @override
+  bool operator ==(Object other) =>
+      other is QrJoinPayload &&
+      other.centerId == centerId &&
+      other.serviceId == serviceId;
+
+  @override
+  int get hashCode => Object.hash(centerId, serviceId);
+
+  @override
+  String toString() => 'QrJoinPayload(centerId: $centerId, serviceId: $serviceId)';
 }
 
 /// Parse a raw QR string and classify it.

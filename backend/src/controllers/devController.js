@@ -37,9 +37,10 @@ const simulateCrowd = asyncHandler(async (req, res) => {
   if (!center) return sendNotFound(res, 'Service center not found');
 
   const increment = type === 'ENTRY' ? count : -count;
+  const now = new Date();
   const updatedCenter = await ServiceCenter.findByIdAndUpdate(
     centerId,
-    { $inc: { currentCrowd: increment } },
+    { $inc: { currentCrowd: increment }, $set: { crowdUpdatedAt: now } },
     { new: true }
   ).lean({ virtuals: true });
 
@@ -61,22 +62,30 @@ const simulateCrowd = asyncHandler(async (req, res) => {
     events.push(ev._id);
   }
 
+  const { computeCrowdPercent, computeCrowdStatus } = require('../utils/crowdMetrics');
+  const capacity = updatedCenter.capacity || center.capacity || 200;
+  const crowdPercent = computeCrowdPercent(updatedCenter.currentCrowd, capacity);
+  const crowdStatus = computeCrowdStatus(crowdPercent);
+
   // Emit the same real-time event that hardware would produce
   emitToCenter(centerId.toString(), 'crowd.updated', {
-    centerId,
+    centerId: centerId.toString(),
     currentCrowd: updatedCenter.currentCrowd,
-    crowdPercent: updatedCenter.crowdPercent,
-    crowdStatus: updatedCenter.crowdStatus,
-    capacity: updatedCenter.capacity,
-    event: { type, sensorId: 'DEV_SIM', timestamp: new Date(), simulated: true },
+    crowdPercent,
+    crowdStatus,
+    capacity,
+    crowdUpdatedAt: now,
+    crowdSensorOnline: true,
+    event: { type, sensorId: 'DEV_SIM', timestamp: now, simulated: true },
   });
 
   return sendSuccess(res, {
     message: `[DEV] Simulated ${count} ${type} event(s)`,
     data: {
       currentCrowd: updatedCenter.currentCrowd,
-      crowdPercent: updatedCenter.crowdPercent,
-      crowdStatus: updatedCenter.crowdStatus,
+      crowdPercent,
+      crowdStatus,
+      crowdUpdatedAt: now,
       events,
     },
   });
@@ -122,26 +131,29 @@ const resetCrowd = asyncHandler(async (req, res) => {
   const { centerId } = req.body;
   if (!centerId) return sendBadRequest(res, 'centerId is required');
 
+  const now = new Date();
   const center = await ServiceCenter.findByIdAndUpdate(
     centerId,
-    { $set: { currentCrowd: 0 } },
+    { $set: { currentCrowd: 0, crowdUpdatedAt: now } },
     { new: true }
   ).lean({ virtuals: true });
 
   if (!center) return sendNotFound(res, 'Service center not found');
 
   emitToCenter(centerId.toString(), 'crowd.updated', {
-    centerId,
+    centerId: centerId.toString(),
     currentCrowd: 0,
     crowdPercent: 0,
     crowdStatus: 'LOW',
-    capacity: center.capacity,
-    event: { type: 'RESET', sensorId: 'DEV_SIM', timestamp: new Date(), simulated: true },
+    capacity: center.capacity || 200,
+    crowdUpdatedAt: now,
+    crowdSensorOnline: true,
+    event: { type: 'RESET', sensorId: 'DEV_SIM', timestamp: now, simulated: true },
   });
 
   return sendSuccess(res, {
     message: '[DEV] Crowd reset to 0',
-    data: { currentCrowd: 0 },
+    data: { currentCrowd: 0, crowdUpdatedAt: now },
   });
 });
 

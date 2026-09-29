@@ -12,6 +12,7 @@ import {
   Layers,
   UserCheck,
   Cpu,
+  UserCog,
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen = true, onClose = () => {} }) {
@@ -19,7 +20,11 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
   const { user } = useAuth();
   const isStaff = user?.role === 'STAFF';
 
-  const navItems = isStaff
+  // Profile is personal, not operational, so it is appended to whichever role's
+  // list is in play rather than duplicated into both branches.
+  const profileItem = { to: '/profile', label: 'Profile', icon: UserCog };
+
+  const operationalItems = isStaff
     ? [
         {
           to: '/operator',
@@ -63,6 +68,8 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
           icon: Bell,
         },
       ];
+
+  const navItems = [...operationalItems, profileItem];
 
   return (
     <>
@@ -113,12 +120,12 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                 width: '38px',
                 height: '38px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #00E5A8 0%, #008f6b 100%)',
+                background: 'var(--color-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#05070D',
-                boxShadow: '0 0 20px rgba(0, 229, 168, 0.35)',
+                color: 'var(--bg-app)',
+                boxShadow: '',
                 flexShrink: 0,
               }}
             >
@@ -131,7 +138,7 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontWeight: 800, fontSize: '18px', color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+                <span style={{ fontWeight: 800, fontSize: '18px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                   QueueFlow
                 </span>
                 <span
@@ -141,15 +148,15 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                     fontWeight: 700,
                     padding: '2px 6px',
                     borderRadius: '5px',
-                    background: 'rgba(0, 229, 168, 0.12)',
-                    color: '#00E5A8',
-                    border: '1px solid rgba(0, 229, 168, 0.25)',
+                    background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+                    color: 'var(--color-primary)',
+                    border: '1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)',
                   }}
                 >
                   ADMIN
                 </span>
               </div>
-              <p style={{ fontSize: '11px', color: '#64748B', marginTop: '1px' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
                 Command & Telemetry
               </p>
             </div>
@@ -162,7 +169,7 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
               style={{
                 fontSize: '10px',
                 fontWeight: 600,
-                color: '#475569',
+                color: 'var(--text-dim)',
                 letterSpacing: '0.1em',
                 padding: '0 12px 10px',
                 textTransform: 'uppercase',
@@ -179,43 +186,13 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                     key={item.to}
                     to={item.to}
                     onClick={onClose}
-                    style={({ isActive }) => ({
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: '12px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      textDecoration: 'none',
-                      transition: 'all 0.18s ease',
-                      background: isActive
-                        ? 'linear-gradient(90deg, rgba(0, 229, 168, 0.15) 0%, rgba(0, 229, 168, 0.03) 100%)'
-                        : 'transparent',
-                      color: isActive ? '#00E5A8' : '#94A3B8',
-                      borderLeft: isActive ? '3px solid #00E5A8' : '3px solid transparent',
-                      boxShadow: isActive ? 'inset 0 0 15px rgba(0, 229, 168, 0.05)' : 'none',
-                    })}
+                    className={({ isActive }) => (isActive ? 'nav-link is-active' : 'nav-link')}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="nav-link-main">
                       <Icon size={17} />
                       <span>{item.label}</span>
                     </div>
-                    {item.badge && (
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: '8px',
-                          fontWeight: 700,
-                          padding: '2px 5px',
-                          borderRadius: '4px',
-                          background: 'rgba(0, 229, 168, 0.18)',
-                          color: '#00E5A8',
-                        }}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
+                    {item.badge && <span className="nav-badge mono">{item.badge}</span>}
                   </NavLink>
                 );
               })}
@@ -230,22 +207,22 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
             style={{
               padding: '12px 14px',
               borderRadius: '12px',
-              background: 'rgba(17, 27, 44, 0.6)',
+              background: 'var(--bg-card-alt)',
               border: '1px solid var(--border-subtle)',
               marginBottom: '10px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 500 }}>Engine Telemetry</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Engine Telemetry</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className="pulsing-dot">
                   <span
                     className="pulsing-dot-ping"
-                    style={{ backgroundColor: isConnected ? '#00E5A8' : '#F59E0B' }}
+                    style={{ backgroundColor: isConnected ? 'var(--color-primary)' : 'var(--color-warning)' }}
                   />
                   <span
                     className="pulsing-dot-core"
-                    style={{ backgroundColor: isConnected ? '#00E5A8' : '#F59E0B' }}
+                    style={{ backgroundColor: isConnected ? 'var(--color-primary)' : 'var(--color-warning)' }}
                   />
                 </span>
                 <span
@@ -253,7 +230,7 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                   style={{
                     fontSize: '10px',
                     fontWeight: 700,
-                    color: isConnected ? '#00E5A8' : '#F59E0B',
+                    color: isConnected ? 'var(--color-primary)' : 'var(--color-warning)',
                     letterSpacing: '0.04em',
                   }}
                 >
@@ -261,12 +238,12 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                 </span>
               </div>
             </div>
-            <p className="mono" style={{ fontSize: '10px', color: '#475569' }}>
+            <p className="mono" style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
               Socket.IO Cluster Mesh
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: '#475569', padding: '0 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-dim)', padding: '0 4px' }}>
             <span>QueueFlow Command v1.0</span>
             <span>Secure TLS</span>
           </div>

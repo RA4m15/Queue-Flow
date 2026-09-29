@@ -15,7 +15,7 @@ export function NextTokenCard({ nextInQueue = [] }) {
           <div className="next-details">
             <span>{nextToken.serviceId?.name || 'General Service'}</span>
             {typeof nextToken.waitEstimateMinutes === 'number' && (
-              <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
+              <span style={{ color: 'var(--color-cyan)', fontWeight: 600 }}>
                 ~{nextToken.waitEstimateMinutes} min wait
               </span>
             )}
@@ -27,8 +27,8 @@ export function NextTokenCard({ nextInQueue = [] }) {
             —
           </div>
           <div className="next-details">
-            <span style={{ color: 'var(--text-muted)' }}>No customers waiting in line</span>
-            <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Queue Clear</span>
+            <span>No customers waiting in line</span>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Queue clear</span>
           </div>
         </>
       )}

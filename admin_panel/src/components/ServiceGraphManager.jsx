@@ -115,7 +115,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
 
   if (error) {
     return (
-      <div style={{ padding: '24px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', color: '#F87171' }}>
+      <div style={{ padding: '24px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', color: 'var(--color-danger)' }}>
         <AlertTriangle size={18} style={{ display: 'inline', marginRight: '6px' }} />
         {error}
         <button onClick={loadGraph} className="btn-secondary" style={{ display: 'block', marginTop: '12px' }}>
@@ -261,7 +261,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
                         padding: '2px 6px',
                         borderRadius: '4px',
                         background: 'rgba(0,210,255,0.1)',
-                        color: '#38BDF8',
+                        color: 'var(--color-cyan)',
                         textTransform: 'uppercase',
                       }}
                     >
@@ -291,7 +291,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
                         style={{ padding: '4px 8px', fontSize: '11px' }}
                         title={edge.isActive ? 'Deactivate Edge' : 'Activate Edge'}
                       >
-                        {edge.isActive ? <CheckCircle size={12} color="#00E5A8" /> : <XCircle size={12} color="#EF4444" />}
+                        {edge.isActive ? <CheckCircle size={12} color="var(--color-primary)" /> : <XCircle size={12} color="var(--color-danger)" />}
                         <span style={{ marginLeft: '4px' }}>{edge.isActive ? 'Active' : 'Inactive'}</span>
                       </button>
                       <button
@@ -335,7 +335,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
             </h3>
 
             {formError && (
-              <div style={{ padding: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#F87171', fontSize: '12px', marginBottom: '16px' }}>
+              <div style={{ padding: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: 'var(--color-danger)', fontSize: '12px', marginBottom: '16px' }}>
                 {formError}
               </div>
             )}

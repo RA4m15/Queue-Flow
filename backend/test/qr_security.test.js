@@ -58,6 +58,10 @@ let customerId;
 let customer2Id;
 let centerId;
 let serviceId;
+// Real position of the center this suite joined. Resolved at run time from the
+// center document itself (never hardcoded) so that queue joining satisfies the
+// geofence gate (LOCATION_REQUIRED) with a genuinely in-radius location.
+let centerPosition = null;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -202,6 +206,15 @@ async function setup() {
     center = createCenter.body?.data?.center;
   }
   centerId = center._id || center.id;
+
+  // Read the real center position from the DB (read-only) so tokens can be
+  // created from a location that is actually inside the center's joining radius.
+  const centerDoc = await ServiceCenter.findById(centerId).lean();
+  const cLat = centerDoc?.latitude ?? centerDoc?.location?.latitude ?? null;
+  const cLng = centerDoc?.longitude ?? centerDoc?.location?.longitude ?? null;
+  if (cLat !== null && cLng !== null) {
+    centerPosition = { latitude: Number(cLat), longitude: Number(cLng) };
+  }
 
   const servicesRes = await request('GET', `/api/services?centerId=${centerId}`, null, auth(adminToken));
   let service = servicesRes.body?.data?.services?.[0];
@@ -456,6 +469,7 @@ async function runTests() {
 
     const tokenRes = await request('POST', '/api/tokens', {
       centerId, serviceId, notifyApp: false, notifySms: false,
+      ...(centerPosition || {}),
     }, auth(customerToken));
 
     if (tokenRes.status !== 201) throw new Error(`Token creation failed: ${JSON.stringify(tokenRes.body)}`);
@@ -534,7 +548,9 @@ async function runTests() {
 
     const tokenRes = await request('POST', '/api/tokens', {
       centerId, serviceId, notifyApp: false, notifySms: false,
+      ...(centerPosition || {}),
     }, auth(customerToken));
+    assert.equal(tokenRes.status, 201, `Token creation should succeed, got ${tokenRes.status}: ${JSON.stringify(tokenRes.body)}`);
     const tokenId = tokenRes.body.data.token._id;
 
     // Customer 2 tries to get customer 1's QR

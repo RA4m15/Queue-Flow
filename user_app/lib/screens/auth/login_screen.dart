@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/token_provider.dart';
+import '../../utils/join_link_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -38,6 +39,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Check active token
       await ref.read(tokenProvider.notifier).fetchActiveToken();
       if (!mounted) return;
+      // A queue-join link parked before sign-in outranks every default here.
+      // The router redirect turns it into the destination on the next frame —
+      // `authProvider` changing already scheduled one — and navigating from
+      // this screen as well would race the redirect for the same route, and
+      // clearing the link here would leave the redirect nothing to restore.
+      if (ref.read(pendingJoinLinkProvider) != null) return;
       final tokenState = ref.read(tokenProvider);
       if (tokenState.activeToken != null && tokenState.activeToken!.isActive) {
         context.go('/token/live');
@@ -52,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -192,9 +199,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Register Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    // Register Link. A `Wrap` rather than a `Row`: this is the
+                    // one line on the screen most likely to be given a narrow
+                    // box or a large text scale, and a clipped "Create Account"
+                    // is worse than it wrapping onto a second line.
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
                       children: [
                         Text(
                           "Don't have an account? ",

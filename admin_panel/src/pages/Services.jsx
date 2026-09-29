@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ServiceGraphManager } from '../components/ServiceGraphManager';
 import { DocumentRequirementsManager } from '../components/DocumentRequirementsManager';
+import CenterLocationConfig from '../components/services/CenterLocationConfig';
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
@@ -65,8 +66,8 @@ function ServiceRow({ service, isActionLoading, onEdit, onToggle, onManageDocs, 
             color: service.isActive ? 'var(--color-primary)' : 'var(--text-muted)',
             letterSpacing: '0.05em',
             background: service.isActive
-              ? 'rgba(0, 229, 168, 0.08)'
-              : 'rgba(100, 116, 139, 0.1)',
+              ? 'color-mix(in srgb, var(--color-primary) 8%, transparent)'
+              : 'color-mix(in srgb, var(--text-muted) 10%, transparent)',
             border: `1px solid ${service.isActive ? 'rgba(0,229,168,0.2)' : 'rgba(100,116,139,0.2)'}`,
             borderRadius: '8px',
             padding: '4px 10px',
@@ -303,12 +304,12 @@ function ServiceFormModal({ mode, initial, centerId, onClose, onSubmit }) {
           {serverError && (
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
                 borderRadius: '10px',
                 padding: '10px 14px',
                 fontSize: '13px',
-                color: '#F87171',
+                color: 'var(--color-danger)',
                 marginBottom: '18px',
               }}
             >
@@ -441,7 +442,7 @@ function ServiceFormModal({ mode, initial, centerId, onClose, onSubmit }) {
 
 export default function Services() {
   const { isAdmin } = useAuth();
-  const { centers, loading: centersLoading, error: centersError, fetchCenters } = useCenters();
+  const { centers, setCenters, loading: centersLoading, error: centersError, fetchCenters } = useCenters();
   const [selectedCenterId, setSelectedCenterId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'active' | 'inactive'
@@ -545,7 +546,7 @@ export default function Services() {
     fontFamily: 'var(--font-mono)',
     textAlign: 'left',
     borderBottom: '1px solid var(--border-subtle)',
-    background: 'rgba(17, 27, 44, 0.5)',
+    background: 'var(--bg-card-alt)',
   };
 
   return (
@@ -559,14 +560,14 @@ export default function Services() {
             top: '80px',
             right: '24px',
             zIndex: 1200,
-            background: '#111B2C',
+            background: 'var(--bg-card-alt)',
             border: '1px solid var(--border-accent)',
             borderRadius: '12px',
             padding: '12px 18px',
             fontSize: '13px',
             fontWeight: 600,
             color: 'var(--text-main)',
-            boxShadow: '0 8px 28px rgba(0,0,0,0.5), 0 0 16px rgba(0,229,168,0.15)',
+            boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
             animation: 'fadeIn 0.2s ease',
           }}
         >
@@ -588,9 +589,9 @@ export default function Services() {
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: 'rgba(0, 229, 168, 0.1)',
+                background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
                 color: 'var(--color-primary)',
-                border: '1px solid rgba(0, 229, 168, 0.25)',
+                border: '1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)',
               }}
             >
               ADMIN
@@ -698,6 +699,19 @@ export default function Services() {
         </div>
       </div>
 
+      {/* ── Center Location & Geofence ── */}
+      {selectedCenter && (
+        <CenterLocationConfig
+          center={selectedCenter}
+          onCenterUpdated={(updated) => {
+            if (setCenters) {
+              setCenters((prev) => prev.map((c) => (c._id === updated._id ? { ...c, ...updated } : c)));
+            }
+          }}
+          showToast={showToast}
+        />
+      )}
+
       {/* ── View Mode Tabs ── */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
         <button
@@ -781,8 +795,8 @@ export default function Services() {
       {error && (
         <div
           style={{
-            background: 'rgba(239, 68, 68, 0.08)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
+            background: 'color-mix(in srgb, var(--color-danger) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--color-danger) 25%, transparent)',
             borderRadius: '14px',
             padding: '18px 20px',
             marginBottom: '16px',
@@ -793,7 +807,7 @@ export default function Services() {
           }}
         >
           <div>
-            <p style={{ fontSize: '13px', fontWeight: 600, color: '#F87171' }}>Failed to load services</p>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-danger)' }}>Failed to load services</p>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>{error}</p>
           </div>
           <button

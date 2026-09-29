@@ -40,10 +40,10 @@ export default function Alerts() {
     <div style={{ padding: '24px 28px', maxWidth: '1000px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
           Operational Alerts & Dispatch
         </h1>
-        <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '3px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '3px' }}>
           Real-time algorithmic recommendations based on active queue loads and IoT crowd telemetry
         </p>
       </div>
@@ -63,20 +63,20 @@ export default function Alerts() {
               padding: '14px 20px',
               borderRadius: '16px',
               marginBottom: '28px',
-              background: recommendations.length > 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(0, 229, 168, 0.1)',
-              border: recommendations.length > 0 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(0, 229, 168, 0.3)',
+              background: recommendations.length > 0 ? 'color-mix(in srgb, var(--color-warning) 10%, transparent)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
+              border: recommendations.length > 0 ? '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)' : '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
             }}
           >
             {recommendations.length > 0 ? (
-              <AlertTriangle size={20} color="#F59E0B" />
+              <AlertTriangle size={20} color="var(--color-warning)" />
             ) : (
-              <CheckCircle2 size={20} color="#00E5A8" />
+              <CheckCircle2 size={20} color="var(--color-primary)" />
             )}
             <p
               style={{
                 fontSize: '13px',
                 fontWeight: 700,
-                color: recommendations.length > 0 ? '#FBBF24' : '#00E5A8',
+                color: recommendations.length > 0 ? 'var(--color-warning)' : 'var(--color-primary)',
               }}
             >
               {recommendations.length > 0
@@ -87,7 +87,7 @@ export default function Alerts() {
 
           {/* Recommendations List */}
           <div style={{ marginBottom: '36px' }}>
-            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: '#64748B', marginBottom: '12px', textTransform: 'uppercase' }}>
+            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>
               DATA-DRIVEN RECOMMENDATIONS
             </p>
 
@@ -103,7 +103,7 @@ export default function Alerts() {
                   const isSuggest = rec.type === 'SUGGEST';
                   const borderColor = isWarn ? 'rgba(245,158,11,0.35)' : isSuggest ? 'rgba(0,229,168,0.35)' : 'rgba(0,210,255,0.35)';
                   const tagBg = isWarn ? 'rgba(245,158,11,0.12)' : isSuggest ? 'rgba(0,229,168,0.12)' : 'rgba(0,210,255,0.12)';
-                  const tagColor = isWarn ? '#FBBF24' : isSuggest ? '#00E5A8' : '#00D2FF';
+                  const tagColor = isWarn ? 'var(--color-warning)' : isSuggest ? 'var(--color-primary)' : 'var(--color-cyan)';
 
                   return (
                     <div
@@ -112,7 +112,7 @@ export default function Alerts() {
                       style={{
                         padding: '20px 22px',
                         border: `1px solid ${borderColor}`,
-                        background: 'rgba(13, 20, 34, 0.75)',
+                        background: 'var(--bg-card)',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -133,11 +133,11 @@ export default function Alerts() {
                         {isWarn ? <AlertTriangle size={16} color={tagColor} /> : <Info size={16} color={tagColor} />}
                       </div>
 
-                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC', marginBottom: '6px' }}>
+                      <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
                         {rec.title}
                       </h3>
 
-                      <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: 1.5, marginBottom: '14px' }}>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
                         {rec.desc}
                       </p>
 
@@ -168,18 +168,18 @@ export default function Alerts() {
 
           {/* Broadcast Notification Form */}
           <div>
-            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: '#64748B', marginBottom: '12px', textTransform: 'uppercase' }}>
+            <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>
               BROADCAST ANNOUNCEMENT DISPATCH
             </p>
 
             <div className="q-card" style={{ padding: '26px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Radio size={16} color="#00E5A8" />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
+                <Radio size={16} color="var(--color-primary)" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Facility-Wide Broadcast
                 </h3>
               </div>
-              <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '18px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '18px' }}>
                 Transmit an immediate real-time announcement to all queued visitors at this facility via Socket.IO.
               </p>
 
@@ -193,7 +193,7 @@ export default function Alerts() {
                     borderRadius: '12px',
                     background: 'rgba(0,229,168,0.12)',
                     border: '1px solid rgba(0,229,168,0.3)',
-                    color: '#00E5A8',
+                    color: 'var(--color-primary)',
                     fontSize: '13px',
                     fontWeight: 600,
                     marginBottom: '18px',
@@ -211,7 +211,7 @@ export default function Alerts() {
                       display: 'block',
                       fontSize: '12px',
                       fontWeight: 600,
-                      color: '#94A3B8',
+                      color: 'var(--text-secondary)',
                       marginBottom: '6px',
                       textTransform: 'uppercase',
                       letterSpacing: '0.04em',
@@ -240,7 +240,7 @@ export default function Alerts() {
                       display: 'block',
                       fontSize: '12px',
                       fontWeight: 600,
-                      color: '#94A3B8',
+                      color: 'var(--text-secondary)',
                       marginBottom: '6px',
                       textTransform: 'uppercase',
                       letterSpacing: '0.04em',

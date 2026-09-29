@@ -29,7 +29,7 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        val channelId = "queueflow_alerts"
+        val channelId = getString(R.string.queueflow_alerts_channel_id)
         val soundUri = Uri.parse(
             "android.resource://$packageName/raw/token_approaching"
         )
@@ -41,10 +41,10 @@ class MainActivity : FlutterActivity() {
 
         val channel = NotificationChannel(
             channelId,
-            "QueueFlow Alerts",
+            getString(R.string.queueflow_alerts_channel_name),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Notifications for approaching queue tokens"
+            description = getString(R.string.queueflow_alerts_channel_description)
             enableVibration(true)
             setShowBadge(true)
             setSound(soundUri, audioAttributes)

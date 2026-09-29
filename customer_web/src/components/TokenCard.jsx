@@ -106,9 +106,9 @@ export function TokenCard({
                 gap: '0.4rem',
                 fontSize: '0.75rem',
                 fontWeight: '600',
-                color: '#FBBF24',
-                background: 'rgba(245, 158, 11, 0.12)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
+                color: 'var(--color-warning)',
+                background: 'color-mix(in srgb, var(--color-warning) 12%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)',
                 padding: '0.25rem 0.6rem',
                 borderRadius: '6px'
               }}
@@ -134,7 +134,7 @@ export function TokenCard({
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
               gap: '0.75rem',
-              background: 'rgba(8, 12, 22, 0.6)',
+              background: 'var(--bg-app)',
               borderRadius: '12px',
               padding: '1rem',
               border: '1px solid var(--border-subtle)',
@@ -171,7 +171,7 @@ export function TokenCard({
                 Assigned Counter
               </div>
               <div style={{ fontSize: '1.1rem', fontWeight: '700', color: counterDisplay ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
-                {counterDisplay || 'Pending'}
+                {counterDisplay || 'Not assigned yet'}
               </div>
             </div>
 
@@ -180,7 +180,7 @@ export function TokenCard({
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
                   {isCached || !isOnline ? 'Last Known Serving' : 'Now Serving'}
                 </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#F59E0B' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--color-warning)' }}>
                   {token.servingToken.tokenCode}
                 </div>
               </div>
@@ -192,7 +192,7 @@ export function TokenCard({
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Issued: {token.createdAt ? new Date(token.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</span>
               {(token.estimatedWaitMinutes !== undefined || token.waitEstimateMinutes !== undefined) && (
-                <span style={{ fontWeight: 600, color: (isCached || !isOnline) ? '#FBBF24' : 'var(--color-primary)' }}>
+                <span style={{ fontWeight: 600, color: (isCached || !isOnline) ? 'var(--color-warning)' : 'var(--color-primary)' }}>
                   {isCached || !isOnline ? 'Last Known Est. Wait: ~' : 'Est. Wait: ~'}
                   {token.estimatedWaitMinutes ?? token.waitEstimateMinutes}m
                 </span>
@@ -282,7 +282,7 @@ export function TokenCard({
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(5, 7, 13, 0.85)',
+            background: 'var(--bg-app)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
@@ -292,7 +292,7 @@ export function TokenCard({
           }}
         >
           <div className="qf-card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
-            <h3 id="cancel-dialog-title" style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '0.5rem', color: '#F87171' }}>
+            <h3 id="cancel-dialog-title" style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--color-danger)' }}>
               Cancel Token?
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
@@ -331,7 +331,7 @@ export function TokenCard({
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(5, 7, 13, 0.85)',
+            background: 'var(--bg-app)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
@@ -350,12 +350,12 @@ export function TokenCard({
 
             <div
               style={{
-                background: '#FFFFFF',
+                background: 'var(--text-primary)',
                 padding: '1.25rem',
                 borderRadius: '16px',
                 display: 'inline-block',
                 marginBottom: '1.25rem',
-                boxShadow: '0 0 20px rgba(0, 229, 168, 0.2)',
+                boxShadow: '',
               }}
             >
               {qrLoading ? (
@@ -363,7 +363,7 @@ export function TokenCard({
                   Loading QR...
                 </div>
               ) : qrError ? (
-                <div style={{ width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444', fontSize: '0.8rem' }}>
+                <div style={{ width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-danger)', fontSize: '0.8rem' }}>
                   {qrError}
                 </div>
               ) : qrData ? (

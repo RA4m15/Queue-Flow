@@ -1,0 +1,11 @@
+# YOLO weights are downloaded on first run, not authored. Committing a 5 MB
+# binary per checkpoint would bloat the repository and go stale the moment the
+# model is retrained; the monitor fetches it into this directory automatically.
+*.pt
+
+# Ultralytics also writes a run directory for training/validation sessions.
+runs/
+
+# Local Python bytecode
+__pycache__/
+*.py[cod]

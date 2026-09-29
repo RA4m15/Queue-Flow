@@ -42,6 +42,12 @@ const confirmNextHopValidation = [
   body('notifyApp').optional().isBoolean(),
   body('notifySms').optional().isBoolean(),
   body('channel').optional().isIn(['WEB', 'MOBILE', 'QR', 'WHATSAPP', 'SMS', 'TELEGRAM']),
+  // A next hop is a join, so the join geofence applies. The app may send a fresh
+  // reading; if it does not, the service falls back to the position already
+  // verified for the token the customer just finished.
+  body('latitude').optional({ nullable: true }),
+  body('longitude').optional({ nullable: true }),
+  body('accuracy').optional({ nullable: true }),
 ];
 
 // ─── Controllers ─────────────────────────────────────────────────────────────
@@ -156,7 +162,15 @@ const getNextServices = asyncHandler(async (req, res) => {
  * Protected: Token owner (CUSTOMER)
  */
 const confirmNextHop = asyncHandler(async (req, res) => {
-  const { nextServiceId, notifyApp = true, notifySms = false, channel = 'WEB' } = req.body;
+  const {
+    nextServiceId,
+    notifyApp = true,
+    notifySms = false,
+    channel = 'WEB',
+    latitude,
+    longitude,
+    accuracy,
+  } = req.body;
 
   try {
     const result = await serviceGraphService.confirmNextHop({
@@ -166,6 +180,9 @@ const confirmNextHop = asyncHandler(async (req, res) => {
       notifyApp,
       notifySms,
       channel,
+      latitude,
+      longitude,
+      accuracy,
     });
 
     return sendCreated(res, {

@@ -64,9 +64,15 @@ const String _joinHostsFromEnv = String.fromEnvironment('QUEUEFLOW_JOIN_HOSTS');
 /// links from arbitrary domains.
 final bool hasConfiguredProductionJoinHost = _joinHostsFromEnv.trim().isNotEmpty;
 
+/// Default production join hosts for QueueFlow Customer Web.
+const Set<String> kDefaultProductionJoinHosts = <String>{
+  'queueflow.app',
+};
+
 /// The effective allowlist of hosts that may carry a canonical join link.
 final Set<String> queueflowJoinHosts = <String>{
   ...kDevJoinHosts,
+  ...kDefaultProductionJoinHosts,
   ..._parseHostList(_joinHostsFromEnv),
 };
 

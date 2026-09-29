@@ -110,7 +110,7 @@ describe('Customer Web Real Flow Tests (Requirements 1, 2, 4, 6, 15)', () => {
     expect(screen.getByText('Unavailable')).toBeInTheDocument();
   });
 
-  it('Requirement 6: renders real queue preview and shows "No data available" for missing fields', async () => {
+  it('Requirement 6: renders real queue preview and shows a truthful "no data yet" state for missing fields', async () => {
     const centerId = '507f1f77bcf86cd799439011';
     const serviceId = '507f191e810c19729de860ea';
 
@@ -141,8 +141,78 @@ describe('Customer Web Real Flow Tests (Requirements 1, 2, 4, 6, 15)', () => {
     await waitFor(() => {
       expect(screen.getByText('5')).toBeInTheDocument();
       expect(screen.getByText('OPEN')).toBeInTheDocument();
-      // Estimated wait time has no avgServiceTimeMinutes provided, so it displays "No data available"
-      expect(screen.getByText('No data available')).toBeInTheDocument();
+      // Estimated wait time has no avgServiceTimeMinutes provided, so it shows the truthful empty state
+      expect(screen.getByText('No data yet')).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * The crowd card reproduces the mobile app's layout: "N / M inside", a quiet
+   * status dot with a word, a thin capacity bar and a small muted caption.
+   * It is informational only and must never block joining.
+   */
+  describe('Current crowd card', () => {
+    const centerId = '507f1f77bcf86cd799439011';
+    const serviceId = '507f191e810c19729de860ea';
+
+    async function renderPreview(center) {
+      vi.spyOn(serviceCenterAPI, 'getById').mockResolvedValue({
+        data: { serviceCenter: { _id: centerId, name: 'Central Center', ...center } },
+      });
+      vi.spyOn(serviceAPI, 'getById').mockResolvedValue({
+        data: { service: { _id: serviceId, name: 'General Queue' } },
+      });
+      vi.spyOn(queueAPI, 'getServiceQueue').mockResolvedValue({
+        data: { queue: { waitingCount: 2, status: 'OPEN' }, waitingTokens: [], calledTokens: [] },
+      });
+
+      render(
+        <AuthProvider>
+          <MemoryRouter initialEntries={[`/queue/preview?centerId=${centerId}&serviceId=${serviceId}`]}>
+            <Routes>
+              <Route path="/queue/preview" element={<QueuePreviewPage />} />
+            </Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      );
+    }
+
+    it('renders count, capacity and a Quiet status for a low-occupancy centre', async () => {
+      await renderPreview({ currentCrowd: 1, capacity: 100, crowdPercent: 1, crowdStatus: 'LOW' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Current crowd')).toBeInTheDocument();
+        expect(screen.getByText('1')).toBeInTheDocument();
+        expect(screen.getByText('/ 100 inside')).toBeInTheDocument();
+        expect(screen.getByText('Quiet')).toBeInTheDocument();
+        expect(screen.getByText(/1% of capacity/)).toBeInTheDocument();
+      });
+    });
+
+    it('uses Busy for a high-occupancy centre', async () => {
+      await renderPreview({ currentCrowd: 90, capacity: 100, crowdPercent: 90, crowdStatus: 'HIGH' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Busy')).toBeInTheDocument();
+        expect(screen.getByText(/90% of capacity/)).toBeInTheDocument();
+      });
+    });
+
+    it('uses Moderate for a mid-occupancy centre', async () => {
+      await renderPreview({ currentCrowd: 60, capacity: 100, crowdPercent: 60, crowdStatus: 'MODERATE' });
+
+      await waitFor(() => {
+        expect(screen.getByText('Moderate')).toBeInTheDocument();
+      });
+    });
+
+    it('shows a truthful note instead of a fake number when capacity is unknown', async () => {
+      await renderPreview({ currentCrowd: 5, capacity: 0 });
+
+      await waitFor(() => {
+        expect(screen.getByText(/has not reported a capacity/)).toBeInTheDocument();
+        expect(screen.getByText(/does not affect joining/i)).toBeInTheDocument();
+      });
     });
   });
 });

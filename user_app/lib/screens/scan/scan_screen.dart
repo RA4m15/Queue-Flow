@@ -105,7 +105,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       context: context,
       isDismissible: true,
       enableDrag: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.themeSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -138,9 +138,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
+                color: context.themeSurfaceElevated,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.themeBorder),
               ),
               child: Text(
                 message,
@@ -177,7 +177,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       context: context,
       isDismissible: true,
       enableDrag: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.themeSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

@@ -9,6 +9,7 @@ const queueService = require('../services/queueService');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendBadRequest, sendNotFound } = require('../utils/apiResponse');
 const { emitToCenter } = require('../config/socket');
+const { computeCrowdPercent, computeCrowdStatus } = require('../utils/crowdMetrics');
 const { verifyQRPayload } = require('../utils/qrSecurity');
 const { logger } = require('../utils/logger');
 
@@ -127,18 +128,21 @@ const handleCrowd = asyncHandler(async (req, res) => {
   });
 
   const capacity = updatedCenter.capacity || center.capacity || 200;
-  const crowdPercent = Math.round((updatedCenter.currentCrowd / capacity) * 100);
-  const crowdStatus = crowdPercent >= 80 ? 'HIGH' : (crowdPercent >= 50 ? 'MODERATE' : 'LOW');
+  // Shared with every read path, so the value written here, the value the
+  // dashboards read back, and the value broadcast on crowd.updated agree.
+  const crowdPercent = computeCrowdPercent(updatedCenter.currentCrowd, capacity);
+  const crowdStatus = computeCrowdStatus(crowdPercent);
 
   // Emit real-time update to all admin/user listeners for this center
   emitToCenter(centerId.toString(), 'crowd.updated', {
-    centerId,
+    centerId: centerId.toString(),
     currentCrowd: updatedCenter.currentCrowd,
     crowdPercent,
     crowdStatus,
     capacity,
     // Freshness stamp so clients can age out a silent sensor
     crowdUpdatedAt: updatedCenter.crowdUpdatedAt,
+    crowdSensorOnline: true,
     event: {
       type,
       sensorId,

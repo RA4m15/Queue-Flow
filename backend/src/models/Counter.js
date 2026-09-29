@@ -59,6 +59,17 @@ const counterSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Monotonic version bumped on every allocation claim.
+    //
+    // Centralized resource allocation uses this as a compare-and-swap token:
+    // a dispatch only binds a token to this counter if `allocationVersion`
+    // still equals the value it read a moment earlier. Two counters — or two
+    // concurrent dispatches for the SAME counter — therefore cannot both win,
+    // without ever having to trust a non-atomic read-then-write pair.
+    allocationVersion: {
+      type: Number,
+      default: 0,
+    },
     // Display label shown on counter display board
     displayLabel: {
       type: String,

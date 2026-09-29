@@ -44,8 +44,8 @@ export default function Login() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#05070D',
-        backgroundImage: 'radial-gradient(circle at 10% 20%, #0D1B2A 0%, #05070D 60%, #020305 100%)',
+        background: 'var(--bg-app)',
+        backgroundImage: 'none',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -63,7 +63,7 @@ export default function Login() {
           width: '600px',
           height: '600px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0, 229, 168, 0.12) 0%, rgba(5, 7, 13, 0) 70%)',
+          background: 'none',
           pointerEvents: 'none',
         }}
       />
@@ -75,7 +75,7 @@ export default function Login() {
           width: '650px',
           height: '650px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, rgba(5, 7, 13, 0) 70%)',
+          background: 'none',
           pointerEvents: 'none',
         }}
       />
@@ -103,21 +103,21 @@ export default function Login() {
               gap: '10px',
               padding: '6px 14px',
               borderRadius: '9999px',
-              background: 'rgba(0, 229, 168, 0.08)',
-              border: '1px solid rgba(0, 229, 168, 0.25)',
+              background: 'color-mix(in srgb, var(--color-primary) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)',
               marginBottom: '24px',
             }}
           >
             <span className="pulsing-dot">
-              <span className="pulsing-dot-ping" style={{ backgroundColor: '#00E5A8' }} />
-              <span className="pulsing-dot-core" style={{ backgroundColor: '#00E5A8' }} />
+              <span className="pulsing-dot-ping" style={{ backgroundColor: 'var(--color-primary)' }} />
+              <span className="pulsing-dot-core" style={{ backgroundColor: 'var(--color-primary)' }} />
             </span>
             <span
               className="mono"
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#00E5A8',
+                color: 'var(--color-primary)',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
               }}
@@ -130,7 +130,7 @@ export default function Login() {
             style={{
               fontSize: 'clamp(32px, 4.5vw, 48px)',
               fontWeight: 800,
-              color: '#F8FAFC',
+              color: 'var(--text-primary)',
               letterSpacing: '-0.03em',
               lineHeight: 1.15,
               marginBottom: '16px',
@@ -139,7 +139,7 @@ export default function Login() {
             Intelligent Queue <br />
             <span
               style={{
-                background: 'linear-gradient(135deg, #00E5A8 0%, #00D2FF 100%)',
+                background: 'var(--color-primary)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
@@ -151,7 +151,7 @@ export default function Login() {
           <p
             style={{
               fontSize: '15px',
-              color: '#94A3B8',
+              color: 'var(--text-secondary)',
               lineHeight: 1.6,
               maxWidth: '440px',
               marginBottom: '32px',
@@ -166,16 +166,16 @@ export default function Login() {
               style={{
                 padding: '14px 16px',
                 borderRadius: '14px',
-                background: 'rgba(17, 27, 44, 0.65)',
+                background: 'var(--bg-card-alt)',
                 border: '1px solid var(--border-subtle)',
                 backdropFilter: 'blur(8px)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00E5A8', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', marginBottom: '6px' }}>
                 <Activity size={16} />
                 <span className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>Real-Time Synchronization</span>
               </div>
-              <p style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                 Sub-millisecond token lifecycle updates via Redis Socket.IO adapter.
               </p>
             </div>
@@ -184,16 +184,16 @@ export default function Login() {
               style={{
                 padding: '14px 16px',
                 borderRadius: '14px',
-                background: 'rgba(17, 27, 44, 0.65)',
+                background: 'var(--bg-card-alt)',
                 border: '1px solid var(--border-subtle)',
                 backdropFilter: 'blur(8px)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00D2FF', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-cyan)', marginBottom: '6px' }}>
                 <Cpu size={16} />
                 <span className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>IoT Crowd Sensors</span>
               </div>
-              <p style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                 Automated optical turnstile and sensor telemetry integration.
               </p>
             </div>
@@ -219,20 +219,20 @@ export default function Login() {
                     width: '34px',
                     height: '34px',
                     borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #00E5A8 0%, #008f6b 100%)',
+                    background: 'var(--color-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#05070D',
+                    color: 'var(--bg-app)',
                   }}
                 >
                   <ShieldCheck size={18} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                     Operator Sign In
                   </h2>
-                  <p style={{ fontSize: '12px', color: '#64748B' }}>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                     Staff and Administrator credentials required
                   </p>
                 </div>
@@ -244,12 +244,12 @@ export default function Login() {
               <div
                 style={{
                   padding: '12px 14px',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  background: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)',
                   borderRadius: '12px',
                   marginBottom: '18px',
                   fontSize: '12px',
-                  color: '#FBBF24',
+                  color: 'var(--color-warning)',
                 }}
               >
                 Your session has expired. Please authenticate again.
@@ -260,12 +260,12 @@ export default function Login() {
               <div
                 style={{
                   padding: '12px 14px',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
                   borderRadius: '12px',
                   marginBottom: '18px',
                   fontSize: '12px',
-                  color: '#F87171',
+                  color: 'var(--color-danger)',
                 }}
               >
                 Access denied. Customer accounts cannot access the admin console.
@@ -279,12 +279,12 @@ export default function Login() {
                   alignItems: 'center',
                   gap: '8px',
                   padding: '12px 14px',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
                   borderRadius: '12px',
                   marginBottom: '18px',
                   fontSize: '12px',
-                  color: '#F87171',
+                  color: 'var(--color-danger)',
                 }}
               >
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -300,7 +300,7 @@ export default function Login() {
                     display: 'block',
                     fontSize: '12px',
                     fontWeight: 600,
-                    color: '#94A3B8',
+                    color: 'var(--text-secondary)',
                     marginBottom: '6px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.04em',
@@ -309,7 +309,7 @@ export default function Login() {
                   Operator Email
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Mail size={16} style={{ position: 'absolute', left: '14px', color: '#64748B' }} />
+                  <Mail size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
                   <input
                     type="email"
                     required
@@ -332,7 +332,7 @@ export default function Login() {
                     display: 'block',
                     fontSize: '12px',
                     fontWeight: 600,
-                    color: '#94A3B8',
+                    color: 'var(--text-secondary)',
                     marginBottom: '6px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.04em',
@@ -341,7 +341,7 @@ export default function Login() {
                   Secure Password
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Lock size={16} style={{ position: 'absolute', left: '14px', color: '#64748B' }} />
+                  <Lock size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
@@ -363,7 +363,7 @@ export default function Login() {
                       right: '12px',
                       background: 'none',
                       border: 'none',
-                      color: '#64748B',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       padding: '4px',
                     }}
@@ -391,7 +391,7 @@ export default function Login() {
             </form>
 
             <div style={{ marginTop: '22px', textAlign: 'center' }}>
-              <p style={{ fontSize: '11px', color: '#475569' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
                 Protected by QueueFlow Zero-Trust Session Architecture
               </p>
             </div>

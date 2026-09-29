@@ -10,6 +10,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700;800;900&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- QueueFlow theme bootstrap: applies the saved Dark/Light preference before
+         first paint so a reload never flashes the default dark palette. Kept in
+         sync with src/services/theme.js (same storage key, same values). -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('queueflow_live_counter_theme');
+          if (stored === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          } else {
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

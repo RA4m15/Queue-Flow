@@ -39,6 +39,10 @@ const notificationSchema = new mongoose.Schema(
         'GEOFENCE_APPROACHING', // Approaching service area alert
         'GEOFENCE_NEAR',        // Near service center alert
         'GEOFENCE_INSIDE',      // Inside service area alert
+        // Phase 2 Second-Stage Geofencing Notifications (customer already queued)
+        'TURN_APPROACHING_RETURN', // 3-4 tokens left and customer is outside the radius
+        'TURN_IMMINENT_RETURN',   // 1-2 tokens left and customer is outside the radius
+        'TOKEN_SKIPPED_OUT_OF_RANGE', // Auto-skipped at CALL NEXT for being out of range
         // Tier 4 Feature 2: Service Graph Multi-Hop Notification
         'NEXT_SERVICE_AVAILABLE', // Next service in workflow is available
         // Tier 4 Feature 3: P2P Slot Swapping Notifications

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ThemeSwitch } from './ThemeSwitch';
 
 export function LiveHeader({
   centerName,
@@ -9,6 +10,7 @@ export function LiveHeader({
   connectionStatus,
   lastUpdated,
   isMuted,
+  isAudioUnlocked = true,
   onToggleMute,
 }) {
   const [clockTime, setClockTime] = useState(() => new Date().toLocaleTimeString());
@@ -93,14 +95,15 @@ export function LiveHeader({
         </div>
 
         <div className="header-controls">
+          <ThemeSwitch />
           <button
             type="button"
             className="ctrl-btn"
             onClick={onToggleMute}
-            title={isMuted ? 'Turn on audio chime' : 'Mute audio chime'}
+            title={isMuted ? 'Turn on sound announcements' : (!isAudioUnlocked ? 'Click to enable sound announcements' : 'Mute sound announcements')}
             aria-label={isMuted ? 'Audio Muted' : 'Audio On'}
           >
-            {isMuted ? '🔇 Muted' : '🔊 Chime On'}
+            {isMuted || !isAudioUnlocked ? '🔇 Enable Sound' : '🔊 Sound On'}
           </button>
           <button
             type="button"

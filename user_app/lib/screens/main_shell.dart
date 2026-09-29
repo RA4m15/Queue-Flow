@@ -55,7 +55,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         backgroundColor: isCalled
             ? AppColors.secondary
-            : (isApproaching ? AppColors.warning : AppColors.surfaceElevated),
+            : (isApproaching ? AppColors.warning : context.themeSurfaceElevated),
         duration: const Duration(seconds: 5),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -117,9 +117,10 @@ class _MainShellState extends ConsumerState<MainShell> {
     return Scaffold(
       body: widget.navigationShell,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
+          color: context.themeSurface,
           border: Border(
-            top: BorderSide(color: AppColors.border, width: 1),
+            top: BorderSide(color: context.themeBorder, width: 1),
           ),
         ),
         child: BottomNavigationBar(

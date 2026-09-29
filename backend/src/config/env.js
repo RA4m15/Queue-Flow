@@ -350,6 +350,7 @@ function validateEnv(env = process.env) {
     FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID || undefined,
     FIREBASE_SERVICE_ACCOUNT_PATH: env.FIREBASE_SERVICE_ACCOUNT_PATH || undefined,
     GOOGLE_APPLICATION_CREDENTIALS: env.GOOGLE_APPLICATION_CREDENTIALS || undefined,
+    FCM_ANDROID_CHANNEL_ID: env.FCM_ANDROID_CHANNEL_ID || 'queueflow_alerts',
     MONGODB_MAX_POOL_SIZE: maxPoolSize,
     MONGODB_MIN_POOL_SIZE: minPoolSize,
     SHUTDOWN_TIMEOUT_MS: shutdownTimeoutMs,

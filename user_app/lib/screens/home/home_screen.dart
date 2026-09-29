@@ -10,6 +10,7 @@ import '../../widgets/token_status_badge.dart';
 import '../../widgets/loading_state.dart';
 import '../../widgets/error_state.dart';
 import '../../widgets/empty_state.dart';
+import '../../services/location_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -45,7 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final centersAsync = ref.watch(serviceCentersProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,15 +67,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary),
+            icon: Icon(Icons.qr_code_scanner_rounded, color: context.themePrimary),
             tooltip: 'Scan QR',
             onPressed: () => context.push('/scan'),
           ),
         ],
       ),
       body: RefreshIndicator(
-        color: AppColors.primary,
-        backgroundColor: AppColors.surface,
+        color: context.themePrimary,
+        backgroundColor: context.themeSurface,
         onRefresh: () async {
           ref.invalidate(serviceCentersProvider);
           await ref.read(tokenProvider.notifier).fetchActiveToken();
@@ -130,29 +131,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            AppColors.surfaceElevated,
-                            AppColors.primary.withValues(alpha: 0.1),
+                            context.themeSurfaceElevated,
+                            context.themePrimary.withValues(alpha: 0.1),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.5),
+                        border: Border.all(color: context.themePrimary.withValues(alpha: 0.4), width: 1.5),
                       ),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
-                              color: AppColors.surface,
+                              color: context.themeSurface,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.border),
+                              border: Border.all(color: context.themeBorder),
                             ),
                             child: Text(
                               tokenState.activeToken!.tokenCode,
                               style: AppTheme.monoStyle(
                                 fontSize: 18,
-                                color: AppColors.primary,
+                                color: context.themePrimary,
                               ),
                             ),
                           ),
@@ -197,7 +198,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                         color: tokenState.activeToken!.status == 'CALLED'
                                             ? AppColors.secondary
-                                            : AppColors.textSecondary,
+                                            : context.themeTextSecondary,
                                         fontWeight: tokenState.activeToken!.status == 'CALLED'
                                             ? FontWeight.bold
                                             : FontWeight.normal,
@@ -206,7 +207,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ],
                             ),
                           ),
-                          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+                          Icon(Icons.arrow_forward_ios_rounded, size: 14, color: context.themePrimary),
                         ],
                       ),
                     ),
@@ -224,14 +225,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     TextField(
                       controller: _searchController,
                       maxLength: 100,
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: context.themeTextPrimary),
                       decoration: InputDecoration(
                         hintText: 'Search service centers or cities...',
                         counterText: '',
-                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted),
+                        prefixIcon: Icon(Icons.search_rounded, color: context.themeTextMuted),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.textMuted),
+                                icon: Icon(Icons.clear_rounded, size: 18, color: context.themeTextMuted),
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() => _searchQuery = '');
@@ -304,12 +305,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                 }
 
+                final userLocation = ref.watch(currentUserLocationProvider).valueOrNull;
+
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final center = filtered[index];
                       return ServiceCenterCard(
                         center: center,
+                        userLocation: userLocation,
                         onTap: () => context.push('/center/${center.id}'),
                       );
                     },
@@ -343,17 +347,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         label: Text(label),
         selected: isSelected,
         onSelected: (_) => setState(() => _selectedCategory = key),
-        backgroundColor: AppColors.surface,
-        selectedColor: AppColors.primary.withValues(alpha: 0.2),
-        checkmarkColor: AppColors.primary,
+        backgroundColor: context.themeSurface,
+        selectedColor: context.themePrimary.withValues(alpha: 0.2),
+        checkmarkColor: context.themePrimary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
           side: BorderSide(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? context.themePrimary : context.themeBorder,
           ),
         ),
         labelStyle: TextStyle(
-          color: isSelected ? AppColors.primary : AppColors.textSecondary,
+          color: isSelected ? context.themePrimary : context.themeTextSecondary,
           fontSize: 12,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),

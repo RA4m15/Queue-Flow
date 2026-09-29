@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { serviceCenterAPI } from '../../services/api';
+import { resolveDefaultCenterId, rememberCenterId } from '../../services/defaultCenter';
 import { LogOut, Building2, ChevronDown, Menu, User, Shield } from 'lucide-react';
 
 export default function Navbar({ onToggleSidebar }) {
@@ -12,16 +13,24 @@ export default function Navbar({ onToggleSidebar }) {
   const [currentTime, setCurrentTime] = useState('');
   const navigate = useNavigate();
 
-  // Load available service centers
+  // Load the service centers an operator can actually run.
+  // `?isOpen=true` is decided by the backend, so this dropdown can never offer
+  // a deactivated facility as a live board. Deactivated centers stay reachable
+  // from the management views that need their history.
   useEffect(() => {
     async function loadCenters() {
       try {
-        const res = await serviceCenterAPI.list();
+        const res = await serviceCenterAPI.list({ isOpen: true });
         if (res.success && res.data?.centers) {
           const list = res.data.centers;
           setCenters(list);
-          if (list.length > 0 && !activeCenterId) {
-            setActiveCenterId(list[0]._id);
+          // Prefer an explicit selection, then a remembered one, then the
+          // configured demo facility, and only then the first center returned.
+          // Every candidate is validated against the live list, so a stale id
+          // can never leave the dashboard pointed at a facility that is gone.
+          const resolved = resolveDefaultCenterId(list, activeCenterId);
+          if (resolved && resolved !== activeCenterId) {
+            setActiveCenterId(resolved);
           }
         }
       } catch (err) {
@@ -30,6 +39,14 @@ export default function Navbar({ onToggleSidebar }) {
     }
     loadCenters();
   }, [activeCenterId, setActiveCenterId]);
+
+  // Record only deliberate changes made from the facility dropdown, so an
+  // automatically resolved default is never mistaken for a manual selection.
+  const handleSelectCenter = (centerId) => {
+    if (!centerId) return;
+    rememberCenterId(centerId);
+    setActiveCenterId(centerId);
+  };
 
   // Live clock ticker
   useEffect(() => {
@@ -54,7 +71,7 @@ export default function Navbar({ onToggleSidebar }) {
   return (
     <header
       style={{
-        background: 'rgba(8, 12, 22, 0.85)',
+        background: 'var(--bg-app)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border-subtle)',
@@ -97,7 +114,7 @@ export default function Navbar({ onToggleSidebar }) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              background: 'rgba(17, 27, 44, 0.75)',
+              background: 'var(--bg-card-alt)',
               border: '1px solid var(--border-medium)',
               borderRadius: '12px',
               padding: '4px 12px',
@@ -106,19 +123,19 @@ export default function Navbar({ onToggleSidebar }) {
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <Building2 size={16} color="#00E5A8" style={{ flexShrink: 0 }} />
+            <Building2 size={16} color="var(--color-primary)" style={{ flexShrink: 0 }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span className="mono" style={{ fontSize: '9px', color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              <span className="mono" style={{ fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 ACTIVE FACILITY
               </span>
               <select
                 value={activeCenterId || ''}
-                onChange={(e) => setActiveCenterId(e.target.value)}
+                onChange={(e) => handleSelectCenter(e.target.value)}
                 style={{
                   fontFamily: 'var(--font-main)',
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: '#F8FAFC',
+                  color: 'var(--text-primary)',
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
@@ -128,15 +145,28 @@ export default function Navbar({ onToggleSidebar }) {
                   boxShadow: 'none',
                 }}
               >
-                {centers.map((c) => (
+                {centers.filter((c) => c.isOpen).map((c) => (
                   <option
                     key={c._id}
                     value={c._id}
-                    style={{ background: '#0D1422', color: '#F8FAFC' }}
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}
                   >
                     {c.name} ({c.code})
                   </option>
                 ))}
+                {centers.some((c) => !c.isOpen) && (
+                  <optgroup label="── Inactive / Closed Facilities ──" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>
+                    {centers.filter((c) => !c.isOpen).map((c) => (
+                      <option
+                        key={c._id}
+                        value={c._id}
+                        style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}
+                      >
+                        [CLOSED] {c.name} ({c.code})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
             <ChevronDown
@@ -145,7 +175,7 @@ export default function Navbar({ onToggleSidebar }) {
                 position: 'absolute',
                 right: '10px',
                 pointerEvents: 'none',
-                color: '#94A3B8',
+                color: 'var(--text-secondary)',
               }}
             />
           </div>
@@ -161,14 +191,14 @@ export default function Navbar({ onToggleSidebar }) {
               alignItems: 'center',
               gap: '6px',
               fontSize: '12px',
-              color: '#94A3B8',
-              background: 'rgba(255, 255, 255, 0.03)',
+              color: 'var(--text-secondary)',
+              background: 'var(--bg-card-alt)',
               padding: '6px 12px',
               borderRadius: '10px',
               border: '1px solid var(--border-subtle)',
             }}
           >
-            <span style={{ color: '#00E5A8', fontWeight: 700 }}>LIVE</span>
+            <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>LIVE</span>
             <span>{currentTime || '—:—:—'}</span>
           </div>
 
@@ -180,7 +210,7 @@ export default function Navbar({ onToggleSidebar }) {
               gap: '10px',
               padding: '4px 8px 4px 4px',
               borderRadius: '12px',
-              background: 'rgba(17, 27, 44, 0.6)',
+              background: 'var(--bg-card-alt)',
               border: '1px solid var(--border-subtle)',
             }}
           >
@@ -189,12 +219,12 @@ export default function Navbar({ onToggleSidebar }) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '9px',
-                background: 'linear-gradient(135deg, rgba(0, 229, 168, 0.25) 0%, rgba(0, 210, 255, 0.15) 100%)',
-                border: '1px solid rgba(0, 229, 168, 0.3)',
+                background: 'var(--bg-card)',
+                border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#00E5A8',
+                color: 'var(--color-primary)',
                 fontWeight: 700,
                 fontSize: '13px',
               }}
@@ -202,12 +232,12 @@ export default function Navbar({ onToggleSidebar }) {
               {user?.name ? user.name[0].toUpperCase() : <User size={15} />}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC', lineHeight: 1.2 }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>
                 {user?.name || '—'}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Shield size={10} color="#00E5A8" />
-                <span className="mono" style={{ fontSize: '9px', color: '#00E5A8', fontWeight: 700 }}>
+                <Shield size={10} color="var(--color-primary)" />
+                <span className="mono" style={{ fontSize: '9px', color: 'var(--color-primary)', fontWeight: 700 }}>
                   {user?.role || 'STAFF'}
                 </span>
               </div>
@@ -225,8 +255,8 @@ export default function Navbar({ onToggleSidebar }) {
             }}
             title="Sign out of command console"
           >
-            <LogOut size={14} color="#EF4444" />
-            <span style={{ color: '#F87171' }}>Sign out</span>
+            <LogOut size={14} color="var(--color-danger)" />
+            <span style={{ color: 'var(--color-danger)' }}>Sign out</span>
           </button>
         </div>
       </div>

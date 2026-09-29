@@ -251,10 +251,17 @@ async function runTests() {
   let activeTokenA;
 
   // Setup initial token for Customer A
+  // Location is supplied because the Phase 1 join geofence requires it for a
+  // center that has a position configured. The point is the center's own
+  // coordinate, so the join is unambiguously inside the 100 m radius and the
+  // test goes on to exercise proximity transitions as before.
   const joinRes = await queueService.joinQueue({
     userId: customerA._id.toString(),
     centerId: centerConfigured._id.toString(),
     serviceId: serviceConfigured._id.toString(),
+    latitude: 12.9716,
+    longitude: 77.5946,
+    accuracy: 15,
   });
   activeTokenA = joinRes.token;
 

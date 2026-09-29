@@ -19,6 +19,7 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 
 const { logger } = require('../utils/logger');
 const { getConfig } = require('../config/env');
@@ -236,20 +237,24 @@ class FcmAdapter {
    */
   async sendPush({
     token,
+    deviceToken: altToken,
     title,
     body,
     data,
   } = {}) {
+    const rawToken = token || altToken;
     const deviceToken =
-      typeof token === 'string'
-        ? token.trim()
+      typeof rawToken === 'string'
+        ? rawToken.trim()
         : '';
 
     if (!deviceToken) {
       return {
         success: false,
+        delivered: false,
         errorCode: 'INVALID_PAYLOAD',
         reason: 'A destination device token is required.',
+        invalidToken: true,
       };
     }
 
@@ -263,18 +268,22 @@ class FcmAdapter {
     ) {
       return {
         success: false,
+        delivered: false,
         errorCode: 'INVALID_PAYLOAD',
         reason:
           `Data payload exceeds the ${FCM_DATA_MAX_BYTES} byte FCM limit.`,
+        invalidToken: false,
       };
     }
 
     if (!this.isConfigured()) {
       return {
         success: false,
+        delivered: false,
         errorCode: 'PROVIDER_NOT_CONFIGURED',
         reason:
           'FCM is disabled or Firebase credentials are unavailable.',
+        invalidToken: false,
       };
     }
 
@@ -285,9 +294,11 @@ class FcmAdapter {
     } catch (_) {
       return {
         success: false,
+        delivered: false,
         errorCode: 'FCM_INIT_FAILED',
         reason:
           'Firebase Admin SDK initialization failed.',
+        invalidToken: false,
       };
     }
 
@@ -330,10 +341,13 @@ class FcmAdapter {
 
       return {
         success: true,
+        delivered: true,
         messageId:
           typeof response === 'string'
             ? response
             : (response && response.messageId) || response,
+        reason: null,
+        invalidToken: false,
       };
     } catch (err) {
       return this._toFailureResult(err);
@@ -437,11 +451,18 @@ class FcmAdapter {
    * The credential is never logged or returned outside
    * the Firebase initialization flow.
    */
-  _readServiceAccount(path) {
+  _readServiceAccount(serviceAccountPath) {
     let raw;
+    const resolvedPath = path.isAbsolute(serviceAccountPath)
+      ? serviceAccountPath
+      : (fs.existsSync(serviceAccountPath)
+          ? serviceAccountPath
+          : (fs.existsSync(path.resolve(__dirname, '../../', serviceAccountPath))
+              ? path.resolve(__dirname, '../../', serviceAccountPath)
+              : path.resolve(process.cwd(), serviceAccountPath)));
 
     try {
-      raw = fs.readFileSync(path, 'utf8');
+      raw = fs.readFileSync(resolvedPath, 'utf8');
     } catch (err) {
       const error = new Error(
         'FCM_SERVICE_ACCOUNT_UNREADABLE',
@@ -532,6 +553,7 @@ class FcmAdapter {
 
       return {
         success: false,
+        delivered: false,
         errorCode: 'INVALID_TOKEN',
         firebaseErrorCode,
         invalidToken: true,
@@ -547,8 +569,10 @@ class FcmAdapter {
 
     return {
       success: false,
+      delivered: false,
       errorCode: 'FCM_SEND_FAILED',
       firebaseErrorCode,
+      invalidToken: false,
       reason:
         'Firebase Cloud Messaging could not deliver the message.',
     };

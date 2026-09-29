@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 
+import '../core/router/app_router.dart';
 import 'api_service.dart';
 import 'notification_service.dart';
 
@@ -20,6 +22,7 @@ class FcmService {
 
   StreamSubscription<String>? _refreshSubscription;
   StreamSubscription<RemoteMessage>? _messageSubscription;
+  StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
 
   /// Requests permission and registers the current device FCM token.
   Future<void> registerDeviceToken() async {
@@ -70,8 +73,34 @@ class FcmService {
         NotificationService.instance.showTokenApproaching(
           title: notification.title ?? 'QueueFlow',
           body: notification.body ?? '',
+          payload: message.data['tokenId'] ?? '',
         );
       });
+
+      _messageOpenedSubscription =
+          FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint(
+          '[FCM] Background message opened: ${message.messageId}',
+        );
+        final context = rootNavigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          context.go('/token/live');
+        }
+      });
+
+      unawaited(
+        FirebaseMessaging.instance.getInitialMessage().then((message) {
+          if (message != null) {
+            debugPrint(
+              '[FCM] Cold-start message opened: ${message.messageId}',
+            );
+            final context = rootNavigatorKey.currentContext;
+            if (context != null && context.mounted) {
+              context.go('/token/live');
+            }
+          }
+        }),
+      );
     } catch (e) {
       debugPrint(
         '[FCM] Foreground message listener unavailable: ${e.runtimeType}',
@@ -118,6 +147,8 @@ class FcmService {
   void stopListeningForMessages() {
     _messageSubscription?.cancel();
     _messageSubscription = null;
+    _messageOpenedSubscription?.cancel();
+    _messageOpenedSubscription = null;
   }
 
   Future<void> _requestPermission(

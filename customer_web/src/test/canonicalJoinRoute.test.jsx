@@ -145,9 +145,9 @@ describe('16. /join rejects what is not a join link', () => {
     });
   });
 
-  it('16d. /join with no center reference at all says so', async () => {
-    // Silently rendering the paste-a-link form reads as "nothing happened".
-    renderJoinRoute('/join');
+  it('16d. a join link with no center reference at all says so', async () => {
+    // When a join link with unknown parameters arrives without identifying a center
+    renderJoinRoute('/join?action=join');
 
     await waitFor(() => {
       expect(
@@ -161,6 +161,16 @@ describe('16. /join rejects what is not a join link', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/QR Error/i)).toBeInTheDocument();
+    });
+  });
+
+  it('16f. bare /join renders the mobile camera QR scanner and back button', async () => {
+    renderJoinRoute('/join');
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /scan qr code/i })).toBeInTheDocument();
+      expect(screen.getByTestId('back-button')).toBeInTheDocument();
+      expect(screen.getByTestId('qr-camera-scanner')).toBeInTheDocument();
     });
   });
 });

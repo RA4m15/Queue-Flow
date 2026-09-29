@@ -5,8 +5,10 @@ const { protect, requireRole } = require('../middleware/auth');
 const { validate, validateObjectId } = require('../middleware/validate');
 const {
   list,
+  getOperableCounters,
   getById,
   getOperatorCounter,
+  getCenterOperators,
   create,
   updateStatus,
   assignService,
@@ -17,15 +19,34 @@ const {
   startServing,
   complete,
   skip,
+  getAllocationOverview,
+  triggerAllocationNow,
   createValidation,
 } = require('../controllers/counterController');
 
 // Operator dedicated endpoint (MUST be before /:id)
 router.get('/operator/me', protect, requireRole('ADMIN', 'STAFF'), getOperatorCounter);
 
+// Facility-scoped counter picker for the operator panel's "CHOOSE COUNTER".
+// MUST be registered before `/:id` so the literal path is not read as an id.
+router.get('/operable', protect, requireRole('ADMIN', 'STAFF'), getOperableCounters);
+
+// Center operators list for Resource Hub (MUST be before /:id)
+router.get('/operators', protect, requireRole('ADMIN'), getCenterOperators);
+
+// Centralized Resource Allocation endpoints (MUST be before /:id)
+router.get('/allocation/overview', protect, requireRole('ADMIN', 'STAFF'), getAllocationOverview);
+router.post('/allocation/trigger', protect, requireRole('ADMIN'), triggerAllocationNow);
+
 // Public: list counters (customer app shows counter count)
 router.get('/', list);
-router.get('/:id', validateObjectId('id'), getById);
+router.get(
+  '/:id',
+  protect,
+  requireRole('ADMIN', 'STAFF'),
+  validateObjectId('id'),
+  getById
+);
 
 // Admin operations
 router.post('/', protect, requireRole('ADMIN'), createValidation, validate, create);

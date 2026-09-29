@@ -450,6 +450,9 @@ async function confirmNextHop({
   notifyApp = true,
   notifySms = false,
   channel = 'WEB',
+  latitude = null,
+  longitude = null,
+  accuracy = null,
 }) {
   if (!mongoose.Types.ObjectId.isValid(tokenId)) {
     const err = new Error('Invalid tokenId format');
@@ -522,6 +525,20 @@ async function confirmNextHop({
   }
 
   // 7. Canonical queue join via existing queueService
+  //
+  // A next hop is a join, so the Phase 1 join geofence applies to it exactly as
+  // it does to a first join. The customer's position is taken from, in order of
+  // trustworthiness:
+  //   1. a fresh reading supplied with this request;
+  //   2. the position already verified for the token they just finished.
+  // Both are the same person at the same center, so this re-uses evidence the
+  // system already holds rather than inventing or demanding anything new.
+  const hasFreshReading =
+    latitude !== undefined && latitude !== null && latitude !== '' &&
+    longitude !== undefined && longitude !== null && longitude !== '';
+  const lastLocation = token.lastLocation || {};
+  const carriedAccuracy = lastLocation.accuracy === undefined ? null : lastLocation.accuracy;
+
   let newQueueResult;
   try {
     newQueueResult = await queueService.joinQueue({
@@ -533,6 +550,9 @@ async function confirmNextHop({
       channel: channel || token.channel || 'WEB',
       journeyId,
       previousTokenId: token._id,
+      latitude: hasFreshReading ? latitude : (lastLocation.latitude ?? null),
+      longitude: hasFreshReading ? longitude : (lastLocation.longitude ?? null),
+      accuracy: hasFreshReading ? (accuracy ?? null) : carriedAccuracy,
     });
   } catch (err) {
     // If joinQueue failed (e.g. queue closed or conflict), unlock nextTokenId if needed

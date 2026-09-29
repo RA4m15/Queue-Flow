@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { serviceCenterAPI, serviceAPI } from '../services/api';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { ErrorAlert } from '../components/ErrorAlert';
+import { BackButton } from '../components/BackButton';
 
 export function CenterServicesPage() {
   const { id: centerId } = useParams();
@@ -18,6 +19,8 @@ export function CenterServicesPage() {
     try {
       setLoading(true);
       setError(null);
+      setCenter(null);
+      setServices([]);
 
       // Fetch center detail and services in parallel
       const [centerRes, servicesRes] = await Promise.all([
@@ -39,26 +42,16 @@ export function CenterServicesPage() {
     fetchData();
   }, [fetchData]);
 
+  // The backend refuses a join against a closed center, so the page must not
+  // pretend the facility is open. `isOpen` is a persisted field on every
+  // center, so an explicit `false` is the authoritative signal.
+  const centerUnavailable = center?.isOpen === false;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* Back button & Breadcrumb */}
       <div>
-        <Link
-          to="/centers"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            color: 'var(--text-secondary)',
-            fontSize: '0.85rem',
-            marginBottom: '0.75rem',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back to Service Centers
-        </Link>
+        <BackButton label="Back to Service Centers" fallback="/centers" />
 
         {center && (
           <div>
@@ -77,6 +70,44 @@ export function CenterServicesPage() {
         <SkeletonLoader count={3} />
       ) : error ? (
         <ErrorAlert message={error} onRetry={fetchData} />
+      ) : centerUnavailable ? (
+        // A QR can legitimately point at a facility that has since been retired.
+        // Say so plainly instead of offering services that cannot be joined.
+        <div
+          className="qf-card"
+          data-testid="center-unavailable"
+          style={{
+            textAlign: 'center',
+            padding: '3rem 1.5rem',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+            Service center unavailable
+          </h3>
+          <p style={{ fontSize: '0.85rem' }}>
+            {center?.name
+              ? `${center.name} is not currently accepting queue requests.`
+              : 'This service center is not currently accepting queue requests.'}
+            {' '}Please choose another service center.
+          </p>
+          <Link
+            to="/centers"
+            style={{
+              display: 'inline-block',
+              marginTop: '1.25rem',
+              padding: '0.6rem 1.1rem',
+              borderRadius: '8px',
+              background: 'var(--accent-primary, #0ea5a5)',
+              color: '#fff',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              textDecoration: 'none',
+            }}
+          >
+            View available service centers
+          </Link>
+        </div>
       ) : services.length === 0 ? (
         <div
           className="qf-card"
@@ -138,7 +169,7 @@ export function CenterServicesPage() {
                           fontWeight: '700',
                           padding: '0.15rem 0.45rem',
                           borderRadius: '4px',
-                          background: 'rgba(0, 229, 168, 0.12)',
+                          background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
                           color: 'var(--color-primary)',
                         }}
                       >
@@ -152,8 +183,8 @@ export function CenterServicesPage() {
                           fontWeight: '700',
                           padding: '0.15rem 0.45rem',
                           borderRadius: '4px',
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          color: '#F87171',
+                          background: 'color-mix(in srgb, var(--color-danger) 15%, transparent)',
+                          color: 'var(--color-danger)',
                           textTransform: 'uppercase',
                         }}
                       >

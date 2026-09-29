@@ -12,7 +12,7 @@ export function LandingPage() {
           className="qf-card"
           style={{
             border: '1px solid var(--border-accent)',
-            background: 'linear-gradient(135deg, rgba(0, 229, 168, 0.12) 0%, rgba(0, 210, 255, 0.08) 100%)',
+            background: 'var(--bg-card) 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -64,7 +64,7 @@ export function LandingPage() {
             lineHeight: 1.15,
             letterSpacing: '-0.03em',
             marginBottom: '1rem',
-            background: 'linear-gradient(180deg, #FFFFFF 0%, #94A3B8 100%)',
+            background: 'var(--text-primary)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}
@@ -181,7 +181,7 @@ export function LandingPage() {
               height: '40px',
               borderRadius: '10px',
               background: 'rgba(168, 85, 247, 0.12)',
-              color: '#C084FC',
+              color: 'var(--color-cyan)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

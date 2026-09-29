@@ -3,7 +3,6 @@ import { connectSocket, onSocketStatus, onSocketReconnect } from '../services/so
 import { tokenAPI } from '../services/api';
 import { storage } from '../services/storage';
 import { useNetworkStatus } from './useNetworkStatus';
-import { announceTokenCall } from '../utils/announcer';
 
 export function useLiveToken(initialTokenId) {
   const { isOnline } = useNetworkStatus();
@@ -152,12 +151,6 @@ export function useLiveToken(initialTokenId) {
         if (updatedToken.status === 'CALLED') {
           const counterLabel = updatedToken.counterId?.displayLabel || updatedToken.counterId?.name || 'the counter';
           setTurnAlert(`It's your turn! Please proceed to ${counterLabel}.`);
-          announceTokenCall({
-            tokenCode: updatedToken.tokenCode,
-            counterName: counterLabel,
-            tokenId: updatedToken._id,
-            calledAt: updatedToken.calledAt,
-          });
         }
       }
     };

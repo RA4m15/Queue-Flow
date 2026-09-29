@@ -165,7 +165,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
     >
       <div
         style={{
-          background: 'var(--bg-card, #111B2C)',
+          background: 'var(--bg-card, var(--bg-card-alt))',
           border: '1px solid var(--border-medium, rgba(255,255,255,0.1))',
           borderRadius: '16px',
           width: '100%',
@@ -181,7 +181,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
         <div
           style={{
             padding: '20px 24px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+            borderBottom: '1px solid var(--border-subtle, var(--bg-card-alt))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -189,7 +189,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={20} color="var(--color-primary, #00E5A8)" />
+              <FileText size={20} color="var(--color-primary, var(--color-primary))" />
               <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
                 Document Gatekeeper — {service.name} ({service.tokenPrefix})
               </h2>
@@ -216,7 +216,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
         <div
           style={{
             display: 'flex',
-            borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+            borderBottom: '1px solid var(--border-subtle, var(--bg-card-alt))',
             padding: '0 24px',
             gap: '16px',
             background: 'rgba(0,0,0,0.15)',
@@ -227,9 +227,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
             style={{
               padding: '12px 4px',
               border: 'none',
-              borderBottom: activeTab === 'requirements' ? '2px solid var(--color-primary, #00E5A8)' : '2px solid transparent',
+              borderBottom: activeTab === 'requirements' ? '2px solid var(--color-primary, var(--color-primary))' : '2px solid transparent',
               background: 'transparent',
-              color: activeTab === 'requirements' ? 'var(--color-primary, #00E5A8)' : 'var(--text-secondary)',
+              color: activeTab === 'requirements' ? 'var(--color-primary, var(--color-primary))' : 'var(--text-secondary)',
               fontWeight: 600,
               fontSize: '13px',
               cursor: 'pointer',
@@ -242,9 +242,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
             style={{
               padding: '12px 4px',
               border: 'none',
-              borderBottom: activeTab === 'reviews' ? '2px solid var(--color-primary, #00E5A8)' : '2px solid transparent',
+              borderBottom: activeTab === 'reviews' ? '2px solid var(--color-primary, var(--color-primary))' : '2px solid transparent',
               background: 'transparent',
-              color: activeTab === 'reviews' ? 'var(--color-primary, #00E5A8)' : 'var(--text-secondary)',
+              color: activeTab === 'reviews' ? 'var(--color-primary, var(--color-primary))' : 'var(--text-secondary)',
               fontWeight: 600,
               fontSize: '13px',
               cursor: 'pointer',
@@ -259,9 +259,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
           {error && (
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid #EF4444',
-                color: '#EF4444',
+                background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+                border: '1px solid var(--color-danger)',
+                color: 'var(--color-danger)',
                 padding: '10px 14px',
                 borderRadius: '8px',
                 fontSize: '12px',
@@ -275,9 +275,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
           {successMsg && (
             <div
               style={{
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid #10B981',
-                color: '#10B981',
+                background: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
+                border: '1px solid var(--color-success)',
+                color: 'var(--color-success)',
                 padding: '10px 14px',
                 borderRadius: '8px',
                 fontSize: '12px',
@@ -308,7 +308,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
                 <form
                   onSubmit={handleCreateRequirement}
                   style={{
-                    background: 'rgba(255,255,255,0.03)',
+                    background: 'var(--bg-card-alt)',
                     border: '1px solid var(--border-medium)',
                     borderRadius: '10px',
                     padding: '16px',
@@ -403,7 +403,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '12px 16px',
-                        background: 'rgba(255,255,255,0.02)',
+                        background: 'var(--bg-card-alt)',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: '8px',
                       }}
@@ -411,16 +411,16 @@ export function DocumentRequirementsManager({ service, onClose }) {
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>{req.name}</span>
-                          <span style={{ fontSize: '10px', fontFamily: 'monospace', padding: '1px 6px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                          <span style={{ fontSize: '10px', fontFamily: 'monospace', padding: '1px 6px', background: 'var(--bg-card-alt)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
                             {req.documentType}
                           </span>
                           {req.isRequired ? (
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444' }}>REQUIRED</span>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-danger)' }}>REQUIRED</span>
                           ) : (
                             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>OPTIONAL</span>
                           )}
                           {req.verificationRequired && (
-                            <span style={{ fontSize: '10px', color: '#F59E0B' }}>STAFF APPROVAL REQ</span>
+                            <span style={{ fontSize: '10px', color: 'var(--color-warning)' }}>STAFF APPROVAL REQ</span>
                           )}
                         </div>
                         {req.description && (
@@ -440,7 +440,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
                             fontWeight: 600,
                             cursor: 'pointer',
                             background: req.isActive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                            color: req.isActive ? '#10B981' : '#EF4444',
+                            color: req.isActive ? 'var(--color-success)' : 'var(--color-danger)',
                             border: 'none',
                           }}
                         >
@@ -488,7 +488,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
                       key={doc._id}
                       style={{
                         padding: '12px 16px',
-                        background: 'rgba(255,255,255,0.02)',
+                        background: 'var(--bg-card-alt)',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: '8px',
                         display: 'flex',
@@ -506,7 +506,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                             ({doc.userId?.email || 'N/A'})
                           </span>
-                          <span style={{ fontSize: '10px', fontFamily: 'monospace', padding: '2px 6px', background: 'rgba(245,158,11,0.15)', color: '#F59E0B', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '10px', fontFamily: 'monospace', padding: '2px 6px', background: 'rgba(245,158,11,0.15)', color: 'var(--color-warning)', borderRadius: '4px' }}>
                             {doc.documentType}
                           </span>
                         </div>
@@ -528,9 +528,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
                         <button
                           onClick={() => handleVerify(doc._id, 'VERIFIED')}
                           style={{
-                            background: 'rgba(16, 185, 129, 0.2)',
-                            color: '#10B981',
-                            border: '1px solid #10B981',
+                            background: 'color-mix(in srgb, var(--color-success) 20%, transparent)',
+                            color: 'var(--color-success)',
+                            border: '1px solid var(--color-success)',
                             borderRadius: '6px',
                             padding: '4px 10px',
                             fontSize: '11px',
@@ -543,9 +543,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
                         <button
                           onClick={() => setRejectingDocId(doc._id)}
                           style={{
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            color: '#EF4444',
-                            border: '1px solid #EF4444',
+                            background: 'color-mix(in srgb, var(--color-danger) 20%, transparent)',
+                            color: 'var(--color-danger)',
+                            border: '1px solid var(--color-danger)',
                             borderRadius: '6px',
                             padding: '4px 10px',
                             fontSize: '11px',
@@ -572,7 +572,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
                     border: '1px solid rgba(239,68,68,0.3)',
                   }}
                 >
-                  <label style={{ fontSize: '11px', color: '#EF4444', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--color-danger)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
                     Reason for Rejection (Customer will see this note)
                   </label>
                   <input
@@ -585,7 +585,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       onClick={() => handleVerify(rejectingDocId, 'REJECTED', rejectionReason)}
-                      style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                      style={{ background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
                     >
                       Confirm Rejection
                     </button>

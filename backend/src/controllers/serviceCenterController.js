@@ -59,7 +59,27 @@ const getById = asyncHandler(async (req, res) => {
  * Create a service center. Admin only.
  */
 const create = asyncHandler(async (req, res) => {
-  const { name, code, type, address, phone, email, capacity, capacityAlertThreshold, operatingHours, noShowTimeoutSeconds, location, geofence } = req.body;
+  const {
+    name,
+    code,
+    type,
+    address,
+    phone,
+    email,
+    capacity,
+    capacityAlertThreshold,
+    operatingHours,
+    noShowTimeoutSeconds,
+    location,
+    geofence,
+    latitude,
+    longitude,
+    joiningRadiusMeters,
+  } = req.body;
+
+  const resolvedLat = latitude !== undefined ? latitude : (location ? location.latitude : null);
+  const resolvedLng = longitude !== undefined ? longitude : (location ? location.longitude : null);
+  const resolvedRadius = joiningRadiusMeters !== undefined ? joiningRadiusMeters : ((geofence && geofence.radiusMeters) ? geofence.radiusMeters : 100);
 
   const center = await ServiceCenter.create({
     name,
@@ -72,8 +92,20 @@ const create = asyncHandler(async (req, res) => {
     capacityAlertThreshold,
     operatingHours,
     noShowTimeoutSeconds,
-    location,
-    geofence,
+    latitude: resolvedLat,
+    longitude: resolvedLng,
+    joiningRadiusMeters: resolvedRadius,
+    location: {
+      latitude: resolvedLat,
+      longitude: resolvedLng,
+    },
+    geofence: {
+      enabled: resolvedLat !== null && resolvedLng !== null,
+      radiusMeters: resolvedRadius,
+      nearRadiusMeters: 500,
+      approachingRadiusMeters: 1000,
+      ...(geofence || {}),
+    },
   });
 
   return sendCreated(res, { message: 'Service center created', data: { center } });
@@ -97,11 +129,39 @@ const update = asyncHandler(async (req, res) => {
     'noShowTimeoutSeconds',
     'location',
     'geofence',
+    'latitude',
+    'longitude',
+    'joiningRadiusMeters',
+    'autoResourceAllocation',
   ];
   const updates = {};
 
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+
+  // Synchronize top-level coordinates and nested location subdocument
+  if (updates.latitude !== undefined || updates.longitude !== undefined) {
+    const lat = updates.latitude !== undefined ? updates.latitude : null;
+    const lng = updates.longitude !== undefined ? updates.longitude : null;
+    if (lat !== null || lng !== null) {
+      updates.location = {
+        ...(updates.location || {}),
+        ...(lat !== null ? { latitude: lat } : {}),
+        ...(lng !== null ? { longitude: lng } : {}),
+      };
+      updates['geofence.enabled'] = true;
+    }
+  }
+
+  if (updates.joiningRadiusMeters !== undefined) {
+    updates['geofence.radiusMeters'] = updates.joiningRadiusMeters;
+  }
+
+  if (updates.autoResourceAllocation !== undefined) {
+    if (typeof updates.autoResourceAllocation !== 'boolean') {
+      return sendBadRequest(res, 'autoResourceAllocation must be a boolean');
+    }
   }
 
   const center = await ServiceCenter.findByIdAndUpdate(
@@ -111,6 +171,12 @@ const update = asyncHandler(async (req, res) => {
   ).lean({ virtuals: true });
 
   if (!center) return sendNotFound(res, 'Service center not found');
+
+  // Switching allocation on makes the existing waiting line immediately
+  // allocatable, so run a pass now instead of waiting for the next event.
+  if (updates.autoResourceAllocation === true) {
+    require('../services/resourceAllocationService').triggerAllocation(req.params.id);
+  }
 
   return sendSuccess(res, { message: 'Service center updated', data: { center } });
 });

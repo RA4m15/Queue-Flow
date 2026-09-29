@@ -199,6 +199,10 @@ class _FakeApiService extends ApiService {
     required String serviceId,
     bool notifyApp = true,
     bool notifySms = false,
+    double? latitude,
+    double? longitude,
+    double? accuracy,
+    DateTime? timestamp,
   }) async {
     joinQueueCalls++;
     if (failJoinWithActiveExists) {

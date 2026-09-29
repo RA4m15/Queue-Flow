@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,19 +9,30 @@ import '../core/theme/app_theme.dart';
 import '../models/service.dart';
 import '../models/service_center.dart';
 import '../providers/app_providers.dart';
+import '../widgets/join/qr_scanned_overlay.dart';
+import 'join_link_service.dart';
 import 'qr_payload_parser.dart';
 
 /// Shared resolution + routing for a customer queue-join QR payload.
 ///
-/// Both entry points use this one implementation:
+/// The in-app QR scanner (mobile_scanner) runs this before it routes, so a QR
+/// that names a centre or service the backend does not recognise fails with a
+/// precise, recoverable message instead of opening a preview that cannot load.
 ///
-///   1. The in-app QR scanner (mobile_scanner).
-///   2. An inbound App Link / Universal Link / custom-scheme deep link.
+/// An inbound App Link / Universal Link does **not** come through here. That
+/// context sits above the router and has no [Overlay] or router in scope, so it
+/// cannot show the recognition overlay or push a route at all; it parks the
+/// validated payload instead and the router sends the customer straight to the
+/// same destination this controller produces. See [joinRouteFor] in
+/// `join_link_service.dart` — one route, one screen, one resolution path.
 ///
-/// Keeping this in one place is what guarantees there is a single queue join
-/// flow rather than two parallel ones. The link handler only decides *whether*
-/// an inbound link is a join link; everything after that is identical to
-/// scanning the same QR inside the app.
+/// ## What this does and does not resolve
+///
+/// It validates the centerId against the backend before routing. It does
+/// **not** hand pre-resolved models to the preview: the destination is always
+/// the id-bearing `/join/preview` or `/join/services` route, which re-reads the
+/// backend itself. That is also what lets the route survive a login redirect or
+/// a process restart.
 ///
 /// This module NEVER creates a token. Token creation remains exclusively in the
 /// existing QueuePreviewScreen → POST /api/tokens flow, which requires an
@@ -31,14 +44,21 @@ class JoinFlowController {
 
   /// Resolve [payload] against the backend and route into the queue flow.
   ///
-  /// - [showFeedback] renders the loading / error surfaces. Pass `false` for
-  ///   headless inbound-link handling so the user is not interrupted by a sheet.
+  /// - [showFeedback] renders the loading / error surfaces. It is only ever
+  ///   true for the in-app scanner, which has a real screen behind it; a caller
+  ///   with no overlay — an inbound link — must pass `false`.
   Future<void> handleJoinPayload(
     BuildContext context,
     QrJoinPayload payload, {
     bool showFeedback = true,
   }) async {
-    if (showFeedback) _showLoadingSheet(context);
+    QrScannedOverlay? scannedOverlay;
+    if (showFeedback) {
+      scannedOverlay = QrScannedOverlay.show(
+        context,
+        message: 'Confirming this service center with QueueFlow…',
+      );
+    }
 
     try {
       // Fetch center and services in parallel. Both calls validate the centerId
@@ -52,28 +72,28 @@ class JoinFlowController {
       final center = centerDetail['center'] as ServiceCenter;
       final services = results[1] as List<Service>;
 
-      if (showFeedback && context.mounted) {
-        Navigator.of(context).pop(); // Dismiss loading sheet.
-      }
+      // The backend answered, so the recognition overlay has done its job.
+      scannedOverlay?.dismiss();
       if (!context.mounted) return;
 
       if (payload.hasService) {
         // Center + Service QR → validate the service belongs to this center,
-        // then navigate directly into the existing QueuePreviewScreen.
+        // then navigate directly into the one queue preview.
         await _routeToServicePreview(
           context,
+          payload: payload,
           center: center,
           services: services,
-          targetServiceId: payload.serviceId!,
           showFeedback: showFeedback,
         );
       } else {
-        // Center-only QR → existing ServiceCenterDetailScreen, so the customer
-        // can choose their service.
-        context.push('/center/${center.id}');
+        // Center-only QR → the service selector, which lists this center's
+        // active services with their live queue figures. Exactly the route an
+        // inbound centre-only link lands on.
+        context.push(joinRouteFor(QrJoinPayload(centerId: payload.centerId)));
       }
     } on ApiException catch (e) {
-      if (showFeedback && context.mounted) Navigator.of(context).pop();
+      scannedOverlay?.dismiss();
       if (!context.mounted) return;
       if (showFeedback) {
         _showErrorSheet(
@@ -86,7 +106,7 @@ class JoinFlowController {
         );
       }
     } catch (_) {
-      if (showFeedback && context.mounted) Navigator.of(context).pop();
+      scannedOverlay?.dismiss();
       if (!context.mounted) return;
       if (showFeedback) {
         _showErrorSheet(
@@ -101,18 +121,23 @@ class JoinFlowController {
     }
   }
 
-  /// Route to the existing queue preview (center + service fully resolved).
+  /// Route to the queue preview (center + service resolved).
   Future<void> _routeToServicePreview(
     BuildContext context, {
+    required QrJoinPayload payload,
     required ServiceCenter center,
     required List<Service> services,
-    required String targetServiceId,
     required bool showFeedback,
   }) async {
     // Find the service in the list returned by the backend for this center.
     // This validates that the serviceId from the QR actually belongs here.
-    final matches = services.where((s) => s.id == targetServiceId);
+    final matches = services.where((s) => s.id == payload.serviceId);
     final matched = matches.isEmpty ? null : matches.first;
+
+    // One derivation of the chooser route, shared with every other entry point,
+    // so a recovery action cannot drift from the normal destination.
+    final servicesRoute =
+        joinRouteFor(QrJoinPayload(centerId: payload.centerId));
 
     if (matched == null) {
       if (showFeedback) {
@@ -126,10 +151,7 @@ class JoinFlowController {
               'It may have been removed or transferred.',
           allowRetry: false,
           actionLabel: 'View All Services',
-          onAction: () {
-            Navigator.of(context).pop();
-            context.push('/center/${center.id}');
-          },
+          onAction: () => context.push(servicesRoute),
         );
       }
       return;
@@ -147,10 +169,7 @@ class JoinFlowController {
               'Please check with the service desk.',
           allowRetry: false,
           actionLabel: 'View Other Services',
-          onAction: () {
-            Navigator.of(context).pop();
-            context.push('/center/${center.id}');
-          },
+          onAction: () => context.push(servicesRoute),
         );
       }
       return;
@@ -159,43 +178,10 @@ class JoinFlowController {
     if (!context.mounted) return;
 
     // Enter the existing QueuePreviewScreen, which handles join loading,
-    // duplicate-token error and confirmation before POSTing the token.
-    context.push('/queue/preview', extra: {
-      'center': center,
-      'service': matched,
-    });
-  }
-
-  void _showLoadingSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 20),
-            Text(
-              'Verifying QR Code…',
-              style: Theme.of(ctx).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Confirming service center details from server',
-              textAlign: TextAlign.center,
-              style: Theme.of(ctx).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
+    // duplicate-token error and confirmation before POSTing the token. The
+    // route is the shared one, carrying ids only, so it is the same destination
+    // an inbound link reaches and can be restored after a login redirect.
+    unawaited(context.push(joinRouteFor(payload)));
   }
 
   void _showErrorSheet(
@@ -245,8 +231,7 @@ class JoinFlowController {
                       },
                       child: Text(actionLabel),
                     ),
-                  ),
-              ],
+                  ),              ],
             ],
           ),
         ),

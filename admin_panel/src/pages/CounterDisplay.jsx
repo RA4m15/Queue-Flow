@@ -204,7 +204,7 @@ export default function CounterDisplay() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0a0d0b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)' }}>
         <p style={{ fontFamily: 'var(--font-main)', fontSize: '18px' }}>Connecting display to counter...</p>
       </div>
     );
@@ -212,9 +212,9 @@ export default function CounterDisplay() {
 
   if (error || !counter) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0a0d0b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#ffffff', padding: '24px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ef4444', marginBottom: '8px' }}>Display Error</h2>
-        <p style={{ color: '#a8a29e' }}>{error || 'Counter could not be loaded'}</p>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', padding: '24px' }}>
+        <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-danger)', marginBottom: '8px' }}>Display Error</h2>
+        <p style={{ color: 'var(--text-secondary)' }}>{error || 'Counter could not be loaded'}</p>
       </div>
     );
   }
@@ -223,15 +223,15 @@ export default function CounterDisplay() {
   const tokenCode = currentToken?.tokenCode || (typeof currentToken === 'string' ? currentToken : null);
   const isServing = !!tokenCode && counter.status === 'ACTIVE';
 
-  const statusColor = socketStatus === 'CONNECTED' ? '#00E5A8' : socketStatus === 'CONNECTING' ? '#F59E0B' : '#EF4444';
+  const statusColor = socketStatus === 'CONNECTED' ? 'var(--color-primary)' : socketStatus === 'CONNECTING' ? 'var(--color-warning)' : 'var(--color-danger)';
   const statusLabel = socketStatus === 'CONNECTED' ? 'ONLINE' : socketStatus === 'CONNECTING' ? 'CONNECTING' : 'OFFLINE / RECONNECTING';
 
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: '#05070D',
-        color: '#F8FAFC',
+        background: 'var(--bg-app)',
+        color: 'var(--text-primary)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -249,9 +249,9 @@ export default function CounterDisplay() {
             top: '20px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            color: '#FCA5A5',
+            background: 'color-mix(in srgb, var(--color-danger) 15%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--color-danger) 35%, transparent)',
+            color: 'var(--color-danger)',
             padding: '6px 16px',
             borderRadius: '10px',
             fontSize: '12px',
@@ -277,8 +277,8 @@ export default function CounterDisplay() {
           height: '650px',
           borderRadius: '50%',
           background: isServing
-            ? 'radial-gradient(circle, rgba(0, 229, 168, 0.18) 0%, rgba(5, 7, 13, 0) 70%)'
-            : 'radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, rgba(5, 7, 13, 0) 70%)',
+            ? 'none'
+            : 'none',
           pointerEvents: 'none',
           transition: 'background 0.5s ease',
         }}
@@ -291,12 +291,12 @@ export default function CounterDisplay() {
             style={{
               padding: '6px 16px',
               borderRadius: '12px',
-              background: 'rgba(0, 229, 168, 0.08)',
-              border: '1px solid rgba(0, 229, 168, 0.25)',
+              background: 'color-mix(in srgb, var(--color-primary) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)',
               fontFamily: 'var(--font-mono)',
               fontSize: '14px',
               fontWeight: 700,
-              color: '#00E5A8',
+              color: 'var(--color-primary)',
               letterSpacing: '0.05em',
             }}
           >
@@ -322,11 +322,11 @@ export default function CounterDisplay() {
           <button
             onClick={toggleFullscreen}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
+              background: 'var(--bg-card-alt)',
               border: 'none',
               borderRadius: '10px',
               padding: '8px 12px',
-              color: '#ffffff',
+              color: 'var(--text-primary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -370,8 +370,8 @@ export default function CounterDisplay() {
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             letterSpacing: '0.04em',
-            color: isServing ? '#00E5A8' : 'rgba(255, 255, 255, 0.2)',
-            textShadow: isServing ? '0 0 60px rgba(0, 229, 168, 0.5)' : 'none',
+            color: isServing ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.2)',
+            textShadow: isServing ? '' : 'none',
             lineHeight: 1,
             margin: '20px 0',
           }}
@@ -383,7 +383,7 @@ export default function CounterDisplay() {
           style={{
             fontSize: 'clamp(16px, 2.5vw, 24px)',
             fontWeight: 600,
-            color: isServing ? '#00E5A8' : 'rgba(255, 255, 255, 0.4)',
+            color: isServing ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.4)',
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
           }}
@@ -398,7 +398,7 @@ export default function CounterDisplay() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          borderTop: '1px solid var(--bg-card-alt)',
           paddingTop: '20px',
           zIndex: 10,
           color: 'rgba(255, 255, 255, 0.35)',

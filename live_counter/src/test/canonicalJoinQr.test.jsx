@@ -6,29 +6,29 @@ import { resolve } from 'node:path';
 /**
  * Canonical Customer Queue QR — Live Counter side (cases 17-20).
  *
- * The display must encode exactly ONE URL:
+ * The display encodes exactly ONE URL:
  *
  *   https://<customer-web-host>/join?centerId=<REAL_ID>[&serviceId=<REAL_ID>]
  *
  * That URL is what a customer scans. It opens the app when QueueFlow is
  * installed (App Link / Universal Link) and falls back to the browser on the
- * same Customer Web /join route when it is not, so it is the only format that
- * can work for every customer standing at the screen.
+ * same Customer Web /join route when it is not.
  *
- * These tests pin the four properties that matter for a QR printed on a public
- * display:
- *   17. the encoded payload is the canonical HTTPS /join URL
- *   18. the IDs come from live backend data, never a hardcoded constant
- *   19. nothing secret, and no localhost, is ever encoded
- *   20. the legacy queueflow:// link is still produced for backwards compat
+ * The QR section is a clean, premium, presentation-ready kiosk display:
+ *   - "SCAN TO JOIN QUEUE"
+ *   - "Get your digital ticket on your phone"
+ *   - Large scannable QR code image
+ *   - "Scan with your phone camera to join the queue"
+ *   - "Open with your camera"
  *
- * Each test re-imports the module tree with a specific VITE_CUSTOMER_WEB_URL,
- * because the base URL is resolved once at module load — which is exactly the
- * behaviour a production build relies on.
+ * Crucially, debug information, localhost URLs, custom schemes, centerId/serviceId
+ * raw text, environment variable names, and configuration warnings NEVER leak into
+ * the rendered UI.
  */
 
 const REAL_CENTER_ID = '6ab2ddfb99b28c7c31a3c8cc';
 const REAL_SERVICE_ID = '6ab2ddfb99b28c7c31a3c8dd';
+const ALT_CENTER_ID = '6ab93df8da6b1eefeb19caa2';
 const PRODUCTION_HOST = 'queueflow.app';
 
 /**
@@ -83,31 +83,44 @@ describe('17. The encoded payload is the canonical HTTPS /join URL', () => {
     expect(qr.buildCanonicalJoinUrl(REAL_CENTER_ID)).not.toContain('//join');
   });
 
-  it('17d. the panel encodes the HTTPS URL, and shows that same URL', async () => {
+  it('17d. the panel renders the clean QR image and never leaks raw URLs or debug text', async () => {
     const { qr, JoinQrPanel } = await loadQr(`https://${PRODUCTION_HOST}`);
 
     render(
       <JoinQrPanel
         centerId={REAL_CENTER_ID}
         serviceId={REAL_SERVICE_ID}
-        centerName="Verify Center"
+        centerName="City Hall"
       />
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('qr-join-url-preview')).toBeInTheDocument();
+      expect(screen.getByTestId('qr-code-image')).toBeInTheDocument();
     });
 
-    // The primary preview is exactly what resolveQrPayload puts in the QR, so
-    // an operator can transcribe it when the code will not scan.
+    // Desired presentation-ready UI elements
+    expect(screen.getByText('SCAN TO JOIN QUEUE')).toBeInTheDocument();
+    expect(screen.getByText('Get your digital ticket on your phone')).toBeInTheDocument();
+    expect(screen.getByText('Scan with your phone camera to join the queue')).toBeInTheDocument();
+    expect(screen.getByText('Open with your camera')).toBeInTheDocument();
+
+    // The QR image encodes the canonical HTTPS link
     const expected =
       `https://${PRODUCTION_HOST}/join?centerId=${REAL_CENTER_ID}` +
       `&serviceId=${REAL_SERVICE_ID}`;
-    expect(screen.getByTestId('qr-join-url-preview').textContent).toBe(expected);
     expect(qr.resolveQrPayload(REAL_CENTER_ID, REAL_SERVICE_ID)).toBe(expected);
+
+    // Visible UI must NOT display raw debug info
+    const panelText = screen.getByLabelText('Join Queue QR Panel').textContent;
+    expect(panelText).not.toContain(REAL_CENTER_ID);
+    expect(panelText).not.toContain(REAL_SERVICE_ID);
+    expect(panelText).not.toContain('localhost');
+    expect(panelText).not.toContain('queueflow://');
+    expect(panelText).not.toContain('http');
+    expect(panelText).not.toContain('VITE_CUSTOMER_WEB_URL');
   });
 
-  it('17e. a localhost base is reported instead of silently printed', async () => {
+  it('17e. a localhost base renders clean operator error state without developer warnings', async () => {
     const { qr, JoinQrPanel } = await loadQr(undefined);
 
     // The dev default is localhost, which no customer can actually scan.
@@ -115,27 +128,33 @@ describe('17. The encoded payload is the canonical HTTPS /join URL', () => {
 
     render(<JoinQrPanel centerId={REAL_CENTER_ID} centerName="Verify Center" />);
     await waitFor(() => {
-      expect(screen.getByTestId('qr-config-warning')).toBeInTheDocument();
+      expect(screen.getByTestId('qr-error-state')).toBeInTheDocument();
     });
+
+    expect(screen.getByText('Check-in Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Please visit the service desk')).toBeInTheDocument();
+    expect(screen.queryByTestId('qr-config-warning')).not.toBeInTheDocument();
+
+    const panelText = screen.getByLabelText('Join Queue QR Panel').textContent;
+    expect(panelText).not.toContain('localhost');
+    expect(panelText).not.toContain('VITE_CUSTOMER_WEB_URL');
   });
 
-  it('17f. a real HTTPS deployment is treated as public', async () => {
+  it('17f. a real HTTPS deployment is treated as public and renders QR image', async () => {
     const { qr, JoinQrPanel } = await loadQr(`https://${PRODUCTION_HOST}`);
 
     expect(qr.isPublicCustomerWebBase()).toBe(true);
 
     render(<JoinQrPanel centerId={REAL_CENTER_ID} centerName="Verify Center" />);
     await waitFor(() => {
-      expect(screen.queryByTestId('qr-config-warning')).not.toBeInTheDocument();
+      expect(screen.getByTestId('qr-code-image')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('qr-error-state')).not.toBeInTheDocument();
   });
 
   it('17g. a placeholder or non-routable base is never called public', async () => {
     const { qr } = await loadQr(`https://${PRODUCTION_HOST}`);
 
-    // The Android/iOS deep-link config deliberately defaults to `.invalid`
-    // (RFC 2606, can never resolve). A QR built from the same placeholder must
-    // be reported as a misconfiguration, not printed on a lobby screen.
     const notPublic = [
       'https://join.invalid',
       'https://join.test',
@@ -156,16 +175,30 @@ describe('17. The encoded payload is the canonical HTTPS /join URL', () => {
 });
 
 describe('18. IDs come from live backend data', () => {
-  it('18a. the rendered QR uses the center the backend returned', async () => {
+  it('18a. the rendered QR image is labeled with the center name and changes dynamically', async () => {
     const { JoinQrPanel } = await loadQr(`https://${PRODUCTION_HOST}`);
 
-    render(<JoinQrPanel centerId={REAL_CENTER_ID} centerName="Verify Center" />);
+    const { rerender } = render(
+      <JoinQrPanel centerId={REAL_CENTER_ID} centerName="City Hall" />
+    );
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('qr-join-url-preview').textContent
-      ).toContain(`centerId=${REAL_CENTER_ID}`);
+      const img = screen.getByTestId('qr-code-image');
+      expect(img.getAttribute('alt')).toContain('City Hall');
     });
+
+    // Dynamic rerender with different center
+    rerender(<JoinQrPanel centerId={ALT_CENTER_ID} centerName="College Account" />);
+
+    await waitFor(() => {
+      const img = screen.getByTestId('qr-code-image');
+      expect(img.getAttribute('alt')).toContain('College Account');
+    });
+
+    // Neither center ID is shown as raw text
+    const text = screen.getByLabelText('Join Queue QR Panel').textContent;
+    expect(text).not.toContain(REAL_CENTER_ID);
+    expect(text).not.toContain(ALT_CENTER_ID);
   });
 
   it('18b. no center id is baked into the QR service source', () => {
@@ -174,7 +207,7 @@ describe('18. IDs come from live backend data', () => {
     expect(source).not.toMatch(/['"][0-9a-f]{24}['"]/i);
   });
 
-  it('18c. a missing centerId produces no QR at all rather than a broken one', async () => {
+  it('18c. a missing centerId produces clean empty state rather than broken QR or raw text', async () => {
     const { qr, JoinQrPanel } = await loadQr(`https://${PRODUCTION_HOST}`);
 
     expect(qr.buildCanonicalJoinUrl(null)).toBe('');
@@ -185,14 +218,17 @@ describe('18. IDs come from live backend data', () => {
 
     render(<JoinQrPanel centerId={null} centerName="Unknown" />);
     await waitFor(() => {
-      expect(screen.getByTestId('qr-join-url-preview').textContent).toBe(
-        'No join URL configured'
-      );
+      expect(screen.getByTestId('qr-empty-state')).toBeInTheDocument();
     });
+    expect(screen.getByText('Select a service facility')).toBeInTheDocument();
+    expect(screen.queryByTestId('qr-code-image')).not.toBeInTheDocument();
+
+    const panelText = screen.getByLabelText('Join Queue QR Panel').textContent;
+    expect(panelText).not.toContain('No join URL configured');
   });
 });
 
-describe('19. Nothing secret, and no localhost, in the encoded URL', () => {
+describe('19. Nothing secret, and no localhost, in the encoded URL or UI', () => {
   const forbidden = [
     'jwt',
     'token',
@@ -236,7 +272,7 @@ describe('19. Nothing secret, and no localhost, in the encoded URL', () => {
     expect(url.hash).toBe('');
   });
 
-  it('19c. a localhost QR is surfaced as a configuration error', async () => {
+  it('19c. localhost never appears anywhere in the rendered QR section', async () => {
     const { qr, JoinQrPanel } = await loadQr('http://localhost:5173');
 
     expect(qr.isPublicCustomerWebBase()).toBe(false);
@@ -244,19 +280,19 @@ describe('19. Nothing secret, and no localhost, in the encoded URL', () => {
     render(<JoinQrPanel centerId={REAL_CENTER_ID} centerName="Verify Center" />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('qr-config-warning')).toBeInTheDocument();
+      expect(screen.getByTestId('qr-error-state')).toBeInTheDocument();
     });
-    // The link is still shown, so an operator can see what is configured.
-    expect(screen.getByTestId('qr-join-url-preview').textContent).toContain(
-      'localhost'
-    );
+
+    const panelText = screen.getByLabelText('Join Queue QR Panel').textContent;
+    expect(panelText).not.toContain('localhost');
+    expect(panelText).not.toContain('5173');
+    expect(panelText).not.toContain('http:');
+    expect(screen.queryByTestId('qr-config-warning')).not.toBeInTheDocument();
   });
 
   it('19d. no customer PII is required to build a join URL', async () => {
     const { qr } = await loadQr(`https://${PRODUCTION_HOST}`);
 
-    // The builder takes IDs only — there is nowhere for a name, phone number
-    // or email to enter the QR.
     expect(qr.buildCanonicalJoinUrl.length).toBeLessThanOrEqual(2);
     const url = qr.buildCanonicalJoinUrl(REAL_CENTER_ID);
     expect(url).not.toMatch(/@/);
@@ -264,8 +300,8 @@ describe('19. Nothing secret, and no localhost, in the encoded URL', () => {
   });
 });
 
-describe('20. The legacy queueflow:// link is still produced', () => {
-  it('20a. the custom scheme is returned for backwards compatibility', async () => {
+describe('20. The legacy queueflow:// link is supported internally but never rendered', () => {
+  it('20a. the custom scheme is returned by service for backwards compatibility', async () => {
     const { qr } = await loadQr(`https://${PRODUCTION_HOST}`);
 
     const { deepLink, webUrl } = qr.buildJoinUrls(REAL_CENTER_ID, REAL_SERVICE_ID);
@@ -279,27 +315,23 @@ describe('20. The legacy queueflow:// link is still produced', () => {
     );
   });
 
-  it('20b. the custom scheme is shown, but clearly secondary', async () => {
+  it('20b. queueflow:// is never rendered as visible text in the UI', async () => {
     const { JoinQrPanel } = await loadQr(`https://${PRODUCTION_HOST}`);
 
     render(<JoinQrPanel centerId={REAL_CENTER_ID} centerName="Verify Center" />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('qr-deeplink-preview').textContent).toBe(
-        `queueflow://join?centerId=${REAL_CENTER_ID}`
-      );
+      expect(screen.getByTestId('qr-code-image')).toBeInTheDocument();
     });
-    // And it is never what the QR encodes.
-    expect(screen.getByTestId('qr-join-url-preview').textContent).not.toContain(
-      'queueflow://'
-    );
+
+    const panelText = screen.getByLabelText('Join Queue QR Panel').textContent;
+    expect(panelText).not.toContain('queueflow://');
+    expect(screen.queryByTestId('qr-deeplink-preview')).not.toBeInTheDocument();
   });
 
   it('20c. the canonical payload is a plain web URL any browser can open', async () => {
     const { qr } = await loadQr(`https://${PRODUCTION_HOST}`);
 
-    // A customer without QueueFlow installed lands on Customer Web /join. The
-    // legacy custom scheme cannot do that, which is why it is not primary.
     const url = new URL(qr.resolveQrPayload(REAL_CENTER_ID));
     expect(url.protocol).toBe('https:');
     expect(url.pathname).toBe('/join');

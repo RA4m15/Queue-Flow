@@ -62,7 +62,7 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
         style={{
           marginTop: '1.25rem',
           padding: '1.25rem',
-          background: 'rgba(15, 23, 42, 0.6)',
+          background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '12px',
           textAlign: 'center',
@@ -82,10 +82,10 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
         style={{
           marginTop: '1.25rem',
           padding: '1rem',
-          background: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
+          background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
           borderRadius: '12px',
-          color: '#F87171',
+          color: 'var(--color-danger)',
           fontSize: '0.85rem',
         }}
       >
@@ -104,8 +104,8 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
         style={{
           marginTop: '1.25rem',
           padding: '1.25rem',
-          background: 'linear-gradient(135deg, rgba(0, 229, 168, 0.08) 0%, rgba(14, 165, 233, 0.08) 100%)',
-          border: '1px solid rgba(0, 229, 168, 0.3)',
+          background: 'var(--bg-card) 100%)',
+          border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
           borderRadius: '12px',
           textAlign: 'center',
         }}
@@ -128,7 +128,7 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
         style={{
           marginTop: '1.25rem',
           padding: '1.25rem',
-          background: 'rgba(15, 23, 42, 0.5)',
+          background: 'color-mix(in srgb, var(--bg-card) 50%, transparent)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '12px',
           textAlign: 'center',
@@ -151,7 +151,7 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
         style={{
           marginTop: '1rem',
           padding: '0.75rem 1rem',
-          background: 'rgba(255, 255, 255, 0.03)',
+          background: 'var(--bg-card-alt)',
           borderRadius: '8px',
           border: '1px solid var(--border-subtle)',
           fontSize: '0.8rem',
@@ -187,10 +187,10 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
       style={{
         marginTop: '1.25rem',
         padding: '1.5rem',
-        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%)',
+        background: 'var(--bg-card)',
         border: '1px solid var(--color-primary)',
         borderRadius: '14px',
-        boxShadow: '0 8px 32px rgba(0, 229, 168, 0.1)',
+        boxShadow: '0 8px 32px color-mix(in srgb, var(--color-primary) 10%, transparent)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -215,7 +215,7 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
             key={svc.serviceId}
             style={{
               padding: '1rem',
-              background: 'rgba(8, 12, 22, 0.7)',
+              background: 'var(--bg-app)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '10px',
               display: 'flex',
@@ -231,7 +231,7 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
                     fontWeight: 800,
                     padding: '2px 8px',
                     borderRadius: '6px',
-                    background: 'rgba(0, 229, 168, 0.15)',
+                    background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
                     color: 'var(--color-primary)',
                     fontFamily: 'monospace',
                   }}
@@ -249,8 +249,8 @@ export function NextStepCard({ tokenId, onTransitionSuccess }) {
                   textTransform: 'uppercase',
                   padding: '2px 6px',
                   borderRadius: '4px',
-                  background: svc.relationshipType === 'REQUIRED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                  color: svc.relationshipType === 'REQUIRED' ? '#FCA5A5' : '#93C5FD',
+                  background: svc.relationshipType === 'REQUIRED' ? 'color-mix(in srgb, var(--color-danger) 15%, transparent)' : 'color-mix(in srgb, var(--color-cyan) 15%, transparent)',
+                  color: svc.relationshipType === 'REQUIRED' ? 'var(--color-danger)' : 'var(--color-cyan)',
                 }}
               >
                 {svc.relationshipType}

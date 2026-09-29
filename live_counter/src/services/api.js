@@ -24,11 +24,16 @@ export async function fetchDisplayData(centerId) {
 }
 
 /**
- * Fetch list of active service centers for initial display configuration.
- * Endpoint: GET /api/service-centers
+ * Fetch the list of active service centers for display configuration.
+ * Endpoint: GET /api/service-centers?isOpen=true
+ *
+ * The kiosk selector must only ever offer centers that are actually running,
+ * so this asks the backend for active centers specifically. The backend owns
+ * that decision and the list is never hardcoded here; deactivated facilities
+ * cannot appear in the selector.
  */
 export async function fetchCenters() {
-  const response = await fetch(`${API_BASE}/api/service-centers`);
+  const response = await fetch(`${API_BASE}/api/service-centers?isOpen=true`);
   const data = await response.json();
 
   if (!response.ok || !data.success) {

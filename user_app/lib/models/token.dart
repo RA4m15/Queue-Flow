@@ -55,6 +55,9 @@ class TokenModel {
     this.previousTokenId,
     this.nextTokenId,
     this.servingToken,
+    this.skipReason,
+    this.skippedAt,
+    this.locationStatus,
   });
 
   final String id;
@@ -87,6 +90,14 @@ class TokenModel {
   final String? nextTokenId;
   final String? servingToken;
 
+  /// Why this token was skipped, when it was. `OUT_OF_RANGE` for a Phase 2
+  /// geofence auto-skip; other values for ordinary operator skips.
+  final String? skipReason;
+  final DateTime? skippedAt;
+
+  /// The backend's authoritative location verdict for this token.
+  final String? locationStatus;
+
   int get peopleAhead => (isCalled || isServing)
       ? 0
       : ((currentPosition != null && currentPosition! > 1) ? currentPosition! - 1 : 0);
@@ -96,8 +107,40 @@ class TokenModel {
   bool get isCalled => status.toUpperCase() == 'CALLED';
   bool get isServing => status.toUpperCase() == 'SERVING';
   bool get isCompleted => status.toUpperCase() == 'COMPLETED';
+  bool get isSkipped => status.toUpperCase() == 'SKIPPED';
+
+  /// Phase 2: this token was auto-skipped because the customer left the
+  /// service area. Not an active token, so the heartbeat stops for it.
+  bool get isSkippedOutOfRange => status.toUpperCase() == 'SKIPPED_OUT_OF_RANGE';
+
   bool get canCancel => status.toUpperCase() == 'WAITING';
   bool get hasFeedback => feedback?.rating != null;
+
+  /// True only when the backend affirmatively says the customer is inside.
+  /// Never inferred from the absence of a warning.
+  bool get isLocationInRange => locationStatus?.toUpperCase() == 'IN_RANGE';
+
+  /// True when the backend says the customer is outside the joining radius.
+  bool get isLocationOutOfRange => locationStatus?.toUpperCase() == 'OUT_OF_RANGE';
+
+  /// True when the backend cannot confirm where the customer is.
+  ///
+  /// This is deliberately NOT the same as out of range. An unconfirmed location
+  /// blocks the call on the server; it never removes anyone from the queue.
+  bool get isLocationUnconfirmed {
+    final status = locationStatus?.toUpperCase();
+    return status == 'LOCATION_STALE' || status == 'LOCATION_UNAVAILABLE';
+  }
+
+  /// The plain-language, customer-facing explanation of an out-of-range skip.
+  /// Null for every other status, so the UI can never show it by accident.
+  String? get outOfRangeSkipMessage {
+    if (!isSkippedOutOfRange && !(isSkipped && skipReason?.toUpperCase() == 'OUT_OF_RANGE')) {
+      return null;
+    }
+    return 'Your token was skipped because you were outside the service area. '
+        'You can rejoin the queue from the app.';
+  }
 
   bool get isInsideGeofence => proximityState?.toUpperCase() == 'INSIDE';
   bool get isNearGeofence => proximityState?.toUpperCase() == 'NEAR';
@@ -189,6 +232,9 @@ class TokenModel {
       previousTokenId: (json['previousTokenId'] is Map ? json['previousTokenId']['_id'] : json['previousTokenId'])?.toString(),
       nextTokenId: (json['nextTokenId'] is Map ? json['nextTokenId']['_id'] : json['nextTokenId'])?.toString(),
       servingToken: json['servingToken']?.toString(),
+      skipReason: json['skipReason']?.toString(),
+      skippedAt: json['skippedAt'] != null ? DateTime.tryParse(json['skippedAt'].toString()) : null,
+      locationStatus: json['locationStatus']?.toString(),
     );
   }
 
@@ -218,6 +264,9 @@ class TokenModel {
         'previousTokenId': previousTokenId,
         'nextTokenId': nextTokenId,
         if (servingToken != null) 'servingToken': servingToken,
+        if (skipReason != null) 'skipReason': skipReason,
+        if (skippedAt != null) 'skippedAt': skippedAt?.toIso8601String(),
+        if (locationStatus != null) 'locationStatus': locationStatus,
       };
 
   TokenModel copyWith({
@@ -250,6 +299,9 @@ class TokenModel {
     String? previousTokenId,
     String? nextTokenId,
     String? servingToken,
+    String? skipReason,
+    DateTime? skippedAt,
+    String? locationStatus,
   }) {
     return TokenModel(
       id: id ?? this.id,
@@ -281,6 +333,9 @@ class TokenModel {
       previousTokenId: previousTokenId ?? this.previousTokenId,
       nextTokenId: nextTokenId ?? this.nextTokenId,
       servingToken: servingToken ?? this.servingToken,
+      skipReason: skipReason ?? this.skipReason,
+      skippedAt: skippedAt ?? this.skippedAt,
+      locationStatus: locationStatus ?? this.locationStatus,
     );
   }
 }

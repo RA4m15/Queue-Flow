@@ -545,6 +545,9 @@ async function runTests() {
   }
 
   // Setup token in Service A for customer A
+  // Location is supplied because the Phase 1 join geofence requires it for a
+  // center that has a position configured. ~13 m from centerA, so the join is
+  // unambiguously inside the 100 m radius.
   let tokenA;
   try {
     const joinRes = await queueService.joinQueue({
@@ -552,6 +555,9 @@ async function runTests() {
       centerId: centerA._id.toString(),
       serviceId: serviceA._id.toString(),
       channel: 'WEB',
+      latitude: 40.7129,
+      longitude: -74.0061,
+      accuracy: 10,
     });
     tokenA = joinRes.token;
   } catch (err) {
@@ -594,6 +600,9 @@ async function runTests() {
       userId: customerB._id.toString(),
       centerId: centerA._id.toString(),
       serviceId: serviceA._id.toString(),
+      latitude: 40.7129,
+      longitude: -74.0061,
+      accuracy: 10,
     });
 
     const res = await request('GET', `/api/tokens/${uncompletedJoin.token._id}/next-service`, null, {
@@ -637,6 +646,9 @@ async function runTests() {
       userId: customerB._id.toString(),
       centerId: centerA._id.toString(),
       serviceId: serviceTerminal._id.toString(),
+      latitude: 40.7129,
+      longitude: -74.0061,
+      accuracy: 10,
     });
 
     const counterTerm = await Counter.create({
@@ -703,6 +715,9 @@ async function runTests() {
       userId: custConc._id.toString(),
       centerId: centerA._id.toString(),
       serviceId: serviceA._id.toString(),
+      latitude: 40.7129,
+      longitude: -74.0061,
+      accuracy: 10,
     });
 
     // Directly set this token to CALLED state to avoid FIFO ordering with

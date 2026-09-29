@@ -6,6 +6,7 @@ import { ErrorAlert } from '../components/ErrorAlert';
 import { useAuth } from '../context/AuthContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { BackButton } from '../components/BackButton';
 
 export function TokenDetailPage() {
   const { id } = useParams();
@@ -34,15 +35,19 @@ export function TokenDetailPage() {
         isRefreshing={isRefreshing} 
       />
 
+      <div>
+        <BackButton label="Back" fallback="/my-tokens" />
+      </div>
+
 
       {/* Turn Alert Announcement Banner */}
       {turnAlert && (
         <div
-          role="alert"
-          aria-live="assertive"
+          role="region"
+          aria-label="Turn Alert"
           className="qf-card pulse-mint"
           style={{
-            background: 'linear-gradient(135deg, rgba(0, 229, 168, 0.25) 0%, rgba(0, 210, 255, 0.2) 100%)',
+            background: 'var(--bg-card) 100%)',
             border: '2px solid var(--color-primary)',
             padding: '1.25rem',
             display: 'flex',

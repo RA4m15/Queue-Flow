@@ -9,6 +9,8 @@ import 'services/firebase_push_messaging_client.dart';
 import 'utils/join_link_service.dart';
 import 'utils/widgets/join_link_listener.dart';
 
+import 'widgets/global_floating_actions.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -70,7 +72,9 @@ class QueueFlowApp extends ConsumerWidget {
       // route in app_router.dart). This widget parks the payload until the user
       // is signed in, then runs the one shared join flow.
       builder: (context, child) => JoinLinkListener(
-        child: child ?? const SizedBox.shrink(),
+        child: GlobalFloatingActions(
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }

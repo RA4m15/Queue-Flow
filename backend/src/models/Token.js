@@ -11,8 +11,9 @@ const mongoose = require('mongoose');
  *  SKIPPED   — Admin skipped this token
  *  CANCELLED — Customer cancelled the token
  *  EXPIRED   — Customer did not arrive in time after being called (no-show)
+ *  SKIPPED_OUT_OF_RANGE — Automatically skipped during call next because customer was out of range
  */
-const TOKEN_STATUSES = ['WAITING', 'CALLED', 'SERVING', 'COMPLETED', 'SKIPPED', 'CANCELLED', 'EXPIRED'];
+const TOKEN_STATUSES = ['WAITING', 'CALLED', 'SERVING', 'COMPLETED', 'SKIPPED', 'CANCELLED', 'EXPIRED', 'SKIPPED_OUT_OF_RANGE'];
 
 const tokenSchema = new mongoose.Schema(
   {
@@ -134,7 +135,7 @@ const tokenSchema = new mongoose.Schema(
     // Server-authoritative coarse proximity (zero raw coordinates stored for customer privacy)
     proximityState: {
       type: String,
-      enum: ['UNKNOWN', 'OUTSIDE', 'APPROACHING', 'NEAR', 'INSIDE', 'LOCATION_UNAVAILABLE', 'STALE'],
+      enum: ['UNKNOWN', 'OUTSIDE', 'APPROACHING', 'NEAR', 'INSIDE', 'IN_RANGE', 'OUT_OF_RANGE', 'LOCATION_UNAVAILABLE', 'LOCATION_STALE', 'STALE'],
       default: 'UNKNOWN',
     },
     proximityUpdatedAt: {
@@ -142,6 +143,36 @@ const tokenSchema = new mongoose.Schema(
       default: null,
     },
     proximityDistanceMeters: {
+      type: Number,
+      default: null,
+    },
+    // Phase 2 Second-Stage Geofencing state & audit
+    locationStatus: {
+      type: String,
+      enum: ['IN_RANGE', 'OUT_OF_RANGE', 'LOCATION_STALE', 'LOCATION_UNAVAILABLE'],
+      default: 'LOCATION_UNAVAILABLE',
+    },
+    lastLocation: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      accuracy: { type: Number, default: null },
+      updatedAt: { type: Date, default: null },
+      distanceMeters: { type: Number, default: null },
+      status: {
+        type: String,
+        enum: ['IN_RANGE', 'OUT_OF_RANGE', 'LOCATION_STALE', 'LOCATION_UNAVAILABLE'],
+        default: 'LOCATION_UNAVAILABLE',
+      },
+    },
+    skipReason: {
+      type: String,
+      default: null,
+    },
+    skippedAt: {
+      type: Date,
+      default: null,
+    },
+    checkedDistanceMeters: {
       type: Number,
       default: null,
     },

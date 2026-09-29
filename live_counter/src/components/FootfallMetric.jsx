@@ -12,18 +12,27 @@ export function FootfallMetric({
     ? Math.max(0, Math.round((Date.now() - lastFootfallUpdate.getTime()) / 1000))
     : null;
 
+  // Crowd vocabulary matches the mobile app's CrowdIndicator so the TV board,
+  // the customer web and the phone all describe the same state identically.
   const getStatusBadge = () => {
     if (!isAvailable) {
-      return <span className="footfall-badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }}>SENSOR OFFLINE</span>;
+      return (
+        <span
+          className="footfall-badge"
+          style={{ background: 'var(--bg-card-alt)', color: 'var(--text-muted)', border: '1px solid var(--border-light)' }}
+        >
+          SENSOR OFFLINE
+        </span>
+      );
     }
     const status = (crowdStatus || 'LOW').toUpperCase();
-    if (status === 'HIGH') {
-      return <span className="footfall-badge high">HIGH CROWD</span>;
+    if (status === 'HIGH' || status === 'CRITICAL') {
+      return <span className="footfall-badge high">BUSY</span>;
     }
     if (status === 'MODERATE') {
       return <span className="footfall-badge moderate">MODERATE</span>;
     }
-    return <span className="footfall-badge low">OPTIMAL</span>;
+    return <span className="footfall-badge low">QUIET</span>;
   };
 
   return (
@@ -34,14 +43,24 @@ export function FootfallMetric({
       </div>
 
       <div className="metric-value">
-        {isAvailable ? footfall : (
-          <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>Unavailable</span>
+        {isAvailable ? (
+          <>
+            {footfall}
+            {capacity ? <span className="metric-value-unit"> / {capacity}</span> : null}
+          </>
+        ) : (
+          <span className="metric-value-empty">Unavailable</span>
         )}
       </div>
 
       <div className="metric-sub">
         {isAvailable ? (
-          capacity ? `${crowdPercent ?? Math.round((footfall / capacity) * 100)}% of ${capacity} capacity` : 'Real-time CCTV track'
+          // Occupancy percentage is the backend's own derivation from the stored
+          // count and capacity. It is never recomputed here, so this board and the
+          // Admin dashboard cannot disagree about the same center.
+          typeof crowdPercent === 'number'
+            ? `${crowdPercent}% of capacity`
+            : 'Real-time CCTV track'
         ) : (
           lastFootfallUpdate
             ? `Last updated ${Math.round((Date.now() - lastFootfallUpdate.getTime()) / 1000)}s ago`

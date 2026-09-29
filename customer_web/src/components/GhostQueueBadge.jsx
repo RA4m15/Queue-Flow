@@ -18,50 +18,50 @@ export function GhostQueueBadge({ token }) {
   // Resolve truthful display state
   let badgeLabel = 'Location permission required';
   let badgeColor = 'var(--text-muted)';
-  let badgeBg = 'rgba(255, 255, 255, 0.05)';
+  let badgeBg = 'var(--bg-card-alt)';
   let icon = '📍';
   let description = 'Enable location to track your approach remotely.';
 
   if (geoStatus === 'DENIED') {
     badgeLabel = 'Location permission denied';
-    badgeColor = 'var(--color-danger, #ff4d4f)';
+    badgeColor = 'var(--color-danger, var(--color-danger))';
     badgeBg = 'rgba(255, 77, 79, 0.15)';
     icon = '🚫';
     description = 'Please allow location access in your browser to evaluate proximity.';
   } else if (geoStatus === 'UNAVAILABLE' || proximityState === 'LOCATION_UNAVAILABLE') {
     badgeLabel = 'Location unavailable';
     badgeColor = 'var(--text-muted)';
-    badgeBg = 'rgba(255, 255, 255, 0.08)';
+    badgeBg = 'var(--bg-card-alt)';
     icon = '⚠️';
     description = 'Service center location is not configured for geofencing.';
   } else if (proximityState === 'INSIDE') {
     badgeLabel = 'Inside service area';
-    badgeColor = 'var(--color-primary, #00e5a8)';
-    badgeBg = 'rgba(0, 229, 168, 0.15)';
+    badgeColor = 'var(--color-primary, var(--color-primary))';
+    badgeBg = 'color-mix(in srgb, var(--color-primary) 15%, transparent)';
     icon = '✅';
     description = 'You are within the service center area. Please stay ready for your turn.';
   } else if (proximityState === 'NEAR') {
     badgeLabel = 'Near service center';
-    badgeColor = '#00d2ff';
-    badgeBg = 'rgba(0, 210, 255, 0.15)';
+    badgeColor = 'var(--color-cyan)';
+    badgeBg = 'color-mix(in srgb, var(--color-cyan) 15%, transparent)';
     icon = '🚶';
     description = 'You are in the immediate vicinity of the service center.';
   } else if (proximityState === 'APPROACHING') {
     badgeLabel = 'Approaching';
-    badgeColor = '#ffb800';
+    badgeColor = 'var(--color-warning)';
     badgeBg = 'rgba(255, 184, 0, 0.15)';
     icon = '🚗';
     description = 'You are approaching the service center area.';
   } else if (proximityState === 'OUTSIDE') {
     badgeLabel = 'Outside service area';
-    badgeColor = 'var(--text-secondary, #94a3b8)';
-    badgeBg = 'rgba(148, 163, 184, 0.1)';
+    badgeColor = 'var(--text-secondary, var(--text-secondary))';
+    badgeBg = 'color-mix(in srgb, var(--text-secondary) 10%, transparent)';
     icon = '🌐';
     description = 'Remote: You can remain outside without physically standing in line.';
   } else if (proximityState === 'STALE') {
     badgeLabel = 'Location stale';
-    badgeColor = '#f59e0b';
-    badgeBg = 'rgba(245, 158, 11, 0.15)';
+    badgeColor = 'var(--color-warning)';
+    badgeBg = 'color-mix(in srgb, var(--color-warning) 15%, transparent)';
     icon = '⏱️';
     description = 'Location has not updated recently. Please refresh your location.';
   }
@@ -85,7 +85,7 @@ export function GhostQueueBadge({ token }) {
         marginTop: '1rem',
         padding: '0.875rem 1rem',
         borderRadius: '10px',
-        background: 'rgba(15, 23, 42, 0.65)',
+        background: 'color-mix(in srgb, var(--bg-card) 65%, transparent)',
         border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
         fontSize: '0.85rem',
       }}
@@ -138,7 +138,7 @@ export function GhostQueueBadge({ token }) {
           marginTop: '0.5rem',
           fontSize: '0.75rem',
           color: 'var(--text-muted)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+          borderTop: '1px solid var(--bg-card-alt)',
           paddingTop: '0.4rem',
         }}
       >
@@ -153,7 +153,7 @@ export function GhostQueueBadge({ token }) {
           </span>
         )}
         {errorMessage && (
-          <span style={{ color: 'var(--color-danger, #ff4d4f)' }}>{errorMessage}</span>
+          <span style={{ color: 'var(--color-danger, var(--color-danger))' }}>{errorMessage}</span>
         )}
       </div>
     </div>

@@ -117,6 +117,8 @@ def make_args(**overrides):
     args.center_id = "507f1f77bcf86cd799439011"
     args.camera = "0"
     args.interval = 1.0
+    args.heartbeat = 15.0
+    args.max_backoff = 60.0
     args.headless = True
     args.model = "yolo11n.pt"
     args.mock = False
@@ -139,6 +141,64 @@ def make_cap(opened=True, frames=None, read_results=None):
     else:
         cap.read.side_effect = list(frames or [])
     return cap
+
+
+class _InlinePublisher:
+    """Stand-in for the background TelemetryPublisher.
+
+    Records every reported count synchronously so the detection-loop tests keep
+    asserting an exact publish sequence, and always reports success so the
+    throttling layer does not suppress later frames the way a real backend
+    rejection would.
+
+    ``call_count`` and ``call_args_list`` are surfaced from ``report()`` so the
+    original assertions on the old ``publish_telemetry`` seam remain valid.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.enabled = True
+        self.last_status = "ok"
+        self.accepted = 0
+        self.rejected = 0
+        self.attempts = 0
+        # The harness drives the detection loop synchronously, so telemetry
+        # must be attempted inline; a background worker would not be
+        # scheduled before run() returns.
+        kwargs['start_inline'] = True
+        # `report` is the seam the old inline publisher exposed, so the same
+        # call_count / call_args_list surface the original tests read is
+        # preserved here.
+        self.report = MagicMock()
+
+    @property
+    def call_args_list(self):
+        return self.report.call_args_list
+
+    @property
+    def call_count(self):
+        return self.report.call_count
+
+    def start(self):
+        pass
+
+    def close(self, timeout=None):
+        pass
+
+    def status_line(self):
+        return "test"
+
+
+def _inline_publisher_class():
+    """Return a patchable factory yielding _InlinePublisher instances.
+
+    The same recorder instance is returned every time so a test can read
+    ``call_count`` / ``call_args_list`` from it, exactly as it previously read
+    them from the patched publish function.
+    """
+    instance = _InlinePublisher()
+    return MagicMock(return_value=instance)
 
 
 class TestCrowdMonitor(unittest.TestCase):
@@ -271,7 +331,7 @@ class TestCameraInputRegression(unittest.TestCase):
 
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
-             patch("crowd_counter.publish_telemetry") as mock_publish, \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()) as mock_publish, \
              patch("builtins.print", side_effect=lambda *a, **k: lines.append(" ".join(str(x) for x in a))), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             exit_code = run()
@@ -293,7 +353,7 @@ class TestCameraInputRegression(unittest.TestCase):
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
              patch("crowd_counter.cv2.circle") as mock_circle, \
              patch("crowd_counter.cv2.rectangle") as mock_rect, \
-             patch("crowd_counter.publish_telemetry"), \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()), \
              patch("builtins.print"), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             run()
@@ -307,7 +367,7 @@ class TestCameraInputRegression(unittest.TestCase):
 
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap) as mock_vc, \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")) as mock_publish, \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()) as mock_publish, \
              patch("builtins.print"), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             exit_code = run()
@@ -327,12 +387,16 @@ class TestCameraInputRegression(unittest.TestCase):
             # occlusion; the high gate belongs to counting, not tracking.
             self.assertLessEqual(call["conf"], 0.1)
 
-        # Telemetry published with the real detector's count, not the mock's [1, 2]
+        # Telemetry carried the real detector's count, not the mock's [1, 2]
         mock_publish.assert_called()
-        positional, _ = mock_publish.call_args
-        self.assertEqual(positional[2], "507f1f77bcf86cd799439011")
-        self.assertEqual(positional[3], 2)
-        self.assertEqual(positional[4], [7, 8])
+        ctor = mock_publish.call_args.kwargs
+        self.assertEqual(ctor["center_id"], "507f1f77bcf86cd799439011")
+        self.assertEqual(ctor["min_interval"], 1.0)
+        self.assertEqual(ctor["heartbeat_interval"], 15.0)
+        report = mock_publish.return_value.report
+        self.assertTrue(report.called, "the detection loop must report its count")
+        self.assertEqual(report.call_args_list[0].args[0], 2)
+        self.assertEqual(report.call_args_list[0].args[1], [7, 8])
         cap.release.assert_called_once()
 
     def test_run_reports_camera_offline_on_mid_stream_read_failure(self):
@@ -342,7 +406,7 @@ class TestCameraInputRegression(unittest.TestCase):
         lines = []
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")) as mock_publish, \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()) as mock_publish, \
              patch("builtins.print", side_effect=lambda *a, **k: lines.append(" ".join(str(x) for x in a))), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             exit_code = run()
@@ -359,7 +423,7 @@ class TestCameraInputRegression(unittest.TestCase):
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture") as mock_vc, \
              patch("crowd_counter.cv2.circle"), \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")), \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()), \
              patch("builtins.print"), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             exit_code = run()
@@ -376,7 +440,7 @@ class TestCameraInputRegression(unittest.TestCase):
         lines = []
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
-             patch("crowd_counter.publish_telemetry") as mock_publish, \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()) as mock_publish, \
              patch("builtins.print", side_effect=lambda *a, **k: lines.append(" ".join(str(x) for x in a))), \
              patch.dict(sys.modules, {"ultralytics": broken}):
             exit_code = run()
@@ -561,13 +625,13 @@ class TestLiveFootfallCounting(unittest.TestCase):
 
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")) as pub, \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()) as pub, \
              patch("builtins.print"), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics(factory)}):
             code = run()
 
-        counts = [c[0][3] for c in pub.call_args_list]
-        return code, counts, pub
+        counts = [c.args[0] for c in pub.return_value.call_args_list]
+        return code, counts, pub.return_value
 
     def test_zero_is_published_and_previous_count_is_not_retained(self):
         frames = [
@@ -610,16 +674,17 @@ class TestLiveFootfallCounting(unittest.TestCase):
         cap = make_cap(read_results=[(True, object()), (False, None)])
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")) as pub, \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()) as pub, \
              patch("builtins.print"), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             code = run()
 
         self.assertEqual(code, 2)
-        counts = [c[0][3] for c in pub.call_args_list]
+        recorder = pub.return_value
+        counts = [c.args[0] for c in recorder.call_args_list]
         # Only the one genuinely captured frame may be published; no trailing 0.
         self.assertNotIn(0, counts)
-        self.assertLessEqual(pub.call_count, 1)
+        self.assertLessEqual(recorder.call_count, 1)
         cap.release.assert_called_once()
 
     def test_mock_mode_never_publishes_a_real_sensing_count(self):
@@ -627,7 +692,7 @@ class TestLiveFootfallCounting(unittest.TestCase):
         args = make_args(mock=True, max_frames=2)
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture") as vc, \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")), \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()), \
              patch("builtins.print"), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             code = run()
@@ -641,7 +706,7 @@ class TestLiveFootfallCounting(unittest.TestCase):
         cap = make_cap(read_results=[(True, object())] * 4)
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")), \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()), \
              patch("builtins.print"), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics()}):
             run()
@@ -657,7 +722,7 @@ class TestLiveFootfallCounting(unittest.TestCase):
         cap = make_cap(read_results=[(True, object())] * 3)
         with patch("crowd_counter.parse_args", return_value=args), \
              patch("crowd_counter.cv2.VideoCapture", return_value=cap), \
-             patch("crowd_counter.publish_telemetry", return_value=(True, "Published OK")), \
+             patch("crowd_counter.TelemetryPublisher", _inline_publisher_class()), \
              patch("builtins.print", side_effect=lambda *a, **k: lines.append(" ".join(str(x) for x in a))), \
              patch.dict(sys.modules, {"ultralytics": make_fake_ultralytics(factory)}):
             run()

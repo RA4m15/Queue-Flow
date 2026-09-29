@@ -21,17 +21,17 @@ export function ConnectionIndicator({
           alignItems: 'center',
           gap: '0.4rem',
           fontSize: '0.75rem',
-          color: '#F87171',
-          background: 'rgba(239, 68, 68, 0.1)',
+          color: 'var(--color-danger)',
+          background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
           padding: '0.2rem 0.6rem',
           borderRadius: '9999px',
-          border: '1px solid rgba(239, 68, 68, 0.25)',
+          border: '1px solid color-mix(in srgb, var(--color-danger) 25%, transparent)',
         }}
         role="status"
         aria-live="polite"
         title={title}
       >
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444' }} />
+        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-danger)' }} />
         Offline
       </div>
     );
@@ -45,16 +45,16 @@ export function ConnectionIndicator({
           alignItems: 'center',
           gap: '0.4rem',
           fontSize: '0.75rem',
-          color: '#FBBF24',
-          background: 'rgba(245, 158, 11, 0.1)',
+          color: 'var(--color-warning)',
+          background: 'color-mix(in srgb, var(--color-warning) 10%, transparent)',
           padding: '0.2rem 0.6rem',
           borderRadius: '9999px',
-          border: '1px solid rgba(245, 158, 11, 0.25)',
+          border: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)',
         }}
         role="status"
         aria-live="polite"
       >
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F59E0B' }} />
+        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-warning)' }} />
         Reconnecting...
       </div>
     );
@@ -68,7 +68,7 @@ export function ConnectionIndicator({
           alignItems: 'center',
           gap: '0.4rem',
           fontSize: '0.75rem',
-          color: '#38BDF8',
+          color: 'var(--color-cyan)',
           background: 'rgba(56, 189, 248, 0.1)',
           padding: '0.2rem 0.6rem',
           borderRadius: '9999px',
@@ -77,7 +77,7 @@ export function ConnectionIndicator({
         role="status"
         aria-live="polite"
       >
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38BDF8' }} />
+        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-cyan)' }} />
         Refreshing live status...
       </div>
     );
@@ -90,16 +90,16 @@ export function ConnectionIndicator({
         alignItems: 'center',
         gap: '0.4rem',
         fontSize: '0.75rem',
-        color: '#00E5A8',
-        background: 'rgba(0, 229, 168, 0.1)',
+        color: 'var(--color-primary)',
+        background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
         padding: '0.2rem 0.6rem',
         borderRadius: '9999px',
-        border: '1px solid rgba(0, 229, 168, 0.25)',
+        border: '1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)',
       }}
       role="status"
       aria-live="polite"
     >
-      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00E5A8' }} />
+      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary)' }} />
       Live
     </div>
   );

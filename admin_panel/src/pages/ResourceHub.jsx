@@ -26,6 +26,9 @@ import {
   Zap,
   TrendingUp,
   Activity,
+  UserCheck,
+  UserX,
+  UserPlus,
 } from 'lucide-react';
 
 /**
@@ -97,6 +100,14 @@ export default function ResourceHub() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState(null);
 
+  // Centralized Resource Allocation — authoritative snapshot served by the
+  // backend allocator. Nothing here is derived client-side; a value the
+  // backend did not supply is rendered as "Unavailable", never invented.
+  const [allocation, setAllocation] = useState(null);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationError, setAllocationError] = useState(null);
+  const [allocationRunState, setAllocationRunState] = useState(null);
+
   // Tier 3 / Feature 1: context-aware EWT explainability (backend-computed only)
   const [ewtData, setEwtData] = useState(null);
   const [ewtError, setEwtError] = useState(null);
@@ -131,11 +142,25 @@ export default function ResourceHub() {
   const [historicalPage, setHistoricalPage] = useState(1);
   const [filterServiceId, setFilterServiceId] = useState('');
 
-  // 1. Fetch available centers on mount
+  // Real Center Operators
+  const [operators, setOperators] = useState([]);
+  const [operatorsLoading, setOperatorsLoading] = useState(false);
+  const [operatorsError, setOperatorsError] = useState(null);
+
+  // Operator assignment modal state
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedCounterForAssign, setSelectedCounterForAssign] = useState(null);
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState(null);
+  const [assignSuccess, setAssignSuccess] = useState(null);
+  const [quickActionLoading, setQuickActionLoading] = useState({});
+
+  // 1. Fetch available centers on mount (only active/open operational centers)
   useEffect(() => {
     let mounted = true;
     serviceCenterAPI
-      .list()
+      .list({ isOpen: true })
       .then((res) => {
         if (!mounted) return;
         const list = res.data?.data?.centers || [];
@@ -154,6 +179,22 @@ export default function ResourceHub() {
     };
   }, [activeCenterId, setActiveCenterId, selectedCenterId]);
 
+  // 1b. Fetch Center Operators
+  const fetchOperators = useCallback(async () => {
+    if (!selectedCenterId) return;
+    setOperatorsLoading(true);
+    setOperatorsError(null);
+    try {
+      const res = await counterAPI.getOperators(selectedCenterId);
+      setOperators(res.data?.data?.operators || []);
+    } catch (err) {
+      setOperators([]);
+      setOperatorsError(err.response?.data?.message || 'Failed to load operators');
+    } finally {
+      setOperatorsLoading(false);
+    }
+  }, [selectedCenterId]);
+
   // 2. Fetch Operational Overview
   const fetchOverview = useCallback(async () => {
     if (!selectedCenterId) return;
@@ -166,6 +207,21 @@ export default function ResourceHub() {
       setOverviewError(err.response?.data?.message || 'Failed to load operational overview');
     } finally {
       setOverviewLoading(false);
+    }
+  }, [selectedCenterId]);
+
+  // 2a. Fetch the centralized resource-allocation snapshot.
+  // This is a pure read of backend state: which counters exist, what each one
+  // is doing, which token it currently holds, and whether the allocator is on.
+  const fetchAllocation = useCallback(async () => {
+    if (!selectedCenterId) return;
+    setAllocationError(null);
+    try {
+      const res = await counterAPI.getAllocationOverview(selectedCenterId);
+      setAllocation(res.data?.data || null);
+    } catch (err) {
+      setAllocation(null);
+      setAllocationError(err.response?.data?.message || 'Failed to load resource allocation state');
     }
   }, [selectedCenterId]);
 
@@ -249,6 +305,8 @@ export default function ResourceHub() {
     if (selectedCenterId) {
       if (activeTab === 'overview') {
         fetchOverview();
+        fetchAllocation();
+        fetchOperators();
       } else if (activeTab === 'historical') {
         fetchHistorical();
       } else if (activeTab === 'forecast') {
@@ -257,7 +315,107 @@ export default function ResourceHub() {
         fetchWorkload();
       }
     }
-  }, [selectedCenterId, activeTab, fetchOverview, fetchHistorical, fetchForecast, fetchWorkload]);
+  }, [
+    selectedCenterId,
+    activeTab,
+    fetchOverview,
+    fetchAllocation,
+    fetchOperators,
+    fetchHistorical,
+    fetchForecast,
+    fetchWorkload,
+  ]);
+
+  // Operator assignment handlers
+  const openAssignModal = (counter, preselectedStaffId = '') => {
+    setSelectedCounterForAssign(counter);
+    setSelectedStaffId(
+      preselectedStaffId ||
+      counter.staff?._id ||
+      counter.staffId?._id ||
+      counter.staffId ||
+      ''
+    );
+    setAssignError(null);
+    setAssignSuccess(null);
+    setAssignModalOpen(true);
+  };
+
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCounterForAssign) return;
+    setAssignLoading(true);
+    setAssignError(null);
+    setAssignSuccess(null);
+    try {
+      const res = await counterAPI.assignStaff(
+        selectedCounterForAssign._id,
+        selectedStaffId || null
+      );
+      setAssignSuccess(res.data?.message || 'Staff assignment updated successfully');
+      fetchOverview();
+      fetchAllocation();
+      fetchOperators();
+      setTimeout(() => {
+        setAssignModalOpen(false);
+      }, 1000);
+    } catch (err) {
+      setAssignError(err.response?.data?.message || 'Failed to assign operator');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleQuickUnassign = async (counterId) => {
+    if (!counterId) return;
+    setQuickActionLoading((prev) => ({ ...prev, [counterId]: 'unassign' }));
+    try {
+      await counterAPI.assignStaff(counterId, null);
+      await Promise.all([fetchOverview(), fetchAllocation(), fetchOperators()]);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to unassign operator');
+    } finally {
+      setQuickActionLoading((prev) => ({ ...prev, [counterId]: null }));
+    }
+  };
+
+  const handleQuickStatusChange = async (counterId, newStatus) => {
+    if (!counterId || !newStatus) return;
+    setQuickActionLoading((prev) => ({ ...prev, [counterId]: newStatus }));
+    try {
+      await counterAPI.updateStatus(counterId, newStatus);
+      await Promise.all([fetchOverview(), fetchAllocation(), fetchOperators()]);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update desk status');
+    } finally {
+      setQuickActionLoading((prev) => ({ ...prev, [counterId]: null }));
+    }
+  };
+
+  // 3a. Manual allocation run. The operator only asks the backend to run its
+  // allocator now; every decision (who, which counter) stays server-side.
+  const handleRunAllocation = async () => {
+    if (!selectedCenterId) return;
+    setAllocationRunState({ loading: true, message: null, error: null });
+    try {
+      const res = await counterAPI.runAllocation(selectedCenterId);
+      const data = res.data?.data;
+      setAllocationRunState({
+        loading: false,
+        message:
+          data?.message ||
+          `Allocation pass complete — ${data?.allocatedCount ?? 0} token(s) assigned.`,
+        error: null,
+      });
+      await Promise.all([fetchAllocation(), fetchOperators()]);
+    } catch (err) {
+      setAllocationRunState({
+        loading: false,
+        message: null,
+        error: err.response?.data?.message || 'Failed to run resource allocation',
+      });
+    }
+  };
 
   // EWT explainability is admin-only; a 403/401 simply hides the panel.
   useEffect(() => {
@@ -268,24 +426,67 @@ export default function ResourceHub() {
     }
   }, [selectedCenterId, isAdmin, fetchEwt]);
 
+  // Tab focus / visibility auto-refresh
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedCenterId) {
+        fetchOverview();
+        fetchAllocation();
+        fetchOperators();
+        if (isAdmin) fetchEwt();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [selectedCenterId, fetchOverview, fetchAllocation, fetchOperators, fetchEwt, isAdmin]);
+
   // 4. Real-time Socket.IO Listeners
   useEffect(() => {
     if (!socket || !selectedCenterId) return;
 
     const handleCounterEvent = () => {
       fetchOverview();
+      fetchAllocation();
+      fetchOperators();
       if (isAdmin) fetchEwt();
     };
 
     const handleQueueEvent = () => {
       fetchOverview();
+      fetchAllocation();
       if (isAdmin) fetchEwt();
     };
 
     const handleWorkloadEvent = () => {
       fetchWorkload();
+      fetchOperators();
     };
 
+    // The allocator pushes its own authoritative snapshot on every decision it
+    // makes. Consume that payload directly so the board is never a re-derived
+    // guess; fall back to a fetch only if the event carries no body.
+    const handleAllocationEvent = (payload) => {
+      if (payload && Array.isArray(payload.counters) && payload.metrics) {
+        setAllocation(payload);
+        setAllocationError(null);
+      } else {
+        fetchAllocation();
+      }
+      fetchOperators();
+    };
+
+    const handleConnect = () => {
+      fetchOverview();
+      fetchAllocation();
+      fetchOperators();
+      if (isAdmin) fetchEwt();
+    };
+
+    socket.on('connect', handleConnect);
     socket.on('counter.updated', handleCounterEvent);
     socket.on('counter.morphed', handleCounterEvent);
     socket.on('queue.updated', handleQueueEvent);
@@ -294,8 +495,10 @@ export default function ResourceHub() {
     socket.on('token.completed', handleQueueEvent);
     socket.on('token.skipped', handleQueueEvent);
     socket.on('workload.updated', handleWorkloadEvent);
+    socket.on('resource.allocation.updated', handleAllocationEvent);
 
     return () => {
+      socket.off('connect', handleConnect);
       socket.off('counter.updated', handleCounterEvent);
       socket.off('counter.morphed', handleCounterEvent);
       socket.off('queue.updated', handleQueueEvent);
@@ -304,8 +507,18 @@ export default function ResourceHub() {
       socket.off('token.completed', handleQueueEvent);
       socket.off('token.skipped', handleQueueEvent);
       socket.off('workload.updated', handleWorkloadEvent);
+      socket.off('resource.allocation.updated', handleAllocationEvent);
     };
-  }, [socket, selectedCenterId, fetchOverview, fetchEwt, fetchWorkload, isAdmin]);
+  }, [
+    socket,
+    selectedCenterId,
+    fetchOverview,
+    fetchEwt,
+    fetchWorkload,
+    fetchAllocation,
+    fetchOperators,
+    isAdmin,
+  ]);
 
   // Handle Center Selection
   const handleCenterChange = (e) => {
@@ -367,6 +580,35 @@ export default function ResourceHub() {
   const services = overview?.services || [];
   const recentEvents = overview?.recentEvents || [];
 
+  // ── Centralized Resource Allocation (backend-authoritative) ──────────
+  const allocMetrics = allocation?.metrics || null;
+  const allocCounters = allocation?.counters || [];
+  const allocQueues = allocation?.queues || [];
+  const allocWaiting = allocation?.waitingQueue || [];
+  const allocEnabled = allocation?.autoResourceAllocation === true;
+
+  // Truthful rendering rule: a number the backend did not provide shows as
+  // "Unavailable" rather than being defaulted to 0 or an estimate.
+  const showValue = (v, suffix = '') => {
+    if (v === null || v === undefined || v === '' || v === 'Unavailable') return 'Unavailable';
+    return `${v}${suffix}`;
+  };
+
+  const allocationStateTone = (state) => {
+    switch (state) {
+      case 'READY':
+        return { bg: 'color-mix(in srgb, var(--color-cyan) 14%, transparent)', fg: 'var(--color-cyan)', bd: 'color-mix(in srgb, var(--color-cyan) 34%, transparent)' };
+      case 'BUSY':
+        return { bg: 'color-mix(in srgb, var(--color-primary) 14%, transparent)', fg: 'var(--color-primary)', bd: 'color-mix(in srgb, var(--color-primary) 34%, transparent)' };
+      case 'BREAK':
+        return { bg: 'color-mix(in srgb, var(--color-warning) 14%, transparent)', fg: 'var(--color-warning)', bd: 'color-mix(in srgb, var(--color-warning) 34%, transparent)' };
+      case 'CLOSED':
+        return { bg: 'color-mix(in srgb, var(--color-danger) 14%, transparent)', fg: 'var(--color-danger)', bd: 'color-mix(in srgb, var(--color-danger) 34%, transparent)' };
+      default:
+        return { bg: 'var(--bg-card-alt)', fg: 'var(--text-muted)', bd: 'var(--border-subtle)' };
+    }
+  };
+
   // Tier 3 / Feature 1 — backend-computed EWT, keyed by serviceId.
   const ewtServicesById = (ewtData?.services || []).reduce((acc, s) => {
     acc[String(s.serviceId)] = s;
@@ -388,7 +630,7 @@ export default function ResourceHub() {
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
               Centralized Resource Hub
             </h1>
             <span
@@ -398,15 +640,15 @@ export default function ResourceHub() {
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: 'rgba(0, 229, 168, 0.12)',
-                color: '#00E5A8',
-                border: '1px solid rgba(0, 229, 168, 0.3)',
+                background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+                color: 'var(--color-primary)',
+                border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
               }}
             >
               TIER 2 OPERATIONS
             </span>
           </div>
-          <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '3px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '3px' }}>
             Multi-counter telemetry, dynamic counter morphing, and authoritative SLA audit reporting
           </p>
         </div>
@@ -414,14 +656,14 @@ export default function ResourceHub() {
         {/* Center Selector & Tab Switcher */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Building2 size={16} color="#64748B" />
+            <Building2 size={16} color="var(--text-muted)" />
             <select
               value={selectedCenterId}
               onChange={handleCenterChange}
               style={{
-                background: 'rgba(17, 27, 44, 0.8)',
+                background: 'var(--bg-card-alt)',
                 border: '1px solid var(--border-subtle)',
-                color: '#F8FAFC',
+                color: 'var(--text-primary)',
                 borderRadius: '10px',
                 padding: '8px 14px',
                 fontSize: '13px',
@@ -451,9 +693,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('overview')}
               style={{
-                background: activeTab === 'overview' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'overview' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'overview' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'overview' ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'transparent',
+                color: activeTab === 'overview' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                border: activeTab === 'overview' ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -470,9 +712,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('historical')}
               style={{
-                background: activeTab === 'historical' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'historical' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'historical' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'historical' ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'transparent',
+                color: activeTab === 'historical' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                border: activeTab === 'historical' ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -489,9 +731,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('forecast')}
               style={{
-                background: activeTab === 'forecast' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'forecast' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'forecast' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'forecast' ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'transparent',
+                color: activeTab === 'forecast' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                border: activeTab === 'forecast' ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -508,9 +750,9 @@ export default function ResourceHub() {
             <button
               onClick={() => setActiveTab('workload')}
               style={{
-                background: activeTab === 'workload' ? 'rgba(0, 229, 168, 0.15)' : 'transparent',
-                color: activeTab === 'workload' ? '#00E5A8' : '#94A3B8',
-                border: activeTab === 'workload' ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                background: activeTab === 'workload' ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'transparent',
+                color: activeTab === 'workload' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                border: activeTab === 'workload' ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)' : '1px solid transparent',
                 borderRadius: '8px',
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -542,7 +784,7 @@ export default function ResourceHub() {
       {centerInfo && (
         <div
           style={{
-            background: 'linear-gradient(90deg, rgba(17, 27, 44, 0.7) 0%, rgba(13, 20, 34, 0.7) 100%)',
+            background: 'var(--bg-card-alt)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '16px',
             padding: '14px 20px',
@@ -560,19 +802,19 @@ export default function ResourceHub() {
                 width: '42px',
                 height: '42px',
                 borderRadius: '12px',
-                background: 'rgba(0, 229, 168, 0.12)',
-                border: '1px solid rgba(0, 229, 168, 0.25)',
+                background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#00E5A8',
+                color: 'var(--color-primary)',
               }}
             >
               <Building2 size={22} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: '#F8FAFC' }}>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {centerInfo.name}
                 </span>
                 <span
@@ -582,15 +824,15 @@ export default function ResourceHub() {
                     fontWeight: 700,
                     padding: '2px 8px',
                     borderRadius: '6px',
-                    background: centerInfo.isOpen ? 'rgba(0, 229, 168, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                    color: centerInfo.isOpen ? '#00E5A8' : '#EF4444',
-                    border: `1px solid ${centerInfo.isOpen ? 'rgba(0, 229, 168, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    background: centerInfo.isOpen ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'color-mix(in srgb, var(--color-danger) 15%, transparent)',
+                    color: centerInfo.isOpen ? 'var(--color-primary)' : 'var(--color-danger)',
+                    border: `1px solid ${centerInfo.isOpen ? 'color-mix(in srgb, var(--color-primary) 30%, transparent)' : 'color-mix(in srgb, var(--color-danger) 30%, transparent)'}`,
                   }}
                 >
                   {centerInfo.isOpen ? 'OPEN' : 'CLOSED'}
                 </span>
               </div>
-              <p className="mono" style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+              <p className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                 CODE: {centerInfo.code} • FACILITY TYPE: {centerInfo.type} • CAPACITY: {centerInfo.capacity}
               </p>
             </div>
@@ -599,10 +841,12 @@ export default function ResourceHub() {
           {/* Crowd & Telemetry Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <div>
-              <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Live Crowd</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Live Crowd</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                <span style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC' }}>
-                  {centerInfo.currentCrowd || 0} / {centerInfo.capacity}
+                <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {typeof centerInfo.currentCrowd === 'number'
+                    ? `${centerInfo.currentCrowd} / ${centerInfo.capacity ?? '—'}`
+                    : 'Unavailable'}
                 </span>
                 <span
                   className="mono"
@@ -613,36 +857,36 @@ export default function ResourceHub() {
                     borderRadius: '4px',
                     background:
                       centerInfo.crowdStatus === 'HIGH'
-                        ? 'rgba(239, 68, 68, 0.2)'
+                        ? 'color-mix(in srgb, var(--color-danger) 20%, transparent)'
                         : centerInfo.crowdStatus === 'MODERATE'
-                        ? 'rgba(245, 158, 11, 0.2)'
-                        : 'rgba(0, 229, 168, 0.2)',
+                        ? 'color-mix(in srgb, var(--color-warning) 20%, transparent)'
+                        : 'color-mix(in srgb, var(--color-primary) 20%, transparent)',
                     color:
                       centerInfo.crowdStatus === 'HIGH'
-                        ? '#EF4444'
+                        ? 'var(--color-danger)'
                         : centerInfo.crowdStatus === 'MODERATE'
-                        ? '#F59E0B'
-                        : '#00E5A8',
+                        ? 'var(--color-warning)'
+                        : 'var(--color-primary)',
                   }}
                 >
-                  {centerInfo.crowdStatus || 'LOW'} ({centerInfo.crowdPercent || 0}%)
+                  {centerInfo.crowdStatus ?? 'UNKNOWN'}
+                  {typeof centerInfo.crowdPercent === 'number' ? ` (${centerInfo.crowdPercent}%)` : ''}
                 </span>
               </div>
             </div>
 
             <div style={{ borderLeft: '1px solid var(--border-subtle)', paddingLeft: '20px' }}>
-              <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Telemetry Mesh</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Telemetry Mesh</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                 <span
                   style={{
                     width: '8px',
                     height: '8px',
                     borderRadius: '50%',
-                    background: isConnected ? '#00E5A8' : '#F59E0B',
-                    boxShadow: isConnected ? '0 0 10px #00E5A8' : 'none',
+                    background: isConnected ? 'var(--color-primary)' : 'var(--color-warning)',
                   }}
                 />
-                <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: isConnected ? '#00E5A8' : '#F59E0B' }}>
+                <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: isConnected ? 'var(--color-primary)' : 'var(--color-warning)' }}>
                   {isConnected ? 'LIVE SYNC' : 'RECONNECTING'}
                 </span>
               </div>
@@ -670,53 +914,369 @@ export default function ResourceHub() {
               >
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Total Counters</span>
-                  <span className="stat-pill-val" style={{ color: '#F8FAFC', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--text-primary)', marginTop: '4px' }}>
                     {metrics.totalCounters || 0}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     {metrics.activeCounters || 0} Active • {metrics.closedCounters || 0} Closed
                   </span>
                 </div>
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Active / Serving</span>
-                  <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--color-primary)', marginTop: '4px' }}>
                     {metrics.servingCounters || 0}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     {metrics.calledCounters || 0} Called tokens
                   </span>
                 </div>
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Idle Counters</span>
-                  <span className="stat-pill-val" style={{ color: '#38BDF8', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--color-cyan)', marginTop: '4px' }}>
                     {metrics.idleCounters || 0}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Ready for next customer
                   </span>
                 </div>
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">On Break</span>
-                  <span className="stat-pill-val" style={{ color: '#F59E0B', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--color-warning)', marginTop: '4px' }}>
                     {metrics.breakCounters || 0}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Temporary teller pause
                   </span>
                 </div>
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Waiting Queue</span>
-                  <span className="stat-pill-val" style={{ color: '#EC4899', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--color-danger)', marginTop: '4px' }}>
                     {metrics.totalWaiting || 0}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Avg wait ~{metrics.avgWaitMinutes || 0} min
                   </span>
                 </div>
+              </div>
+
+              {/* ══ CENTRALIZED RESOURCE ALLOCATION ══════════════════════
+                  One queue, many counters, one backend allocator. Every value
+                  below is read straight from the allocator's own snapshot —
+                  the browser never picks a counter and never estimates a
+                  number. Missing data renders as "Unavailable". */}
+              <div
+                style={{
+                  background: 'rgba(15, 23, 42, 0.65)',
+                  border: '1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)',
+                  borderRadius: '16px',
+                  padding: '20px 24px',
+                  marginBottom: '32px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    marginBottom: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ShieldCheck size={18} color="var(--color-primary)" />
+                    <h2 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      Centralized Resource Allocation
+                    </h2>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: allocEnabled
+                          ? 'color-mix(in srgb, var(--color-cyan) 14%, transparent)'
+                          : 'var(--bg-card-alt)',
+                        color: allocEnabled ? 'var(--color-cyan)' : 'var(--text-muted)',
+                        border: `1px solid ${allocEnabled ? 'color-mix(in srgb, var(--color-cyan) 34%, transparent)' : 'var(--border-subtle)'}`,
+                      }}
+                    >
+                      {allocation ? (allocEnabled ? 'AUTO ALLOCATION ON' : 'AUTO ALLOCATION OFF') : 'STATUS UNAVAILABLE'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      onClick={fetchAllocation}
+                      className="btn-secondary"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-subtle)',
+                        background: 'var(--bg-card-alt)',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <RefreshCw size={13} /> Refresh
+                    </button>
+                    <button
+                      onClick={handleRunAllocation}
+                      disabled={allocationRunState?.loading || !selectedCenterId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid color-mix(in srgb, var(--color-primary) 40%, transparent)',
+                        background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)',
+                        color: 'var(--color-primary)',
+                        cursor: allocationRunState?.loading ? 'wait' : 'pointer',
+                        opacity: allocationRunState?.loading ? 0.6 : 1,
+                      }}
+                    >
+                      <Zap size={13} />
+                      {allocationRunState?.loading ? 'Running…' : 'Run Allocation Now'}
+                    </button>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 14px 0' }}>
+                  Customers never pick a counter. The backend allocator assigns the longest-waiting
+                  eligible token to the least-loaded ready counter, in strict FIFO order, and re-runs
+                  on every token, counter or completion event.
+                </p>
+
+                {allocationRunState?.error && (
+                  <div style={{ fontSize: '12px', color: 'var(--color-danger)', marginBottom: '10px' }}>
+                    {allocationRunState.error}
+                  </div>
+                )}
+                {allocationRunState?.message && (
+                  <div style={{ fontSize: '12px', color: 'var(--color-cyan)', marginBottom: '10px' }}>
+                    {allocationRunState.message}
+                  </div>
+                )}
+                {allocationError && <ErrorMessage message={allocationError} onRetry={fetchAllocation} />}
+
+                {!allocation && !allocationError && (
+                  <LoadingSpinner message="Reading allocator state..." />
+                )}
+
+                {allocation && (
+                  <>
+                    {/* Allocation metrics — all backend-computed */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                        gap: '10px',
+                        marginBottom: '18px',
+                      }}
+                    >
+                      {[
+                        { label: 'Total Counters', value: showValue(allocMetrics?.totalCounters) },
+                        { label: 'Ready (allocatable)', value: showValue(allocMetrics?.readyCounters) },
+                        { label: 'Busy (serving)', value: showValue(allocMetrics?.busyCounters) },
+                        { label: 'On Break', value: showValue(allocMetrics?.breakCounters) },
+                        { label: 'Closed', value: showValue(allocMetrics?.closedCounters) },
+                        { label: 'Waiting Customers', value: showValue(allocMetrics?.waitingCustomers) },
+                        { label: 'Live Occupancy', value: showValue(allocMetrics?.liveOccupancyPercent) },
+                        { label: 'Counter Utilization', value: showValue(allocMetrics?.counterUtilization) },
+                      ].map((m) => (
+                        <div
+                          key={m.label}
+                          style={{
+                            background: 'var(--bg-card-alt)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '10px',
+                            padding: '10px 12px',
+                          }}
+                        >
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            {m.label}
+                          </span>
+                          <span className="mono" style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            {m.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Per-counter truth table */}
+                    <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                      COUNTERS ({allocCounters.length})
+                    </div>
+                    {allocCounters.length === 0 ? (
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        No counters registered at this center.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '12px' }}>
+                        {allocCounters.map((c) => {
+                          const tone = allocationStateTone(c.allocationState);
+                          return (
+                            <div
+                              key={c._id}
+                              style={{
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-subtle)',
+                                borderLeft: `3px solid ${tone.fg}`,
+                                borderRadius: '12px',
+                                padding: '14px 16px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                <span className="mono" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                  {c.displayLabel || `Counter ${c.number}`}
+                                </span>
+                                <span
+                                  className="mono"
+                                  style={{
+                                    fontSize: '10px',
+                                    fontWeight: 800,
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    background: tone.bg,
+                                    color: tone.fg,
+                                    border: `1px solid ${tone.bd}`,
+                                  }}
+                                >
+                                  {c.allocationState || 'UNAVAILABLE'}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', marginTop: '10px', fontSize: '11px' }}>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Status: </span>
+                                  <span className="mono" style={{ color: 'var(--text-primary)' }}>{c.status || 'Unavailable'}</span>
+                                </div>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Service: </span>
+                                  <span style={{ color: 'var(--text-primary)' }}>{c.service?.name || 'Unavailable'}</span>
+                                </div>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Current token: </span>
+                                  <span className="mono" style={{ color: c.currentToken ? 'var(--color-primary)' : 'var(--text-muted)', fontWeight: 700 }}>
+                                    {c.currentToken?.tokenCode || 'None'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Token state: </span>
+                                  <span className="mono" style={{ color: 'var(--text-primary)' }}>
+                                    {c.currentToken?.status || 'Unavailable'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Workload: </span>
+                                  <span className="mono" style={{ color: 'var(--text-primary)' }}>
+                                    {c.workloadScore === null || c.workloadScore === undefined
+                                      ? 'Unavailable'
+                                      : `${c.workloadScore} (${c.workloadLevel})`}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Idle: </span>
+                                  <span className="mono" style={{ color: 'var(--text-primary)' }}>
+                                    {c.idleMinutes === null || c.idleMinutes === undefined
+                                      ? 'Unavailable'
+                                      : `${c.idleMinutes} min`}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Operator: </span>
+                                  <span style={{ color: 'var(--text-primary)' }}>{c.staff?.name || 'Unassigned'}</span>
+                                </div>
+                                <div>
+                                  <span style={{ color: 'var(--text-muted)' }}>Serving since: </span>
+                                  <span className="mono" style={{ color: 'var(--text-primary)' }}>
+                                    {c.currentToken?.servingAt ? new Date(c.currentToken.servingAt).toLocaleTimeString() : 'Unavailable'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Queues + FIFO preview */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginTop: '18px' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                          QUEUES AT THIS CENTER
+                        </div>
+                        {allocQueues.length === 0 ? (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No queue records for today.</div>
+                        ) : (
+                          allocQueues.map((q) => (
+                            <div
+                              key={String(q.serviceId)}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: '10px',
+                                fontSize: '12px',
+                                padding: '6px 10px',
+                                borderBottom: '1px solid var(--border-subtle)',
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              <span>{q.serviceName || 'Unnamed service'}</span>
+                              <span className="mono" style={{ color: 'var(--text-secondary)' }}>
+                                waiting {showValue(q.waitingCount)} · active {showValue(q.activeCount)}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                          NEXT IN LINE (FIFO)
+                        </div>
+                        {allocWaiting.length === 0 ? (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Nobody waiting.</div>
+                        ) : (
+                          allocWaiting.slice(0, 8).map((t, i) => (
+                            <div
+                              key={t._id}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: '10px',
+                                fontSize: '12px',
+                                padding: '6px 10px',
+                                borderBottom: '1px solid var(--border-subtle)',
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              <span className="mono">
+                                {i + 1}. {t.tokenCode}
+                              </span>
+                              <span className="mono" style={{ color: 'var(--text-secondary)' }}>
+                                {t.serviceName || '—'} · wait {showValue(t.waitEstimateMinutes, ' min')}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Tier 4 Feature 1: Ghost Queue Geofencing Telemetry */}
@@ -724,7 +1284,7 @@ export default function ResourceHub() {
                 <div
                   style={{
                     background: 'rgba(15, 23, 42, 0.65)',
-                    border: '1px solid rgba(0, 229, 168, 0.2)',
+                    border: '1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)',
                     borderRadius: '16px',
                     padding: '20px 24px',
                     marginBottom: '32px',
@@ -734,10 +1294,10 @@ export default function ResourceHub() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '18px' }}>📍</span>
                       <div>
-                        <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
+                        <h2 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                           Ghost Queue Geofencing Overview
                         </h2>
-                        <span style={{ fontSize: '11px', color: '#64748B' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           Server-authoritative customer proximity telemetry (Zero individual GPS coordinates exposed)
                         </span>
                       </div>
@@ -749,9 +1309,9 @@ export default function ResourceHub() {
                         fontWeight: 700,
                         padding: '3px 10px',
                         borderRadius: '8px',
-                        background: overview.ghostQueue.enabled ? 'rgba(0, 229, 168, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                        color: overview.ghostQueue.enabled ? '#00E5A8' : '#94A3B8',
-                        border: `1px solid ${overview.ghostQueue.enabled ? 'rgba(0, 229, 168, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
+                        background: overview.ghostQueue.enabled ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'color-mix(in srgb, var(--text-secondary) 15%, transparent)',
+                        color: overview.ghostQueue.enabled ? 'var(--color-primary)' : 'var(--text-secondary)',
+                        border: `1px solid ${overview.ghostQueue.enabled ? 'color-mix(in srgb, var(--color-primary) 30%, transparent)' : 'color-mix(in srgb, var(--text-secondary) 30%, transparent)'}`,
                       }}
                     >
                       {overview.ghostQueue.enabled ? `GEOFENCE ACTIVE (r: ${overview.ghostQueue.radiusMeters}m)` : overview.ghostQueue.locationConfigured ? 'GEOFENCE DISABLED' : 'LOCATION NOT CONFIGURED'}
@@ -766,37 +1326,279 @@ export default function ResourceHub() {
                       marginTop: '12px',
                     }}
                   >
-                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <span style={{ fontSize: '11px', color: '#94A3B8', display: 'block' }}>Remote (Outside)</span>
-                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#94A3B8' }}>{overview.ghostQueue.remoteCustomers || 0}</span>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid var(--bg-card-alt)' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Remote (Outside)</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-secondary)' }}>{overview.ghostQueue.remoteCustomers || 0}</span>
                     </div>
-                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <span style={{ fontSize: '11px', color: '#F59E0B', display: 'block' }}>Approaching</span>
-                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#F59E0B' }}>{overview.ghostQueue.approachingCustomers || 0}</span>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid var(--bg-card-alt)' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--color-warning)', display: 'block' }}>Approaching</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-warning)' }}>{overview.ghostQueue.approachingCustomers || 0}</span>
                     </div>
-                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <span style={{ fontSize: '11px', color: '#00D2FF', display: 'block' }}>Near Center</span>
-                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#00D2FF' }}>{overview.ghostQueue.nearCenter || 0}</span>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid var(--bg-card-alt)' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--color-cyan)', display: 'block' }}>Near Center</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-cyan)' }}>{overview.ghostQueue.nearCenter || 0}</span>
                     </div>
-                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <span style={{ fontSize: '11px', color: '#00E5A8', display: 'block' }}>At Center (Inside)</span>
-                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#00E5A8' }}>{overview.ghostQueue.atCenter || 0}</span>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid var(--bg-card-alt)' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--color-primary)', display: 'block' }}>At Center (Inside)</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-primary)' }}>{overview.ghostQueue.atCenter || 0}</span>
                     </div>
-                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Uncertain / Offline</span>
-                      <span style={{ fontSize: '20px', fontWeight: 800, color: '#64748B' }}>{overview.ghostQueue.unknownProximity || 0}</span>
+                    <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: '10px', padding: '12px 16px', border: '1px solid var(--bg-card-alt)' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Uncertain / Offline</span>
+                      <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-muted)' }}>{overview.ghostQueue.unknownProximity || 0}</span>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* ── Operational Operator Roster ────────────────────────── */}
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em', margin: 0 }}>
+                      Active Facility Operators & Desk Assignment
+                    </h2>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(56, 189, 248, 0.12)',
+                        color: 'var(--color-cyan)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                      }}
+                    >
+                      {operators.filter((o) => o.isAssigned).length} of {operators.length} Assigned
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Authoritative staff & operator allocation from MongoDB
+                  </span>
+                </div>
+
+                {operatorsLoading && operators.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    Loading operator roster...
+                  </div>
+                ) : operators.length === 0 ? (
+                  <div
+                    style={{
+                      background: 'var(--bg-card-alt)',
+                      border: '1px dashed var(--border-subtle)',
+                      borderRadius: '16px',
+                      padding: '30px',
+                      textAlign: 'center',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    No staff or operators registered for this facility.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+                      gap: '14px',
+                    }}
+                  >
+                    {operators.map((op) => {
+                      const isAssigned = op.isAssigned && op.assignedCounter;
+                      const assignedCounter = op.assignedCounter;
+                      const isServing = op.workload?.isServing;
+
+                      return (
+                        <div
+                          key={op._id}
+                          style={{
+                            background: 'var(--bg-card-alt)',
+                            border: `1px solid ${isAssigned ? 'rgba(56, 189, 248, 0.3)' : 'var(--border-subtle)'}`,
+                            borderRadius: '14px',
+                            padding: '16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            position: 'relative',
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div
+                                  style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '8px',
+                                    background: isAssigned ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: isAssigned ? 'var(--color-cyan)' : 'var(--text-muted)',
+                                  }}
+                                >
+                                  <Users size={16} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                    {op.name}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                    {op.email}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <span
+                                className="mono"
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  background: op.isActive
+                                    ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)'
+                                    : 'rgba(239, 68, 68, 0.15)',
+                                  color: op.isActive ? 'var(--color-primary)' : 'var(--color-danger)',
+                                  border: `1px solid ${op.isActive ? 'color-mix(in srgb, var(--color-primary) 30%, transparent)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                }}
+                              >
+                                {op.isActive ? (op.role === 'ADMIN' ? 'ADMIN / OP' : 'STAFF') : 'INACTIVE'}
+                              </span>
+                            </div>
+
+                            {/* Assignment info */}
+                            <div
+                              style={{
+                                background: isAssigned ? 'rgba(15, 23, 42, 0.6)' : 'rgba(15, 23, 42, 0.3)',
+                                border: '1px solid var(--border-subtle)',
+                                borderRadius: '10px',
+                                padding: '10px 12px',
+                                marginTop: '10px',
+                                marginBottom: '12px',
+                              }}
+                            >
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                                Desk Allocation
+                              </div>
+                              {isAssigned ? (
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span className="mono" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--color-cyan)' }}>
+                                      DESK #{assignedCounter.number} — {assignedCounter.name}
+                                    </span>
+                                    <span
+                                      className="mono"
+                                      style={{
+                                        fontSize: '10px',
+                                        fontWeight: 700,
+                                        padding: '1px 5px',
+                                        borderRadius: '4px',
+                                        background: isServing ? 'color-mix(in srgb, var(--color-primary) 20%, transparent)' : 'rgba(255, 255, 255, 0.08)',
+                                        color: isServing ? 'var(--color-primary)' : 'var(--text-secondary)',
+                                      }}
+                                    >
+                                      {assignedCounter.status}
+                                    </span>
+                                  </div>
+                                  {op.workload && (
+                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                      Served today: <strong style={{ color: 'var(--text-primary)' }}>{op.workload.servedToday}</strong>
+                                      {isServing && <span style={{ color: 'var(--color-primary)', marginLeft: '8px' }}>• Actively serving</span>}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                                  Unassigned — Available for counter assignment
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick Action Button */}
+                          {isAdmin && (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              {isAssigned ? (
+                                <>
+                                  <button
+                                    onClick={() => openAssignModal(assignedCounter, op._id)}
+                                    className="btn-secondary"
+                                    style={{
+                                      flex: 1,
+                                      fontSize: '11px',
+                                      padding: '6px 10px',
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px',
+                                    }}
+                                  >
+                                    <Shuffle size={12} />
+                                    <span>Reassign Desk</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleQuickUnassign(assignedCounter._id)}
+                                    disabled={quickActionLoading[assignedCounter._id] === 'unassign'}
+                                    style={{
+                                      background: 'rgba(239, 68, 68, 0.1)',
+                                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                                      color: 'var(--color-danger)',
+                                      borderRadius: '8px',
+                                      fontSize: '11px',
+                                      padding: '6px 10px',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    {quickActionLoading[assignedCounter._id] === 'unassign' ? '...' : 'Unassign'}
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const target = counters.find((c) => !c.staffId && !c.staff) || counters[0];
+                                    if (target) {
+                                      openAssignModal(target, op._id);
+                                    }
+                                  }}
+                                  disabled={counters.length === 0}
+                                  style={{
+                                    width: '100%',
+                                    background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                                    border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
+                                    color: 'var(--color-primary)',
+                                    borderRadius: '8px',
+                                    fontSize: '11px',
+                                    padding: '6px 10px',
+                                    fontWeight: 700,
+                                    cursor: counters.length === 0 ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  <UserCheck size={13} />
+                                  <span>Assign to Counter Desk</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* ── Counter Heat Grid ────────────────────────── */}
               <div style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                  <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.01em' }}>
+                  <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                     Live Center Counter Matrix
                   </h2>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                     Real-time visual state across all physical desks
                   </span>
                 </div>
@@ -804,12 +1606,12 @@ export default function ResourceHub() {
                 {counters.length === 0 ? (
                   <div
                     style={{
-                      background: 'rgba(17, 27, 44, 0.4)',
+                      background: 'var(--bg-card-alt)',
                       border: '1px dashed var(--border-subtle)',
                       borderRadius: '16px',
                       padding: '40px',
                       textAlign: 'center',
-                      color: '#64748B',
+                      color: 'var(--text-muted)',
                     }}
                   >
                     No counters configured for this center.
@@ -830,20 +1632,20 @@ export default function ResourceHub() {
                       const isClosed = c.status === 'CLOSED';
 
                       const borderColor = isServing
-                        ? 'rgba(0, 229, 168, 0.4)'
+                        ? 'color-mix(in srgb, var(--color-primary) 40%, transparent)'
                         : isCalled
                         ? 'rgba(56, 189, 248, 0.4)'
                         : isBreak
-                        ? 'rgba(245, 158, 11, 0.4)'
+                        ? 'color-mix(in srgb, var(--color-warning) 40%, transparent)'
                         : isClosed
-                        ? 'rgba(239, 68, 68, 0.2)'
+                        ? 'color-mix(in srgb, var(--color-danger) 20%, transparent)'
                         : 'var(--border-subtle)';
 
                       return (
                         <div
                           key={c._id}
                           style={{
-                            background: 'rgba(17, 27, 44, 0.65)',
+                            background: 'var(--bg-card-alt)',
                             border: `1px solid ${borderColor}`,
                             borderRadius: '16px',
                             padding: '18px',
@@ -863,15 +1665,15 @@ export default function ResourceHub() {
                                   style={{
                                     fontSize: '13px',
                                     fontWeight: 800,
-                                    color: '#F8FAFC',
+                                    color: 'var(--text-primary)',
                                     padding: '3px 8px',
                                     borderRadius: '6px',
-                                    background: 'rgba(255, 255, 255, 0.08)',
+                                    background: 'var(--bg-card-alt)',
                                   }}
                                 >
                                   DESK #{c.number}
                                 </span>
-                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#E2E8F0' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                                   {c.name}
                                 </span>
                               </div>
@@ -885,23 +1687,23 @@ export default function ResourceHub() {
                                   padding: '3px 8px',
                                   borderRadius: '6px',
                                   background: isServing
-                                    ? 'rgba(0, 229, 168, 0.15)'
+                                    ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)'
                                     : isCalled
                                     ? 'rgba(56, 189, 248, 0.15)'
                                     : isBreak
-                                    ? 'rgba(245, 158, 11, 0.15)'
+                                    ? 'color-mix(in srgb, var(--color-warning) 15%, transparent)'
                                     : isClosed
-                                    ? 'rgba(239, 68, 68, 0.15)'
-                                    : 'rgba(148, 163, 184, 0.15)',
+                                    ? 'color-mix(in srgb, var(--color-danger) 15%, transparent)'
+                                    : 'color-mix(in srgb, var(--text-secondary) 15%, transparent)',
                                   color: isServing
-                                    ? '#00E5A8'
+                                    ? 'var(--color-primary)'
                                     : isCalled
-                                    ? '#38BDF8'
+                                    ? 'var(--color-cyan)'
                                     : isBreak
-                                    ? '#F59E0B'
+                                    ? 'var(--color-warning)'
                                     : isClosed
-                                    ? '#EF4444'
-                                    : '#94A3B8',
+                                    ? 'var(--color-danger)'
+                                    : 'var(--text-secondary)',
                                   border: `1px solid ${borderColor}`,
                                 }}
                               >
@@ -919,7 +1721,7 @@ export default function ResourceHub() {
 
                             {/* Service Assignment Badge */}
                             <div style={{ marginBottom: '12px' }}>
-                              <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '3px' }}>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
                                 Assigned Service
                               </span>
                               {c.service ? (
@@ -932,17 +1734,17 @@ export default function ResourceHub() {
                                       padding: '2px 6px',
                                       borderRadius: '4px',
                                       background: 'rgba(56, 189, 248, 0.18)',
-                                      color: '#38BDF8',
+                                      color: 'var(--color-cyan)',
                                     }}
                                   >
                                     [{c.service.tokenPrefix}]
                                   </span>
-                                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#F1F5F9' }}>
+                                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                                     {c.service.name}
                                   </span>
                                 </div>
                               ) : (
-                                <span style={{ fontSize: '12px', fontStyle: 'italic', color: '#64748B' }}>
+                                <span style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--text-muted)' }}>
                                   Unassigned
                                 </span>
                               )}
@@ -950,12 +1752,90 @@ export default function ResourceHub() {
 
                             {/* Operator Assignment */}
                             <div style={{ marginBottom: '14px' }}>
-                              <span style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '2px' }}>
-                                Operator
-                              </span>
-                              <span style={{ fontSize: '12px', fontWeight: 500, color: c.staff ? '#94A3B8' : '#475569' }}>
-                                {c.staff ? `${c.staff.name} (${c.staff.email})` : 'No staff currently assigned'}
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                  Assigned Operator
+                                </span>
+                                {c.staff && (
+                                  <span
+                                    className="mono"
+                                    style={{
+                                      fontSize: '9px',
+                                      fontWeight: 700,
+                                      color: 'var(--color-primary)',
+                                      background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                    }}
+                                  >
+                                    ACTIVE
+                                  </span>
+                                )}
+                              </div>
+
+                              <div
+                                style={{
+                                  background: 'rgba(15, 23, 42, 0.4)',
+                                  border: '1px solid var(--border-subtle)',
+                                  borderRadius: '8px',
+                                  padding: '8px 10px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '8px',
+                                }}
+                              >
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ fontSize: '12px', fontWeight: 700, color: c.staff ? 'var(--text-primary)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {c.staff ? c.staff.name : 'No operator assigned'}
+                                  </div>
+                                  <div style={{ fontSize: '10px', color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {c.staff ? c.staff.email : 'Desk cannot serve tokens without staff'}
+                                  </div>
+                                </div>
+
+                                {isAdmin && (
+                                  <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => openAssignModal(c)}
+                                      title={c.staff ? 'Change assigned operator' : 'Assign operator to this desk'}
+                                      style={{
+                                        background: c.staff ? 'var(--bg-card-alt)' : 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                                        border: `1px solid ${c.staff ? 'var(--border-subtle)' : 'color-mix(in srgb, var(--color-primary) 30%, transparent)'}`,
+                                        color: c.staff ? 'var(--text-primary)' : 'var(--color-primary)',
+                                        borderRadius: '6px',
+                                        padding: '4px 8px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      {c.staff ? 'Change' : 'Assign'}
+                                    </button>
+                                    {c.staff && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleQuickUnassign(c._id)}
+                                        disabled={quickActionLoading[c._id] === 'unassign'}
+                                        title="Unassign operator from this desk"
+                                        style={{
+                                          background: 'rgba(239, 68, 68, 0.1)',
+                                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                                          color: 'var(--color-danger)',
+                                          borderRadius: '6px',
+                                          padding: '4px 8px',
+                                          fontSize: '11px',
+                                          fontWeight: 700,
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        {quickActionLoading[c._id] === 'unassign' ? '...' : 'Unassign'}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
                             {/* Current Token Hero Display */}
@@ -963,10 +1843,10 @@ export default function ResourceHub() {
                               style={{
                                 background: c.currentToken
                                   ? isServing
-                                    ? 'rgba(0, 229, 168, 0.08)'
+                                    ? 'color-mix(in srgb, var(--color-primary) 8%, transparent)'
                                     : 'rgba(56, 189, 248, 0.08)'
                                   : 'rgba(15, 23, 42, 0.4)',
-                                border: `1px solid ${c.currentToken ? borderColor : 'rgba(255, 255, 255, 0.05)'}`,
+                                border: `1px solid ${c.currentToken ? borderColor : 'var(--bg-card-alt)'}`,
                                 borderRadius: '12px',
                                 padding: '12px 14px',
                                 display: 'flex',
@@ -976,18 +1856,18 @@ export default function ResourceHub() {
                               }}
                             >
                               <div>
-                                <span style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                   {c.currentToken ? (isServing ? 'Serving Token' : 'Called Token') : 'Desk Status'}
                                 </span>
-                                <div style={{ fontSize: '18px', fontWeight: 900, color: c.currentToken ? '#F8FAFC' : '#475569', letterSpacing: '0.02em', marginTop: '2px' }}>
+                                <div style={{ fontSize: '18px', fontWeight: 900, color: c.currentToken ? 'var(--text-primary)' : 'var(--text-dim)', letterSpacing: '0.02em', marginTop: '2px' }}>
                                   {c.currentToken ? c.currentToken.tokenCode : 'Waiting for call'}
                                 </div>
                               </div>
 
                               {c.currentToken && (
                                 <div style={{ textAlign: 'right' }}>
-                                  <span style={{ fontSize: '10px', color: '#64748B' }}>Active Elapsed</span>
-                                  <div className="mono" style={{ fontSize: '12px', fontWeight: 700, color: '#38BDF8', marginTop: '2px' }}>
+                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Active Elapsed</span>
+                                  <div className="mono" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-cyan)', marginTop: '2px' }}>
                                     {Math.floor((c.servingElapsedSeconds || 0) / 60)}m {(c.servingElapsedSeconds || 0) % 60}s
                                   </div>
                                 </div>
@@ -995,40 +1875,121 @@ export default function ResourceHub() {
                             </div>
                           </div>
 
-                          {/* Action Button: Counter Morphing */}
+                          {/* Actions: Desk Controls & Morphing */}
                           {isAdmin && (
-                            <button
-                              onClick={() => openMorphModal(c)}
-                              style={{
-                                width: '100%',
-                                background: 'rgba(255, 255, 255, 0.06)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: '8px',
-                                padding: '8px 12px',
-                                color: '#E2E8F0',
-                                fontSize: '12px',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s ease',
-                              }}
-                              onMouseOver={(e) => {
-                                e.currentTarget.style.background = 'rgba(0, 229, 168, 0.15)';
-                                e.currentTarget.style.color = '#00E5A8';
-                                e.currentTarget.style.borderColor = 'rgba(0, 229, 168, 0.3)';
-                              }}
-                              onMouseOut={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                                e.currentTarget.style.color = '#E2E8F0';
-                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                              }}
-                            >
-                              <Shuffle size={13} />
-                              <span>Morph Counter Service</span>
-                            </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              {/* Quick Desk Status Controls */}
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                {c.status !== 'ACTIVE' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickStatusChange(c._id, 'ACTIVE')}
+                                    disabled={quickActionLoading[c._id] === 'ACTIVE'}
+                                    style={{
+                                      flex: 1,
+                                      background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                                      border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
+                                      color: 'var(--color-primary)',
+                                      borderRadius: '8px',
+                                      padding: '7px 8px',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px',
+                                    }}
+                                  >
+                                    <Play size={12} />
+                                    <span>{quickActionLoading[c._id] === 'ACTIVE' ? 'Opening...' : 'Open Desk'}</span>
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickStatusChange(c._id, 'BREAK')}
+                                      disabled={quickActionLoading[c._id] === 'BREAK'}
+                                      style={{
+                                        flex: 1,
+                                        background: 'color-mix(in srgb, var(--color-warning) 15%, transparent)',
+                                        border: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)',
+                                        color: 'var(--color-warning)',
+                                        borderRadius: '8px',
+                                        padding: '7px 8px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '4px',
+                                      }}
+                                    >
+                                      <Coffee size={12} />
+                                      <span>{quickActionLoading[c._id] === 'BREAK' ? '...' : 'Break'}</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickStatusChange(c._id, 'CLOSED')}
+                                      disabled={quickActionLoading[c._id] === 'CLOSED'}
+                                      style={{
+                                        flex: 1,
+                                        background: 'color-mix(in srgb, var(--color-danger) 15%, transparent)',
+                                        border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
+                                        color: 'var(--color-danger)',
+                                        borderRadius: '8px',
+                                        padding: '7px 8px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '4px',
+                                      }}
+                                    >
+                                      <XCircle size={12} />
+                                      <span>{quickActionLoading[c._id] === 'CLOSED' ? '...' : 'Close'}</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => openMorphModal(c)}
+                                style={{
+                                  width: '100%',
+                                  background: 'var(--bg-card-alt)',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  borderRadius: '8px',
+                                  padding: '7px 12px',
+                                  color: 'var(--text-primary)',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.background = 'color-mix(in srgb, var(--color-primary) 15%, transparent)';
+                                  e.currentTarget.style.color = 'var(--color-primary)';
+                                  e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--color-primary) 30%, transparent)';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.background = 'var(--bg-card-alt)';
+                                  e.currentTarget.style.color = 'var(--text-primary)';
+                                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                }}
+                              >
+                                <Shuffle size={12} />
+                                <span>Morph Counter Service</span>
+                              </button>
+                            </div>
                           )}
                         </div>
                       );
@@ -1042,16 +2003,16 @@ export default function ResourceHub() {
                 {/* Active Services Queue Depth */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'var(--bg-card-alt)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
                   }}
                 >
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', marginBottom: '4px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
                     Active Services Queue Depth
                   </h3>
-                  <p style={{ fontSize: '11px', color: '#64748B', marginBottom: '14px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '14px' }}>
                     Wait estimates are calculated by the QueueFlow backend from real queue, counter and
                     service-history data. This panel only displays the values the backend returns.
                   </p>
@@ -1068,7 +2029,7 @@ export default function ResourceHub() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          border: '1px solid var(--bg-card-alt)',
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -1079,13 +2040,13 @@ export default function ResourceHub() {
                               fontWeight: 800,
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              background: 'rgba(0, 229, 168, 0.15)',
-                              color: '#00E5A8',
+                              background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                              color: 'var(--color-primary)',
                             }}
                           >
                             [{svc.tokenPrefix}]
                           </span>
-                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#F1F5F9' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                             {svc.name}
                           </span>
                           {ewt && (
@@ -1098,9 +2059,9 @@ export default function ResourceHub() {
                                 padding: '2px 6px',
                                 borderRadius: '4px',
                                 background: ewt.context?.fallbackUsed
-                                  ? 'rgba(251, 191, 36, 0.15)'
-                                  : 'rgba(255, 255, 255, 0.07)',
-                                color: ewt.context?.fallbackUsed ? '#FBBF24' : '#94A3B8',
+                                  ? 'color-mix(in srgb, var(--color-warning) 15%, transparent)'
+                                  : 'var(--bg-card-alt)',
+                                color: ewt.context?.fallbackUsed ? 'var(--color-warning)' : 'var(--text-secondary)',
                                 cursor: 'help',
                               }}
                             >
@@ -1110,22 +2071,22 @@ export default function ResourceHub() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                           <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '10px', color: '#64748B' }}>Waiting</span>
-                            <div className="mono" style={{ fontSize: '14px', fontWeight: 800, color: '#EC4899' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Waiting</span>
+                            <div className="mono" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-danger)' }}>
                               {svc.waitingCount}
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '10px', color: '#64748B' }}>Serving</span>
-                            <div className="mono" style={{ fontSize: '14px', fontWeight: 800, color: '#00E5A8' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Serving</span>
+                            <div className="mono" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-primary)' }}>
                               {svc.servingCount}
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '10px', color: '#64748B' }}>Est. Wait</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Est. Wait</span>
                             <div
                               className="mono"
-                              style={{ fontSize: '14px', fontWeight: 800, color: '#38BDF8' }}
+                              style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-cyan)' }}
                               data-testid={`ewt-${svc.serviceId}`}
                             >
                               {ewt ? `${ewt.estimatedWaitMinutes} min` : '—'}
@@ -1136,7 +2097,7 @@ export default function ResourceHub() {
                       );
                     })}
                     {ewtError && (
-                      <span style={{ fontSize: '11px', color: '#FBBF24' }}>{ewtError}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-warning)' }}>{ewtError}</span>
                     )}
                   </div>
                 </div>
@@ -1144,13 +2105,13 @@ export default function ResourceHub() {
                 {/* Recent Operational Events / Audit Trail */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'var(--bg-card-alt)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
                   }}
                 >
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', marginBottom: '14px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '14px' }}>
                     Recent Operational Events
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
@@ -1175,18 +2136,18 @@ export default function ResourceHub() {
                               fontWeight: 700,
                               padding: '2px 5px',
                               borderRadius: '4px',
-                              background: ev.eventType === 'COUNTER_MORPHED' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                              color: ev.eventType === 'COUNTER_MORPHED' ? '#C084FC' : '#94A3B8',
+                              background: ev.eventType === 'COUNTER_MORPHED' ? 'rgba(168, 85, 247, 0.2)' : 'var(--bg-card-alt)',
+                              color: ev.eventType === 'COUNTER_MORPHED' ? 'var(--color-cyan)' : 'var(--text-secondary)',
                             }}
                           >
                             {ev.eventType}
                           </span>
-                          <span style={{ color: '#E2E8F0' }}>
+                          <span style={{ color: 'var(--text-primary)' }}>
                             {ev.metadata?.counterName ? `${ev.metadata.counterName} • ` : ''}
                             {ev.metadata?.newServiceName ? `Reassigned to ${ev.metadata.newServiceName}` : ev.metadata?.status || ''}
                           </span>
                         </div>
-                        <span className="mono" style={{ color: '#64748B' }}>
+                        <span className="mono" style={{ color: 'var(--text-muted)' }}>
                           {ev.createdAt ? new Date(ev.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
                         </span>
                       </div>
@@ -1205,7 +2166,7 @@ export default function ResourceHub() {
           {/* Controls Bar */}
           <div
             style={{
-              background: 'rgba(17, 27, 44, 0.6)',
+              background: 'var(--bg-card-alt)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '16px',
               padding: '16px 20px',
@@ -1219,7 +2180,7 @@ export default function ResourceHub() {
           >
             {/* Time Filter Buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Calendar size={15} color="#64748B" />
+              <Calendar size={15} color="var(--text-muted)" />
               {['today', '7d', '30d'].map((range) => (
                 <button
                   key={range}
@@ -1228,9 +2189,9 @@ export default function ResourceHub() {
                     setHistoricalPage(1);
                   }}
                   style={{
-                    background: timeRange === range ? 'rgba(0, 229, 168, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                    color: timeRange === range ? '#00E5A8' : '#94A3B8',
-                    border: timeRange === range ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                    background: timeRange === range ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'var(--bg-card-alt)',
+                    color: timeRange === range ? 'var(--color-primary)' : 'var(--text-secondary)',
+                    border: timeRange === range ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)' : '1px solid transparent',
                     borderRadius: '8px',
                     padding: '6px 12px',
                     fontSize: '12px',
@@ -1247,7 +2208,7 @@ export default function ResourceHub() {
             {/* SLA Target input & export */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '12px', color: '#94A3B8' }}>SLA Target Wait:</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>SLA Target Wait:</span>
                 <input
                   type="number"
                   min="1"
@@ -1259,7 +2220,7 @@ export default function ResourceHub() {
                     width: '65px',
                     background: 'rgba(15, 23, 42, 0.8)',
                     border: '1px solid var(--border-subtle)',
-                    color: '#F8FAFC',
+                    color: 'var(--text-primary)',
                     borderRadius: '8px',
                     padding: '6px 10px',
                     fontSize: '12px',
@@ -1267,7 +2228,7 @@ export default function ResourceHub() {
                     textAlign: 'center',
                   }}
                 />
-                <span style={{ fontSize: '12px', color: '#64748B' }}>min</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>min</span>
                 <button
                   onClick={fetchHistorical}
                   className="btn-secondary"
@@ -1280,10 +2241,10 @@ export default function ResourceHub() {
               <button
                 onClick={handleExportCsv}
                 style={{
-                  background: 'rgba(0, 229, 168, 0.12)',
-                  border: '1px solid rgba(0, 229, 168, 0.3)',
+                  background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
                   borderRadius: '8px',
-                  color: '#00E5A8',
+                  color: 'var(--color-primary)',
                   padding: '7px 14px',
                   fontSize: '12px',
                   fontWeight: 700,
@@ -1315,44 +2276,44 @@ export default function ResourceHub() {
               >
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Total Tokens Issued</span>
-                  <span className="stat-pill-val" style={{ color: '#F8FAFC', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--text-primary)', marginTop: '4px' }}>
                     {historicalData.summary?.totalIssued || 0}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Completion Rate: {historicalData.summary?.completionRate || 0}%
                   </span>
                 </div>
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Completed Services</span>
-                  <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--color-primary)', marginTop: '4px' }}>
                     {historicalData.summary?.totalCompleted || 0}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     {historicalData.summary?.totalSkipped || 0} Skipped • {historicalData.summary?.totalCancelled || 0} Cancelled
                   </span>
                 </div>
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Average Wait Time</span>
-                  <span className="stat-pill-val" style={{ color: '#38BDF8', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--color-cyan)', marginTop: '4px' }}>
                     {historicalData.timing?.avgWaitSeconds != null
                       ? `${Math.round(historicalData.timing.avgWaitSeconds / 60)} min`
                       : 'N/A'}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Min: {historicalData.timing?.minWaitSeconds != null ? `${Math.round(historicalData.timing.minWaitSeconds / 60)}m` : '0m'} • Max: {historicalData.timing?.maxWaitSeconds != null ? `${Math.round(historicalData.timing.maxWaitSeconds / 60)}m` : '0m'}
                   </span>
                 </div>
 
                 <div className="stat-pill" style={{ padding: '16px 20px', alignItems: 'flex-start' }}>
                   <span className="stat-pill-label">Average Service Duration</span>
-                  <span className="stat-pill-val" style={{ color: '#F59E0B', marginTop: '4px' }}>
+                  <span className="stat-pill-val" style={{ color: 'var(--color-warning)', marginTop: '4px' }}>
                     {historicalData.timing?.avgServiceSeconds != null
                       ? `${(historicalData.timing.avgServiceSeconds / 60).toFixed(1)} min`
                       : 'N/A'}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Active desk handle time
                   </span>
                 </div>
@@ -1365,26 +2326,26 @@ export default function ResourceHub() {
                     alignItems: 'flex-start',
                     border:
                       historicalData.sla?.status === 'CONFIGURED'
-                        ? '1px solid rgba(0, 229, 168, 0.3)'
+                        ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)'
                         : '1px solid var(--border-subtle)',
                   }}
                 >
                   <span className="stat-pill-label">SLA Compliance</span>
                   {historicalData.sla?.status === 'CONFIGURED' ? (
                     <>
-                      <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '4px' }}>
+                      <span className="stat-pill-val" style={{ color: 'var(--color-primary)', marginTop: '4px' }}>
                         {historicalData.sla.compliancePercent}%
                       </span>
-                      <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                         {historicalData.sla.compliantCount} of {historicalData.sla.totalCompleted} within {historicalData.sla.targetWaitMinutes}m
                       </span>
                     </>
                   ) : (
                     <>
-                      <span className="mono" style={{ fontSize: '14px', fontWeight: 800, color: '#94A3B8', marginTop: '6px' }}>
+                      <span className="mono" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-secondary)', marginTop: '6px' }}>
                         CONFIGURABLE
                       </span>
-                      <span style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                         Enter SLA target above
                       </span>
                     </>
@@ -1404,18 +2365,18 @@ export default function ResourceHub() {
                 {/* Counter Performance Breakdown */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'var(--bg-card-alt)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
                   }}
                 >
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', marginBottom: '14px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '14px' }}>
                     Counter Productivity & Utilization
                   </h3>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: '#64748B', textAlign: 'left' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', textAlign: 'left' }}>
                         <th style={{ padding: '8px 0' }}>Desk</th>
                         <th style={{ padding: '8px 0' }}>Total Handled</th>
                         <th style={{ padding: '8px 0' }}>Completed</th>
@@ -1425,20 +2386,20 @@ export default function ResourceHub() {
                     </thead>
                     <tbody>
                       {historicalData.counterUtilization?.map((cu) => (
-                        <tr key={cu.counterId} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                          <td style={{ padding: '10px 0', fontWeight: 600, color: '#F1F5F9' }}>
+                        <tr key={cu.counterId} style={{ borderBottom: '1px solid var(--bg-card-alt)' }}>
+                          <td style={{ padding: '10px 0', fontWeight: 600, color: 'var(--text-primary)' }}>
                             {cu.name}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#94A3B8' }}>
+                          <td className="mono" style={{ padding: '10px 0', color: 'var(--text-secondary)' }}>
                             {cu.totalHandled}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#00E5A8', fontWeight: 700 }}>
+                          <td className="mono" style={{ padding: '10px 0', color: 'var(--color-primary)', fontWeight: 700 }}>
                             {cu.completed}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#F59E0B' }}>
+                          <td className="mono" style={{ padding: '10px 0', color: 'var(--color-warning)' }}>
                             {cu.skipped}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#38BDF8' }}>
+                          <td className="mono" style={{ padding: '10px 0', color: 'var(--color-cyan)' }}>
                             {cu.avgServiceSeconds != null ? `${(cu.avgServiceSeconds / 60).toFixed(1)}m` : '—'}
                           </td>
                         </tr>
@@ -1450,18 +2411,18 @@ export default function ResourceHub() {
                 {/* Service Demand Breakdown */}
                 <div
                   style={{
-                    background: 'rgba(17, 27, 44, 0.6)',
+                    background: 'var(--bg-card-alt)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '16px',
                     padding: '20px',
                   }}
                 >
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', marginBottom: '14px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '14px' }}>
                     Service Demand Breakdown
                   </h3>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: '#64748B', textAlign: 'left' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', textAlign: 'left' }}>
                         <th style={{ padding: '8px 0' }}>Service</th>
                         <th style={{ padding: '8px 0' }}>Total Issued</th>
                         <th style={{ padding: '8px 0' }}>Completed</th>
@@ -1470,17 +2431,17 @@ export default function ResourceHub() {
                     </thead>
                     <tbody>
                       {historicalData.servicePerformance?.map((sp) => (
-                        <tr key={sp.serviceId} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                          <td style={{ padding: '10px 0', fontWeight: 600, color: '#F1F5F9' }}>
+                        <tr key={sp.serviceId} style={{ borderBottom: '1px solid var(--bg-card-alt)' }}>
+                          <td style={{ padding: '10px 0', fontWeight: 600, color: 'var(--text-primary)' }}>
                             [{sp.tokenPrefix}] {sp.name}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#94A3B8' }}>
+                          <td className="mono" style={{ padding: '10px 0', color: 'var(--text-secondary)' }}>
                             {sp.totalIssued}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#00E5A8', fontWeight: 700 }}>
+                          <td className="mono" style={{ padding: '10px 0', color: 'var(--color-primary)', fontWeight: 700 }}>
                             {sp.completed}
                           </td>
-                          <td className="mono" style={{ padding: '10px 0', color: '#EF4444' }}>
+                          <td className="mono" style={{ padding: '10px 0', color: 'var(--color-danger)' }}>
                             {sp.cancelled}
                           </td>
                         </tr>
@@ -1493,17 +2454,17 @@ export default function ResourceHub() {
               {/* Paginated Historical Tokens Log Table */}
               <div
                 style={{
-                  background: 'rgba(17, 27, 44, 0.6)',
+                  background: 'var(--bg-card-alt)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: '16px',
                   padding: '20px',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Persisted Token Audit History
                   </h3>
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                     Total Records: {historicalData.pagination?.total || 0}
                   </span>
                 </div>
@@ -1511,7 +2472,7 @@ export default function ResourceHub() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: '#64748B', textAlign: 'left' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', textAlign: 'left' }}>
                         <th style={{ padding: '10px 12px' }}>Token</th>
                         <th style={{ padding: '10px 12px' }}>Service</th>
                         <th style={{ padding: '10px 12px' }}>Counter</th>
@@ -1525,17 +2486,17 @@ export default function ResourceHub() {
                     </thead>
                     <tbody>
                       {historicalData.tokens?.map((t) => (
-                        <tr key={t._id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                          <td className="mono" style={{ padding: '10px 12px', fontWeight: 800, color: '#00E5A8' }}>
+                        <tr key={t._id} style={{ borderBottom: '1px solid var(--bg-card-alt)' }}>
+                          <td className="mono" style={{ padding: '10px 12px', fontWeight: 800, color: 'var(--color-primary)' }}>
                             {t.tokenCode}
                           </td>
-                          <td style={{ padding: '10px 12px', color: '#E2E8F0' }}>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-primary)' }}>
                             [{t.tokenPrefix}] {t.serviceName}
                           </td>
-                          <td style={{ padding: '10px 12px', color: '#94A3B8' }}>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
                             {t.counterName || '—'}
                           </td>
-                          <td style={{ padding: '10px 12px', color: '#94A3B8' }}>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
                             {t.operatorName || '—'}
                           </td>
                           <td style={{ padding: '10px 12px' }}>
@@ -1548,37 +2509,37 @@ export default function ResourceHub() {
                                 borderRadius: '4px',
                                 background:
                                   t.status === 'COMPLETED'
-                                    ? 'rgba(0, 229, 168, 0.15)'
+                                    ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)'
                                     : t.status === 'SKIPPED'
-                                    ? 'rgba(245, 158, 11, 0.15)'
+                                    ? 'color-mix(in srgb, var(--color-warning) 15%, transparent)'
                                     : t.status === 'CANCELLED'
-                                    ? 'rgba(239, 68, 68, 0.15)'
-                                    : 'rgba(148, 163, 184, 0.15)',
+                                    ? 'color-mix(in srgb, var(--color-danger) 15%, transparent)'
+                                    : 'color-mix(in srgb, var(--text-secondary) 15%, transparent)',
                                 color:
                                   t.status === 'COMPLETED'
-                                    ? '#00E5A8'
+                                    ? 'var(--color-primary)'
                                     : t.status === 'SKIPPED'
-                                    ? '#F59E0B'
+                                    ? 'var(--color-warning)'
                                     : t.status === 'CANCELLED'
-                                    ? '#EF4444'
-                                    : '#94A3B8',
+                                    ? 'var(--color-danger)'
+                                    : 'var(--text-secondary)',
                               }}
                             >
                               {t.status}
                             </span>
                           </td>
-                          <td className="mono" style={{ padding: '10px 12px', color: '#38BDF8' }}>
+                          <td className="mono" style={{ padding: '10px 12px', color: 'var(--color-cyan)' }}>
                             {t.waitSeconds != null ? `${Math.round(t.waitSeconds / 60)}m ${t.waitSeconds % 60}s` : '—'}
                           </td>
-                          <td className="mono" style={{ padding: '10px 12px', color: '#F59E0B' }}>
+                          <td className="mono" style={{ padding: '10px 12px', color: 'var(--color-warning)' }}>
                             {t.serviceDurationSeconds != null
                               ? `${Math.round(t.serviceDurationSeconds / 60)}m ${t.serviceDurationSeconds % 60}s`
                               : '—'}
                           </td>
-                          <td className="mono" style={{ padding: '10px 12px', color: '#64748B' }}>
+                          <td className="mono" style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
                             {t.createdAt ? new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                           </td>
-                          <td className="mono" style={{ padding: '10px 12px', color: '#64748B' }}>
+                          <td className="mono" style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
                             {t.completedAt ? new Date(t.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                           </td>
                         </tr>
@@ -1597,7 +2558,7 @@ export default function ResourceHub() {
                   >
                     Previous
                   </button>
-                  <span className="mono" style={{ fontSize: '12px', color: '#94A3B8', padding: '0 8px' }}>
+                  <span className="mono" style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '0 8px' }}>
                     Page {historicalPage} of {historicalData.pagination?.pages || 1}
                   </span>
                   <button
@@ -1621,7 +2582,7 @@ export default function ResourceHub() {
           {/* Controls Bar */}
           <div
             style={{
-              background: 'rgba(17, 27, 44, 0.6)',
+              background: 'var(--bg-card-alt)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '16px',
               padding: '16px 20px',
@@ -1635,16 +2596,16 @@ export default function ResourceHub() {
           >
             {/* Horizon Filter Buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={15} color="#64748B" />
-              <span style={{ fontSize: '12px', color: '#94A3B8', marginRight: '4px' }}>Forecast Horizon:</span>
+              <Clock size={15} color="var(--text-muted)" />
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginRight: '4px' }}>Forecast Horizon:</span>
               {[4, 6, 12, 24].map((hrs) => (
                 <button
                   key={hrs}
                   onClick={() => setForecastHorizon(hrs)}
                   style={{
-                    background: forecastHorizon === hrs ? 'rgba(0, 229, 168, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                    color: forecastHorizon === hrs ? '#00E5A8' : '#94A3B8',
-                    border: forecastHorizon === hrs ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid transparent',
+                    background: forecastHorizon === hrs ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : 'var(--bg-card-alt)',
+                    color: forecastHorizon === hrs ? 'var(--color-primary)' : 'var(--text-secondary)',
+                    border: forecastHorizon === hrs ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)' : '1px solid transparent',
                     borderRadius: '8px',
                     padding: '6px 12px',
                     fontSize: '12px',
@@ -1666,7 +2627,7 @@ export default function ResourceHub() {
                   padding: '4px 8px',
                   borderRadius: '6px',
                   background: 'rgba(56, 189, 248, 0.15)',
-                  color: '#38BDF8',
+                  color: 'var(--color-cyan)',
                   border: '1px solid rgba(56, 189, 248, 0.3)',
                 }}
               >
@@ -1691,8 +2652,8 @@ export default function ResourceHub() {
           ) : forecastData?.status === 'INSUFFICIENT_DATA' ? (
             <div
               style={{
-                background: 'rgba(17, 27, 44, 0.65)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
+                background: 'var(--bg-card-alt)',
+                border: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)',
                 borderRadius: '16px',
                 padding: '36px',
                 textAlign: 'center',
@@ -1705,8 +2666,8 @@ export default function ResourceHub() {
                   width: '48px',
                   height: '48px',
                   borderRadius: '12px',
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  color: '#F59E0B',
+                  background: 'color-mix(in srgb, var(--color-warning) 15%, transparent)',
+                  color: 'var(--color-warning)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1715,10 +2676,10 @@ export default function ResourceHub() {
               >
                 <AlertTriangle size={24} />
               </div>
-              <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#F8FAFC', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
                 Prediction Unavailable — Insufficient Historical Data
               </h3>
-              <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: '1.6', marginBottom: '24px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '24px' }}>
                 QueueFlow never generates fabricated or synthetic forecasts. Machine learning requires
                 a minimum baseline of genuine queue traffic to derive statistical arrival patterns.
               </p>
@@ -1731,25 +2692,25 @@ export default function ResourceHub() {
                   background: 'rgba(15, 23, 42, 0.6)',
                   borderRadius: '12px',
                   padding: '16px',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--bg-card-alt)',
                   textAlign: 'left',
                 }}
               >
                 <div>
-                  <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Real Tokens Found</span>
-                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Real Tokens Found</span>
+                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
                     {forecastData.sufficiency?.tokensFound || 0} / {forecastData.sufficiency?.tokensRequired || 10}
                   </span>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Hourly Intervals</span>
-                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Hourly Intervals</span>
+                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
                     {forecastData.sufficiency?.hourlyIntervalsFound || 0} / {forecastData.sufficiency?.hourlyIntervalsRequired || 5}
                   </span>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>History Window</span>
-                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: '#00E5A8' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>History Window</span>
+                  <span className="mono" style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-primary)' }}>
                     {forecastData.sufficiency?.historicalWindowDays || 14} days
                   </span>
                 </div>
@@ -1760,7 +2721,7 @@ export default function ResourceHub() {
               {/* Model Provenance & Metadata Banner */}
               <div
                 style={{
-                  background: 'rgba(17, 27, 44, 0.6)',
+                  background: 'var(--bg-card-alt)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: '14px',
                   padding: '14px 18px',
@@ -1775,28 +2736,28 @@ export default function ResourceHub() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ShieldCheck size={16} color="#00E5A8" />
-                    <span style={{ fontWeight: 700, color: '#F8FAFC' }}>
+                    <ShieldCheck size={16} color="var(--color-primary)" />
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
                       Model: {forecastData.modelMetadata?.modelType} ({forecastData.modelMetadata?.modelVersion})
                     </span>
                   </div>
-                  <span style={{ color: '#475569' }}>•</span>
-                  <span style={{ color: '#94A3B8' }}>
-                    Trained on <strong style={{ color: '#F8FAFC' }}>{forecastData.modelMetadata?.trainingTokensCount}</strong> tokens across{' '}
-                    <strong style={{ color: '#F8FAFC' }}>{forecastData.modelMetadata?.hourlyIntervalsAnalyzed}</strong> intervals ({forecastData.modelMetadata?.historicalWindowDays}d window)
+                  <span style={{ color: 'var(--text-dim)' }}>•</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    Trained on <strong style={{ color: 'var(--text-primary)' }}>{forecastData.modelMetadata?.trainingTokensCount}</strong> tokens across{' '}
+                    <strong style={{ color: 'var(--text-primary)' }}>{forecastData.modelMetadata?.hourlyIntervalsAnalyzed}</strong> intervals ({forecastData.modelMetadata?.historicalWindowDays}d window)
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   {forecastData.modelMetadata?.evaluationMetrics?.valMae != null && (
-                    <span className="mono" style={{ fontSize: '11px', color: '#38BDF8' }}>
+                    <span className="mono" style={{ fontSize: '11px', color: 'var(--color-cyan)' }}>
                       Val MAE: <strong>{forecastData.modelMetadata.evaluationMetrics.valMae}</strong>
                       {forecastData.modelMetadata.evaluationMetrics.baselineValMae != null && (
-                        <span style={{ color: '#64748B' }}> (baseline: {forecastData.modelMetadata.evaluationMetrics.baselineValMae})</span>
+                        <span style={{ color: 'var(--text-muted)' }}> (baseline: {forecastData.modelMetadata.evaluationMetrics.baselineValMae})</span>
                       )}
                     </span>
                   )}
-                  <span className="mono" style={{ fontSize: '11px', color: '#64748B' }}>
+                  <span className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                     Trained: {forecastData.modelMetadata?.trainedAt ? new Date(forecastData.modelMetadata.trainedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                   </span>
                 </div>
@@ -1820,8 +2781,8 @@ export default function ResourceHub() {
                     <div
                       key={idx}
                       style={{
-                        background: 'rgba(17, 27, 44, 0.7)',
-                        border: `1px solid ${isUnderstaffed ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-subtle)'}`,
+                        background: 'var(--bg-card-alt)',
+                        border: `1px solid ${isUnderstaffed ? 'color-mix(in srgb, var(--color-warning) 40%, transparent)' : 'var(--border-subtle)'}`,
                         borderRadius: '14px',
                         padding: '16px',
                         display: 'flex',
@@ -1832,7 +2793,7 @@ export default function ResourceHub() {
                       <div>
                         {/* Time interval */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                          <span className="mono" style={{ fontSize: '13px', fontWeight: 800, color: '#F8FAFC' }}>
+                          <span className="mono" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
                             {new Date(slot.intervalStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           <span
@@ -1843,11 +2804,11 @@ export default function ResourceHub() {
                               padding: '2px 6px',
                               borderRadius: '4px',
                               background: isUnderstaffed
-                                ? 'rgba(245, 158, 11, 0.2)'
+                                ? 'color-mix(in srgb, var(--color-warning) 20%, transparent)'
                                 : isOverstaffed
                                 ? 'rgba(56, 189, 248, 0.15)'
-                                : 'rgba(0, 229, 168, 0.15)',
-                              color: isUnderstaffed ? '#F59E0B' : isOverstaffed ? '#38BDF8' : '#00E5A8',
+                                : 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                              color: isUnderstaffed ? 'var(--color-warning)' : isOverstaffed ? 'var(--color-cyan)' : 'var(--color-primary)',
                             }}
                           >
                             {isUnderstaffed
@@ -1860,12 +2821,12 @@ export default function ResourceHub() {
 
                         {/* Forecast Hero Number */}
                         <div style={{ marginBottom: '14px' }}>
-                          <span style={{ fontSize: '11px', color: '#64748B', display: 'block' }}>Predicted Customer Arrivals</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Predicted Customer Arrivals</span>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '2px' }}>
-                            <span style={{ fontSize: '24px', fontWeight: 900, color: '#38BDF8' }}>
+                            <span style={{ fontSize: '24px', fontWeight: 900, color: 'var(--color-cyan)' }}>
                               ~{slot.predictedArrivals}
                             </span>
-                            <span style={{ fontSize: '12px', color: '#94A3B8' }}>tokens</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>tokens</span>
                           </div>
                         </div>
 
@@ -1876,18 +2837,18 @@ export default function ResourceHub() {
                             borderRadius: '10px',
                             padding: '10px 12px',
                             marginBottom: '10px',
-                            border: '1px solid rgba(255, 255, 255, 0.04)',
+                            border: '1px solid var(--bg-card-alt)',
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                            <span style={{ fontSize: '11px', color: '#94A3B8' }}>Recommended Desks:</span>
-                            <span className="mono" style={{ fontSize: '12px', fontWeight: 800, color: '#00E5A8' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Recommended Desks:</span>
+                            <span className="mono" style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-primary)' }}>
                               {slot.staffing?.recommendedActiveCounters} active
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '11px', color: '#64748B' }}>Currently Active:</span>
-                            <span className="mono" style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Currently Active:</span>
+                            <span className="mono" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                               {slot.staffing?.currentActiveCounters} active
                             </span>
                           </div>
@@ -1895,7 +2856,7 @@ export default function ResourceHub() {
                       </div>
 
                       {/* Workload Math Footnote */}
-                      <div style={{ fontSize: '10px', color: '#64748B', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '8px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid var(--bg-card-alt)', paddingTop: '8px' }}>
                         Workload ~{Math.round((slot.staffing?.estimatedWorkloadSeconds || 0) / 60)}m ({slot.staffing?.effectiveServiceSeconds}s handle time @ 85% util)
                       </div>
                     </div>
@@ -1912,7 +2873,7 @@ export default function ResourceHub() {
           {workloadLoading && !workloadOverview ? (
             <div style={{ padding: '60px 0', textAlign: 'center' }}>
               <LoadingSpinner />
-              <p style={{ color: '#94A3B8', marginTop: '12px', fontSize: '13px' }}>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontSize: '13px' }}>
                 Evaluating real-time operational workload metrics across center counters...
               </p>
             </div>
@@ -1929,61 +2890,61 @@ export default function ResourceHub() {
                 }}
               >
                 <div className="q-card" style={{ padding: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Average Workload Score
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#F8FAFC', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
                       {workloadOverview.averageWorkloadScore ?? 0}
                     </span>
-                    <span style={{ fontSize: '13px', color: '#64748B' }}>/ 100</span>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>/ 100</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#00E5A8', marginTop: '6px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--color-primary)', marginTop: '6px' }}>
                     Max Center Score: {workloadOverview.maxWorkloadScore ?? 0}
                   </div>
                 </div>
 
                 <div className="q-card" style={{ padding: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Overloaded Units
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 800, color: (workloadOverview.overloadedUnits?.length || 0) > 0 ? '#EF4444' : '#00E5A8', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: (workloadOverview.overloadedUnits?.length || 0) > 0 ? 'var(--color-danger)' : 'var(--color-primary)', fontFamily: 'monospace' }}>
                       {workloadOverview.overloadedUnits?.length || 0}
                     </span>
-                    <span style={{ fontSize: '12px', color: '#64748B' }}>desks</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>desks</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
                     High or Sustained High load
                   </div>
                 </div>
 
                 <div className="q-card" style={{ padding: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Available Capacity
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#00E5A8', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'monospace' }}>
                       {workloadOverview.availableCapacity?.length || 0}
                     </span>
-                    <span style={{ fontSize: '12px', color: '#64748B' }}>desks</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>desks</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
                     Operating at low workload
                   </div>
                 </div>
 
                 <div className="q-card" style={{ padding: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Active Operators
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 800, color: '#F8FAFC', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
                       {workloadOverview.activeOperatorsCount ?? 0}
                     </span>
-                    <span style={{ fontSize: '12px', color: '#64748B' }}>/ {workloadOverview.totalCountersCount ?? 0} total</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>/ {workloadOverview.totalCountersCount ?? 0} total</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
                     Status: {workloadOverview.dataSufficiency}
                   </div>
                 </div>
@@ -1991,40 +2952,40 @@ export default function ResourceHub() {
 
               {/* Workload Distribution Grid */}
               <div className="q-card" style={{ padding: '20px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#F8FAFC', marginBottom: '14px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>
                   Center Operational Load Distribution
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
-                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(0, 229, 168, 0.08)', border: '1px solid rgba(0, 229, 168, 0.2)' }}>
-                    <div style={{ fontSize: '11px', color: '#00E5A8', fontWeight: 700 }}>LOW LOAD (0-39)</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'color-mix(in srgb, var(--color-primary) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-primary)', fontWeight: 700 }}>LOW LOAD (0-39)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0' }}>
                       {workloadOverview.distribution?.LOW ?? 0}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Optimal capacity</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Optimal capacity</div>
                   </div>
 
-                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                    <div style={{ fontSize: '11px', color: '#60A5FA', fontWeight: 700 }}>MODERATE (40-69)</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'color-mix(in srgb, var(--color-cyan) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-cyan) 20%, transparent)' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-cyan)', fontWeight: 700 }}>MODERATE (40-69)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0' }}>
                       {workloadOverview.distribution?.MODERATE ?? 0}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Balanced throughput</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Balanced throughput</div>
                   </div>
 
-                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                    <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: 700 }}>HIGH (70-84)</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'color-mix(in srgb, var(--color-warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warning) 20%, transparent)' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-warning)', fontWeight: 700 }}>HIGH (70-84)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0' }}>
                       {workloadOverview.distribution?.HIGH ?? 0}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Heavy volume / queue</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Heavy volume / queue</div>
                   </div>
 
-                  <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                    <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: 700 }}>SUSTAINED HIGH (85+)</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', margin: '4px 0' }}>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: 'color-mix(in srgb, var(--color-danger) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-danger) 20%, transparent)' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-danger)', fontWeight: 700 }}>SUSTAINED HIGH (85+)</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0' }}>
                       {workloadOverview.distribution?.SUSTAINED_HIGH ?? 0}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Requires supervisor rotation</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Requires supervisor rotation</div>
                   </div>
                 </div>
               </div>
@@ -2033,10 +2994,10 @@ export default function ResourceHub() {
               <div className="q-card" style={{ padding: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                   <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', margin: 0 }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                       Operational Balancing Recommendations
                     </h3>
-                    <p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0 0' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
                       Authoritative server-evaluated recommendations to redistribute operational load across compatible counters.
                     </p>
                   </div>
@@ -2046,9 +3007,9 @@ export default function ResourceHub() {
                       fontWeight: 700,
                       padding: '3px 8px',
                       borderRadius: '8px',
-                      background: 'rgba(59, 130, 246, 0.15)',
-                      color: '#60A5FA',
-                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      background: 'color-mix(in srgb, var(--color-cyan) 15%, transparent)',
+                      color: 'var(--color-cyan)',
+                      border: '1px solid color-mix(in srgb, var(--color-cyan) 30%, transparent)',
                     }}
                   >
                     ADVISORY (NON-AUTOMATIC)
@@ -2056,9 +3017,9 @@ export default function ResourceHub() {
                 </div>
 
                 {!workloadRecommendations?.recommendations || workloadRecommendations.recommendations.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '10px' }}>
-                    <CheckCircle2 size={24} color="#00E5A8" style={{ marginBottom: '6px' }} />
-                    <p style={{ margin: 0, fontSize: '13px', color: '#94A3B8' }}>
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-card-alt)', borderRadius: '10px' }}>
+                    <CheckCircle2 size={24} color="var(--color-primary)" style={{ marginBottom: '6px' }} />
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
                       Current operational workload is balanced across all active units. No balancing adjustments recommended.
                     </p>
                   </div>
@@ -2072,9 +3033,9 @@ export default function ResourceHub() {
                           borderRadius: '12px',
                           background: 'rgba(15, 23, 42, 0.6)',
                           border: rec.priority === 'HIGH'
-                            ? '1px solid rgba(239, 68, 68, 0.35)'
+                            ? '1px solid color-mix(in srgb, var(--color-danger) 35%, transparent)'
                             : rec.priority === 'MEDIUM'
-                            ? '1px solid rgba(245, 158, 11, 0.35)'
+                            ? '1px solid color-mix(in srgb, var(--color-warning) 35%, transparent)'
                             : '1px solid var(--border-subtle)',
                           display: 'flex',
                           alignItems: 'center',
@@ -2091,24 +3052,24 @@ export default function ResourceHub() {
                               borderRadius: '6px',
                               marginTop: '2px',
                               background: rec.priority === 'HIGH'
-                                ? 'rgba(239, 68, 68, 0.2)'
+                                ? 'color-mix(in srgb, var(--color-danger) 20%, transparent)'
                                 : rec.priority === 'MEDIUM'
-                                ? 'rgba(245, 158, 11, 0.2)'
-                                : 'rgba(59, 130, 246, 0.2)',
+                                ? 'color-mix(in srgb, var(--color-warning) 20%, transparent)'
+                                : 'color-mix(in srgb, var(--color-cyan) 20%, transparent)',
                               color: rec.priority === 'HIGH'
-                                ? '#EF4444'
+                                ? 'var(--color-danger)'
                                 : rec.priority === 'MEDIUM'
-                                ? '#F59E0B'
-                                : '#60A5FA',
+                                ? 'var(--color-warning)'
+                                : 'var(--color-cyan)',
                             }}
                           >
                             {rec.type.replace('_', ' ')}
                           </span>
                           <div>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC', marginBottom: '3px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '3px' }}>
                               {rec.reason}
                             </div>
-                            <div style={{ fontSize: '11px', color: '#64748B' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                               Generated at {new Date(rec.createdAt).toLocaleTimeString()} • Priority: {rec.priority}
                             </div>
                           </div>
@@ -2134,19 +3095,19 @@ export default function ResourceHub() {
 
               {/* Operator & Counter Workload Table */}
               <div className="q-card" style={{ padding: '24px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#F8FAFC', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px' }}>
                   Individual Counter & Operator Workload Breakdown
                 </h3>
 
                 {workloadOverview.operatorWorkloads?.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     No counters configured at this center.
                   </div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                       <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: '#94A3B8' }}>
+                        <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-secondary)' }}>
                           <th style={{ padding: '10px 12px' }}>COUNTER</th>
                           <th style={{ padding: '10px 12px' }}>OPERATOR</th>
                           <th style={{ padding: '10px 12px' }}>SERVICE</th>
@@ -2161,17 +3122,17 @@ export default function ResourceHub() {
                           <tr
                             key={op.counter?._id || idx}
                             style={{
-                              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                              background: op.loadLevel === 'SUSTAINED_HIGH' ? 'rgba(239, 68, 68, 0.04)' : 'transparent',
+                              borderBottom: '1px solid var(--bg-card-alt)',
+                              background: op.loadLevel === 'SUSTAINED_HIGH' ? 'color-mix(in srgb, var(--color-danger) 4%, transparent)' : 'transparent',
                             }}
                           >
-                            <td style={{ padding: '12px', fontWeight: 700, color: '#F8FAFC' }}>
+                            <td style={{ padding: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
                               {op.counter?.name || 'Counter'} (#{op.counter?.number ?? '—'})
                             </td>
-                            <td style={{ padding: '12px', color: '#F8FAFC' }}>
+                            <td style={{ padding: '12px', color: 'var(--text-primary)' }}>
                               {op.operator?.name || 'Unassigned'}
                             </td>
-                            <td style={{ padding: '12px', color: '#60A5FA' }}>
+                            <td style={{ padding: '12px', color: 'var(--color-cyan)' }}>
                               {op.counter?.serviceName || 'None'}
                             </td>
                             <td style={{ padding: '12px' }}>
@@ -2182,31 +3143,31 @@ export default function ResourceHub() {
                                   padding: '3px 8px',
                                   borderRadius: '6px',
                                   background: op.loadLevel === 'SUSTAINED_HIGH'
-                                    ? 'rgba(239, 68, 68, 0.15)'
+                                    ? 'color-mix(in srgb, var(--color-danger) 15%, transparent)'
                                     : op.loadLevel === 'HIGH'
-                                    ? 'rgba(245, 158, 11, 0.15)'
+                                    ? 'color-mix(in srgb, var(--color-warning) 15%, transparent)'
                                     : op.loadLevel === 'MODERATE'
-                                    ? 'rgba(59, 130, 246, 0.15)'
-                                    : 'rgba(0, 229, 168, 0.15)',
+                                    ? 'color-mix(in srgb, var(--color-cyan) 15%, transparent)'
+                                    : 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
                                   color: op.loadLevel === 'SUSTAINED_HIGH'
-                                    ? '#EF4444'
+                                    ? 'var(--color-danger)'
                                     : op.loadLevel === 'HIGH'
-                                    ? '#F59E0B'
+                                    ? 'var(--color-warning)'
                                     : op.loadLevel === 'MODERATE'
-                                    ? '#60A5FA'
-                                    : '#00E5A8',
+                                    ? 'var(--color-cyan)'
+                                    : 'var(--color-primary)',
                                 }}
                               >
                                 {op.loadLevel}
                               </span>
                             </td>
-                            <td className="mono" style={{ padding: '12px', fontWeight: 800, fontSize: '14px', color: '#F8FAFC' }}>
+                            <td className="mono" style={{ padding: '12px', fontWeight: 800, fontSize: '14px', color: 'var(--text-primary)' }}>
                               {op.workloadScore != null ? `${op.workloadScore}/100` : '—'}
                             </td>
-                            <td style={{ padding: '12px', color: '#94A3B8', maxWidth: '360px', lineHeight: '1.4' }}>
+                            <td style={{ padding: '12px', color: 'var(--text-secondary)', maxWidth: '360px', lineHeight: '1.4' }}>
                               {op.explanation || '—'}
                             </td>
-                            <td style={{ padding: '12px', color: '#64748B' }}>
+                            <td style={{ padding: '12px', color: 'var(--text-muted)' }}>
                               {op.dataSufficiency}
                             </td>
                           </tr>
@@ -2218,7 +3179,7 @@ export default function ResourceHub() {
               </div>
             </>
           ) : (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
               No operational workload data available for this center.
             </div>
           )}
@@ -2241,7 +3202,7 @@ export default function ResourceHub() {
         >
           <div
             style={{
-              background: '#0D1422',
+              background: 'var(--bg-card)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '20px',
               maxWidth: '500px',
@@ -2256,8 +3217,8 @@ export default function ResourceHub() {
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  background: 'rgba(0, 229, 168, 0.15)',
-                  color: '#00E5A8',
+                  background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                  color: 'var(--color-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2265,34 +3226,34 @@ export default function ResourceHub() {
               >
                 <Shuffle size={18} />
               </div>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#F8FAFC' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
                 Counter Morphing
               </h2>
             </div>
 
-            <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '20px' }}>
-              Dynamically morph <strong style={{ color: '#F8FAFC' }}>{selectedCounterForMorph.name} (Desk #{selectedCounterForMorph.number})</strong> to serve a different active queue.
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Dynamically morph <strong style={{ color: 'var(--text-primary)' }}>{selectedCounterForMorph.name} (Desk #{selectedCounterForMorph.number})</strong> to serve a different active queue.
             </p>
 
             {/* Active Token Warning — Critical Safety */}
             {selectedCounterForMorph.currentToken && (
               <div
                 style={{
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: 'color-mix(in srgb, var(--color-danger) 12%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
                   borderRadius: '12px',
                   padding: '12px 16px',
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '10px',
                   marginBottom: '18px',
-                  color: '#FCA5A5',
+                  color: 'var(--color-danger)',
                   fontSize: '12px',
                 }}
               >
-                <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} color="#EF4444" />
+                <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} color="var(--color-danger)" />
                 <div>
-                  <strong style={{ color: '#EF4444', display: 'block', marginBottom: '2px' }}>
+                  <strong style={{ color: 'var(--color-danger)', display: 'block', marginBottom: '2px' }}>
                     Active Customer Present
                   </strong>
                   Desk is currently handling token <strong>{selectedCounterForMorph.currentToken.tokenCode}</strong> ({selectedCounterForMorph.currentToken.status}). Complete or skip this token before reassigning services.
@@ -2304,11 +3265,11 @@ export default function ResourceHub() {
             {morphSuccess && (
               <div
                 style={{
-                  background: 'rgba(0, 229, 168, 0.15)',
-                  border: '1px solid rgba(0, 229, 168, 0.3)',
+                  background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
                   borderRadius: '10px',
                   padding: '10px 14px',
-                  color: '#00E5A8',
+                  color: 'var(--color-primary)',
                   fontSize: '13px',
                   fontWeight: 600,
                   marginBottom: '16px',
@@ -2321,7 +3282,7 @@ export default function ResourceHub() {
             <form onSubmit={handleMorphSubmit}>
               {/* Service Selection */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Target Service
                 </label>
                 <select
@@ -2331,7 +3292,7 @@ export default function ResourceHub() {
                     width: '100%',
                     background: 'rgba(15, 23, 42, 0.8)',
                     border: '1px solid var(--border-subtle)',
-                    color: '#F8FAFC',
+                    color: 'var(--text-primary)',
                     borderRadius: '10px',
                     padding: '10px 14px',
                     fontSize: '13px',
@@ -2350,7 +3311,7 @@ export default function ResourceHub() {
 
               {/* Reassignment Reason */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Reason for Morph (Audit Log)
                 </label>
                 <input
@@ -2362,7 +3323,7 @@ export default function ResourceHub() {
                     width: '100%',
                     background: 'rgba(15, 23, 42, 0.8)',
                     border: '1px solid var(--border-subtle)',
-                    color: '#F8FAFC',
+                    color: 'var(--text-primary)',
                     borderRadius: '10px',
                     padding: '10px 14px',
                     fontSize: '13px',
@@ -2387,19 +3348,187 @@ export default function ResourceHub() {
                   disabled={morphLoading || Boolean(selectedCounterForMorph.currentToken)}
                   style={{
                     background: selectedCounterForMorph.currentToken
-                      ? 'rgba(148, 163, 184, 0.2)'
-                      : 'linear-gradient(135deg, #00E5A8 0%, #008f6b 100%)',
-                    color: selectedCounterForMorph.currentToken ? '#64748B' : '#05070D',
+                      ? 'color-mix(in srgb, var(--text-secondary) 20%, transparent)'
+                      : 'var(--color-primary)',
+                    color: selectedCounterForMorph.currentToken ? 'var(--text-muted)' : 'var(--bg-app)',
                     border: 'none',
                     borderRadius: '10px',
                     padding: '9px 20px',
                     fontSize: '13px',
                     fontWeight: 800,
                     cursor: selectedCounterForMorph.currentToken ? 'not-allowed' : 'pointer',
-                    boxShadow: selectedCounterForMorph.currentToken ? 'none' : '0 0 20px rgba(0, 229, 168, 0.3)',
+                    boxShadow: selectedCounterForMorph.currentToken ? 'none' : '',
                   }}
                 >
                   {morphLoading ? 'Morphing...' : 'Confirm Morph'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Assign / Reassign Operator Modal ─────────────────── */}
+      {assignModalOpen && selectedCounterForAssign && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+          onClick={() => !assignLoading && setAssignModalOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '20px',
+              padding: '28px',
+              width: '100%',
+              maxWidth: '480px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  Assign Desk Operator
+                </h3>
+                <span className="mono" style={{ fontSize: '12px', color: 'var(--color-cyan)', fontWeight: 700 }}>
+                  DESK #{selectedCounterForAssign.number} — {selectedCounterForAssign.name}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignModalOpen(false)}
+                disabled={assignLoading}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Current Allocation State */}
+            <div
+              style={{
+                background: 'rgba(15, 23, 42, 0.5)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                marginBottom: '20px',
+                fontSize: '12px',
+              }}
+            >
+              <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>Current Desk Staffing</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                {selectedCounterForAssign.staff
+                  ? `${selectedCounterForAssign.staff.name} (${selectedCounterForAssign.staff.email})`
+                  : 'Currently Unassigned'}
+              </div>
+            </div>
+
+            {assignError && <ErrorMessage message={assignError} />}
+            {assignSuccess && (
+              <div
+                style={{
+                  background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  color: 'var(--color-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginBottom: '16px',
+                }}
+              >
+                {assignSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleAssignSubmit}>
+              {/* Operator Selection */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  Select Facility Operator
+                </label>
+                <select
+                  value={targetStaffId}
+                  onChange={(e) => setTargetStaffId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    borderRadius: '10px',
+                    padding: '11px 14px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">— Unassign Staff (Vacate Desk) —</option>
+                  {operators.map((op) => {
+                    const isCurrentForThisCounter = selectedCounterForAssign.staffId === op._id || selectedCounterForAssign.staff?._id === op._id;
+                    const isAssignedElsewhere = op.isAssigned && !isCurrentForThisCounter;
+                    const suffix = isCurrentForThisCounter
+                      ? ' (Currently Assigned Here)'
+                      : isAssignedElsewhere
+                      ? ` (At Desk #${op.assignedCounter?.number || '?'})`
+                      : ' (Available)';
+
+                    return (
+                      <option key={op._id} value={op._id}>
+                        {op.name} — {op.email}{suffix}
+                      </option>
+                    );
+                  })}
+                </select>
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  If you choose an operator assigned to another desk, they will be automatically reassigned to this desk.
+                </span>
+              </div>
+
+              {/* Modal Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setAssignModalOpen(false)}
+                  disabled={assignLoading}
+                  className="btn-secondary"
+                  style={{ fontSize: '13px', padding: '9px 18px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={assignLoading}
+                  style={{
+                    background: 'var(--color-primary)',
+                    color: 'var(--bg-app)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '9px 20px',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: assignLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {assignLoading ? 'Saving...' : 'Confirm Assignment'}
                 </button>
               </div>
             </form>

@@ -12,7 +12,7 @@ export function Navbar() {
   return (
     <header
       style={{
-        background: 'rgba(8, 12, 22, 0.85)',
+        background: 'var(--bg-app)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--border-subtle)',
@@ -51,11 +51,11 @@ export function Navbar() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 12px rgba(0, 229, 168, 0.4)',
+              boxShadow: '',
             }}
             aria-hidden="true"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#05070D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg-app)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
@@ -67,24 +67,6 @@ export function Navbar() {
 
         {/* Right Nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Link
-            to="/display"
-            style={{
-              fontSize: '0.8rem',
-              fontWeight: '600',
-              color: 'var(--text-secondary)',
-              textDecoration: 'none',
-              padding: '0.3rem 0.5rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem'
-            }}
-            title="Open Live TV Display screen"
-          >
-            <span style={{ fontSize: '0.9rem' }}>📺</span> TV Display
-          </Link>
           <ConnectionIndicator isOnline={isOnline} />
           <NotificationBell />
 
@@ -111,6 +93,17 @@ export function Navbar() {
                 }}
               >
                 My Tokens
+              </Link>
+              <Link
+                to="/profile"
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  color: 'var(--text-secondary)',
+                  padding: '0.4rem 0.6rem',
+                }}
+              >
+                Profile
               </Link>
               <button
                 type="button"

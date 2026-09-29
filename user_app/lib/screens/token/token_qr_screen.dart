@@ -66,7 +66,7 @@ class _TokenQrScreenState extends ConsumerState<TokenQrScreen> {
     final token = widget.token;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -83,9 +83,9 @@ class _TokenQrScreenState extends ConsumerState<TokenQrScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: context.themeSurface,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.themeBorder),
                 ),
                 child: Column(
                   children: [

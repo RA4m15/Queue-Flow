@@ -58,9 +58,15 @@ export const authAPI = {
 };
 
 export const serviceCenterAPI = {
-  list: () => 
-    api.get('/service-centers'),
-  getById: (id) => 
+  /**
+   * List service centers for customer discovery.
+   *
+   * Always requests active centers only. The backend owns this decision via
+   * `?isOpen=true`, so retired or test facilities can never be offered to a
+   * customer here, and no center list is hardcoded in the client.
+   */
+  list: () => api.get('/service-centers?isOpen=true'),
+  getById: (id) =>
     api.get(`/service-centers/${id}`),
 };
 

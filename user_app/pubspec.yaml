@@ -45,7 +45,6 @@ dependencies:
   mobile_scanner: ^7.4.2
   google_generative_ai: ^0.4.7
   dash_chat_2: ^0.0.21
-  url_launcher: ^6.3.0
   # Firebase device push transport.
   #
   # The transport is compiled in, but it only activates when a Firebase project
@@ -56,6 +55,9 @@ dependencies:
   # lib/services/push_transport.dart and docs/FCM_SETUP.md.
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
+  flutter_local_notifications: ^22.3.1
+  url_launcher: ^6.3.2
+  geolocator: ^14.1.1
 
 dev_dependencies:
   flutter_test:

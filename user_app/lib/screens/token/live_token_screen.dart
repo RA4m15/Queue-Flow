@@ -24,13 +24,28 @@ class LiveTokenScreen extends ConsumerStatefulWidget {
 class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
   bool _hasShownCompletedPrompt = false;
   String? _lastTrackedTokenId;
+  TokenNotifier? _tokenNotifier;
 
   @override
   void initState() {
     super.initState();
+    // Phase 2: this screen is the only place live location is shared, so
+    // claiming the heartbeat here ties the GPS loop to a customer actually
+    // watching their queue position. Navigating away releases it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(tokenProvider.notifier).fetchActiveToken();
+      if (!mounted) return;
+      _tokenNotifier = ref.read(tokenProvider.notifier);
+      _tokenNotifier?.claimHeartbeat();
+      _tokenNotifier?.fetchActiveToken();
     });
+  }
+
+  @override
+  void dispose() {
+    // Stops location sharing before the widget tree goes away, so no stray
+    // timer or in-flight upload can outlive the screen.
+    _tokenNotifier?.releaseHeartbeat();
+    super.dispose();
   }
 
   bool _isCancelling = false;
@@ -52,7 +67,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: context.themeSurface,
           title: const Text('Cancel Token?'),
           content: Text(
             'Are you sure you want to cancel token ${token.tokenCode}? You will lose your position in queue.',
@@ -73,6 +88,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                   : () async {
                       setDialogState(() => _isCancelling = true);
                       final messenger = ScaffoldMessenger.of(context);
+                      final surfaceElevated = context.themeSurfaceElevated;
                       try {
                         await ref.read(tokenProvider.notifier).cancelToken(token.id);
                         if (ctx.mounted) {
@@ -80,9 +96,9 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                         }
                         if (!mounted) return;
                         messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Token cancelled successfully.'),
-                            backgroundColor: AppColors.surfaceElevated,
+                          SnackBar(
+                            content: const Text('Token cancelled successfully.'),
+                            backgroundColor: surfaceElevated,
                           ),
                         );
                       } catch (e) {
@@ -131,7 +147,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: context.themeSurface,
           title: const Text('Service Feedback'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -340,7 +356,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       appBar: AppBar(
         title: const Text('Live Token'),
         actions: [
@@ -378,14 +394,39 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                   ],
                 )
               : RefreshIndicator(
-                  color: AppColors.primary,
-                  backgroundColor: AppColors.surface,
+                  color: context.themePrimary,
+                  backgroundColor: context.themeSurface,
                   onRefresh: () => ref.read(tokenProvider.notifier).fetchActiveToken(),
                   child: ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     children: [
                       // ─── CONNECTION / OFFLINE INDICATOR BANNER ──────────
                       _buildConnectionBanner(tokenState),
+
+                      // ─── PHASE 2: SKIP NOTICE ──────────────────────────
+                      // A customer who was auto-skipped for leaving the service
+                      // area is told exactly that, in plain language, with a way
+                      // back into the queue through the normal join flow. The
+                      // token is never silently resurrected.
+                      if (tokenState.skipNotice != null) ...[
+                        _buildSkipNotice(tokenState),
+                      ],
+
+                      // ─── PHASE 2: OUT-OF-RANGE WARNING ─────────────────
+                      // Only rendered when the backend has affirmatively placed
+                      // this customer outside the radius. A stale or unknown
+                      // location renders no warning at all, because "you might
+                      // be out of range" is not a truthful thing to show.
+                      if (token.isActive && token.isLocationOutOfRange) ...[
+                        _buildOutOfRangeBanner(token),
+                      ],
+
+                      // ─── PHASE 2: APPROACHING-TURN WARNING ──────────────
+                      // Copy authored by the backend so the in-app banner and
+                      // the push notification can never disagree.
+                      if (tokenState.geofenceAlert != null) ...[
+                        _buildGeofenceAlert(tokenState),
+                      ],
 
                       // ─── TURN ALERT BANNER ──────────────────────────────
                       if (tokenState.turnAlert != null) ...[
@@ -507,14 +548,14 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: context.themeSurface,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                             color: token.isCalled
                                 ? AppColors.secondary
                                 : token.isServing
                                     ? AppColors.primary
-                                    : AppColors.border,
+                                    : context.themeBorder,
                             width: token.isCalled || token.isServing ? 2 : 1,
                           ),
                           boxShadow: [
@@ -549,14 +590,14 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
                               decoration: BoxDecoration(
-                                color: AppColors.surfaceElevated,
+                                color: context.themeSurfaceElevated,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: token.isCalled
                                       ? AppColors.secondary
                                       : token.isServing
                                           ? AppColors.primary
-                                          : AppColors.borderLight,
+                                          : context.themeBorder,
                                 ),
                               ),
                               child: Text(
@@ -627,9 +668,9 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surfaceElevated,
+                                  color: context.themeSurfaceElevated,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.border),
+                                  border: Border.all(color: context.themeBorder),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -751,6 +792,122 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
     );
   }
 
+  /// Phase 2: the truthful explanation for an out-of-range auto-skip, with a
+  /// route back into the queue via the normal join flow.
+  Widget _buildSkipNotice(TokenState tokenState) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.danger, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.report_gmailerrorred_rounded, color: AppColors.danger, size: 24),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Token skipped',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20, color: Colors.white70),
+                onPressed: () => ref.read(tokenProvider.notifier).dismissSkipNotice(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            tokenState.skipNotice!,
+            style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          // Rejoin uses the existing join path. There is no second queue-entry
+          // system, and the app never quietly puts the customer back in line.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: () => context.go('/home'),
+              icon: const Icon(Icons.replay_rounded, size: 18),
+              label: const Text('Rejoin queue'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Phase 2: shown only when the backend says this customer is outside the
+  /// radius while still holding an active token.
+  Widget _buildOutOfRangeBanner(TokenModel token) {
+    final meters = token.proximityDistanceMeters;
+    final distance = meters == null
+        ? ''
+        : ' You are about $meters m from the service center.';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.warning, width: 2),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'You have left the service area. Return within 100 m of the service '
+              'center to keep your place.$distance',
+              style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Phase 2: the approaching-turn warning, in the backend's own words.
+  Widget _buildGeofenceAlert(TokenState tokenState) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.6), width: 2),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.directions_walk_rounded, color: AppColors.warning, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              tokenState.geofenceAlert!,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 20, color: Colors.white70),
+            onPressed: () => ref.read(tokenProvider.notifier).dismissGeofenceAlert(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGhostQueueProximity(TokenModel token, TokenState tokenState) {
     if (!token.isActive) return const SizedBox.shrink();
 
@@ -763,8 +920,33 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
     Color badgeBg = isOffline ? AppColors.warning.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05);
     IconData iconData = isOffline ? Icons.location_off_outlined : Icons.location_on_outlined;
 
+    // Phase 2: the backend's location verdict outranks the older proximity
+    // band. An unconfirmed location is shown as such, and is never collapsed
+    // into "inside" just because no warning has arrived yet.
+    final verdictLabel = token.locationStatus != null
+        ? switch (token.locationStatus!.toUpperCase()) {
+            'IN_RANGE' => 'IN SERVICE AREA',
+            'OUT_OF_RANGE' => 'OUTSIDE SERVICE AREA',
+            'LOCATION_STALE' => 'LOCATION STALE',
+            'LOCATION_UNAVAILABLE' => 'LOCATION UNAVAILABLE',
+            _ => null,
+          }
+        : null;
+
     if (!isOffline) {
-      if (token.isInsideGeofence) {
+      if (token.isLocationOutOfRange) {
+        badgeColor = AppColors.danger;
+        badgeBg = AppColors.danger.withValues(alpha: 0.15);
+        iconData = Icons.public;
+      } else if (token.isLocationUnconfirmed) {
+        badgeColor = AppColors.warning;
+        badgeBg = AppColors.warning.withValues(alpha: 0.15);
+        iconData = Icons.location_off_outlined;
+      } else if (token.isLocationInRange) {
+        badgeColor = AppColors.primary;
+        badgeBg = AppColors.primary.withValues(alpha: 0.15);
+        iconData = Icons.check_circle_outline;
+      } else if (token.isInsideGeofence) {
         badgeColor = AppColors.primary;
         badgeBg = AppColors.primary.withValues(alpha: 0.15);
         iconData = Icons.check_circle_outline;
@@ -800,9 +982,9 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: context.themeSurfaceElevated,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.themeBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -831,7 +1013,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  label,
+                  verdictLabel ?? label,
                   style: TextStyle(
                     color: badgeColor,
                     fontSize: 10,
@@ -876,7 +1058,7 @@ class _LiveTokenScreenState extends ConsumerState<LiveTokenScreen> {
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: context.themeSurfaceElevated,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: stale ? AppColors.warning.withValues(alpha: 0.5) : AppColors.primary.withValues(alpha: 0.3),

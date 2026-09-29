@@ -8,9 +8,11 @@ const QueueEvent = require('../models/QueueEvent');
 const { Token } = require('../models/Token');
 const FootfallEvent = require('../models/FootfallEvent');
 const ServiceCenter = require('../models/ServiceCenter');
+const { buildCrowdState } = require('../utils/crowdMetrics');
 const recommendationService = require('../services/recommendationService');
 const queueService = require('../services/queueService');
 const waitTimeService = require('../services/waitTimeService');
+const queueMetricsService = require('../services/queueMetricsService');
 const { mlPredictorService } = require('../services/mlPredictorService');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendNotFound, sendBadRequest, sendForbidden } = require('../utils/apiResponse');
@@ -37,17 +39,36 @@ const getDashboard = asyncHandler(async (req, res) => {
 
   if (!center) return sendNotFound(res, 'Service center not found');
 
+  // Authoritative crowd state (occupancy, percentage, status, freshness).
+  // Derived centrally because a lean query cannot produce schema virtuals.
+  const crowd = buildCrowdState(center);
+
   // ── Stat pills ──────────────────────────────────────────────────────────────
+  // `totalWaiting` / `totalServed` / `totalIssued` are kept for backward
+  // compatibility with existing charts. They are day-partitioned Queue
+  // aggregates and are legitimately zero when no Queue document exists for
+  // today yet — so they must NOT drive the live stat pills.
   const totalWaiting = queues.reduce((s, q) => s + (q.waitingCount || 0), 0);
   const totalServed  = queues.reduce((s, q) => s + (q.completedCount || 0), 0);
   const totalIssued  = queues.reduce((s, q) => s + (q.totalIssued || 0), 0);
   const activeCounters  = counters.filter((c) => c.status === 'ACTIVE').length;
   const closedCounters  = counters.filter((c) => c.status === 'CLOSED').length;
 
-  // Average wait time across queues with real data
-  const queuesWithAvg = queues.filter((q) => q.avgServiceTimeSeconds);
-  const avgWaitSeconds = queuesWithAvg.length > 0
-    ? Math.round(queuesWithAvg.reduce((s, q) => s + q.avgServiceTimeSeconds, 0) / queuesWithAvg.length)
+  // Authoritative live metrics, shared with the Live Counter display endpoint
+  // and the `queue.updated` broadcast so every surface agrees by construction.
+  const metrics = await queueMetricsService.getLiveQueueMetrics(centerId);
+
+  // Average WAIT time actually observed, measured from real token timestamps
+  // (calledAt − createdAt) by queueMetricsService. This is deliberately NOT a
+  // service-time average, and it is `null` — never a placeholder — until at
+  // least one real customer has been called today.
+  const avgWaitSeconds = metrics.avgWaitSeconds;
+
+  // Mean observed service duration across today's queues, exposed under its
+  // correct name so the previous value is not simply lost.
+  const queuesWithServiceTime = queues.filter((q) => q.avgServiceTimeSeconds);
+  const avgServiceSeconds = queuesWithServiceTime.length > 0
+    ? Math.round(queuesWithServiceTime.reduce((s, q) => s + q.avgServiceTimeSeconds, 0) / queuesWithServiceTime.length)
     : null;
 
   // ── Footfall chart — hourly buckets for today ───────────────────────────────
@@ -124,10 +145,17 @@ const getDashboard = asyncHandler(async (req, res) => {
         activeCounters,
         closedCounters,
         totalCounters: counters.length,
-        currentCrowd: center.currentCrowd,
-        crowdPercent: center.crowdPercent,
-        crowdStatus: center.crowdStatus,
+        ...crowd,
+        // ── Authoritative live stat-pill values (Token-derived, not day-partitioned) ──
+        waitingCount: metrics.waitingCount,
+        servingCount: metrics.servingCount,
+        completedToday: metrics.completedToday,
+        issuedToday: metrics.issuedToday,
+        waitSampleCount: metrics.waitSampleCount,
+        // Measured average WAIT time, or null when no customer has been called yet.
         avgWaitSeconds,
+        // Mean observed SERVICE duration, kept under its correct name.
+        avgServiceSeconds,
         ghostQueue,
       },
       queues: queues.map((q) => ({
@@ -175,7 +203,13 @@ const getTokenTimeSeries = asyncHandler(async (req, res) => {
     if (!byHour[key]) byHour[key] = { hour: key, created: 0, completed: 0, cancelled: 0 };
     byHour[key].created++;
     if (token.status === 'COMPLETED') byHour[key].completed++;
-    if (['CANCELLED', 'SKIPPED', 'EXPIRED'].includes(token.status)) byHour[key].cancelled++;
+    // Phase 2: a customer auto-skipped for being outside the service area is a
+    // real abandonment, but it is a distinct cause from a voluntary cancel, a
+    // manual skip or a no-show. Counted in the existing `cancelled` total so the
+    // "created - completed" reconciliation still balances.
+    if (['CANCELLED', 'SKIPPED', 'EXPIRED', 'SKIPPED_OUT_OF_RANGE'].includes(token.status)) {
+      byHour[key].cancelled++;
+    }
   }
 
   const series = Object.values(byHour).sort((a, b) => a.hour.localeCompare(b.hour));
@@ -229,6 +263,10 @@ const getOperationalOverview = asyncHandler(async (req, res) => {
 
   const center = await ServiceCenter.findById(centerId).lean({ virtuals: true });
   if (!center) return sendNotFound(res, 'Service center not found');
+
+  // Authoritative crowd state (occupancy, percentage, status, freshness).
+  // Derived centrally because a lean query cannot produce schema virtuals.
+  const crowd = buildCrowdState(center);
 
   const [counters, services, recentEvents] = await Promise.all([
     Counter.find({ centerId })
@@ -390,9 +428,7 @@ const getOperationalOverview = asyncHandler(async (req, res) => {
         type: center.type,
         isOpen: center.isOpen,
         capacity: center.capacity,
-        currentCrowd: center.currentCrowd,
-        crowdPercent: center.crowdPercent,
-        crowdStatus: center.crowdStatus,
+        ...crowd,
       },
       metrics: {
         totalCounters,
@@ -440,6 +476,10 @@ const getWaitTimeIntelligence = asyncHandler(async (req, res) => {
     .lean({ virtuals: true });
   if (!center) return sendNotFound(res, 'Service center not found');
 
+  // Authoritative crowd state (occupancy, percentage, status, freshness).
+  // Derived centrally because a lean query cannot produce schema virtuals.
+  const crowd = buildCrowdState(center);
+
   const services = await Service.find({ centerId }).sort({ order: 1, name: 1 }).lean();
   const queues = await queueService.getQueueStatus(centerId);
 
@@ -481,8 +521,7 @@ const getWaitTimeIntelligence = asyncHandler(async (req, res) => {
         type: center.type,
         isOpen: center.isOpen,
         capacity: center.capacity,
-        currentCrowd: center.currentCrowd,
-        crowdPercent: center.crowdPercent,
+        ...crowd,
         noShowTimeoutSeconds: center.noShowTimeoutSeconds,
       },
       config: waitTimeService.CONFIG,
@@ -659,7 +698,12 @@ const getHistoricalReport = asyncHandler(async (req, res) => {
           $sum: { $cond: [{ $eq: ['$status', 'COMPLETED'] }, 1, 0] },
         },
         skipped: {
-          $sum: { $cond: [{ $eq: ['$status', 'SKIPPED'] }, 1, 0] },
+          $sum: {
+            $cond: [{ $in: ['$status', ['SKIPPED', 'SKIPPED_OUT_OF_RANGE']] }, 1, 0],
+          },
+        },
+        skippedOutOfRange: {
+          $sum: { $cond: [{ $eq: ['$status', 'SKIPPED_OUT_OF_RANGE'] }, 1, 0] },
         },
         avgServiceSeconds: { $avg: '$actualServiceSeconds' },
       },
@@ -699,7 +743,9 @@ const getHistoricalReport = asyncHandler(async (req, res) => {
           $sum: { $cond: [{ $eq: ['$status', 'COMPLETED'] }, 1, 0] },
         },
         skipped: {
-          $sum: { $cond: [{ $eq: ['$status', 'SKIPPED'] }, 1, 0] },
+          $sum: {
+            $cond: [{ $in: ['$status', ['SKIPPED', 'SKIPPED_OUT_OF_RANGE']] }, 1, 0],
+          },
         },
         cancelled: {
           $sum: { $cond: [{ $eq: ['$status', 'CANCELLED'] }, 1, 0] },
@@ -739,7 +785,11 @@ const getHistoricalReport = asyncHandler(async (req, res) => {
         _id: { $dateToString: { format: dateGroupFormat, date: '$createdAt' } },
         created: { $sum: 1 },
         completed: { $sum: { $cond: [{ $eq: ['$status', 'COMPLETED'] }, 1, 0] } },
-        skipped: { $sum: { $cond: [{ $eq: ['$status', 'SKIPPED'] }, 1, 0] } },
+        skipped: {
+          $sum: {
+            $cond: [{ $in: ['$status', ['SKIPPED', 'SKIPPED_OUT_OF_RANGE']] }, 1, 0],
+          },
+        },
       },
     },
     { $sort: { _id: 1 } },

@@ -23,6 +23,9 @@ const joinValidation = [
   body('serviceId').isMongoId().withMessage('Valid serviceId is required'),
   body('notifyApp').optional().isBoolean(),
   body('notifySms').optional().isBoolean(),
+  body('latitude').optional({ nullable: true }),
+  body('longitude').optional({ nullable: true }),
+  body('accuracy').optional({ nullable: true }),
 ];
 
 const feedbackValidation = [
@@ -74,7 +77,7 @@ const locationValidation = [
  * Protected: CUSTOMER role
  */
 const create = asyncHandler(async (req, res) => {
-  const { centerId, serviceId, notifyApp = true, notifySms = false } = req.body;
+  const { centerId, serviceId, notifyApp = true, notifySms = false, latitude, longitude, accuracy, timestamp } = req.body;
 
   try {
     const { token, queue } = await queueService.joinQueue({
@@ -83,6 +86,10 @@ const create = asyncHandler(async (req, res) => {
       serviceId,
       notifyApp,
       notifySms,
+      latitude,
+      longitude,
+      accuracy,
+      timestamp,
     });
 
     return sendCreated(res, {
@@ -97,6 +104,36 @@ const create = asyncHandler(async (req, res) => {
       },
     });
   } catch (err) {
+    if (err.code === 'OUT_OF_RANGE') {
+      return res.status(400).json({
+        success: false,
+        code: 'OUT_OF_RANGE',
+        message: err.message || 'You must be within 100 meters of this service center to join the queue.',
+        distanceMeters: err.distanceMeters,
+        radiusMeters: err.radiusMeters,
+      });
+    }
+    if (err.code === 'LOCATION_STALE') {
+      return res.status(400).json({
+        success: false,
+        code: 'LOCATION_STALE',
+        message: err.message || 'Location reading is stale. Fresh GPS reading required to join.',
+      });
+    }
+    if (err.code === 'LOCATION_UNCERTAIN') {
+      return res.status(400).json({
+        success: false,
+        code: 'LOCATION_UNCERTAIN',
+        message: err.message || 'Your device location is not accurate enough to verify the joining area.',
+      });
+    }
+    if (err.code === 'LOCATION_REQUIRED' || err.code === 'INVALID_COORDINATES') {
+      return res.status(400).json({
+        success: false,
+        code: err.code,
+        message: err.message,
+      });
+    }
     if (err.code === 'DOCUMENT_GATE_BLOCKED' || (err.status === 403 && err.gateData)) {
       return res.status(403).json({
         success: false,
@@ -133,7 +170,7 @@ const getMyTokens = asyncHandler(async (req, res) => {
   const filter = { userId: req.user._id };
   if (req.query.status && typeof req.query.status === 'string') {
     const s = req.query.status.trim().toUpperCase();
-    if (['WAITING', 'CALLED', 'SERVING', 'COMPLETED', 'SKIPPED', 'CANCELLED', 'EXPIRED'].includes(s)) {
+    if (['WAITING', 'CALLED', 'SERVING', 'COMPLETED', 'SKIPPED', 'SKIPPED_OUT_OF_RANGE', 'CANCELLED', 'EXPIRED'].includes(s)) {
       filter.status = s;
     }
   }

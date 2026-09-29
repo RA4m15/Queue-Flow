@@ -36,157 +36,88 @@ export default function CounterCard({
 
   return (
     <div
-      className="q-card"
-      style={{
-        overflow: 'hidden',
-        border: isServing
-          ? '1px solid rgba(0, 229, 168, 0.4)'
-          : isBreak
-          ? '1px solid rgba(245, 158, 11, 0.3)'
-          : isClosed
-          ? '1px solid rgba(100, 116, 139, 0.25)'
-          : '1px solid var(--border-subtle)',
-        boxShadow: isServing ? '0 0 20px rgba(0, 229, 168, 0.12)' : 'var(--shadow-sm)',
-        background: isServing
-          ? 'linear-gradient(135deg, rgba(17, 27, 44, 0.85) 0%, rgba(13, 20, 34, 0.75) 100%)'
-          : 'var(--bg-card)',
-      }}
+      className="counter-card"
+      data-status={isServing ? 'serving' : isBreak ? 'break' : isClosed ? 'closed' : 'active'}
     >
-      {/* Card Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '14px 18px',
-          borderBottom: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            className="mono"
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '14px',
-              background: isActive ? 'rgba(0, 229, 168, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-              color: isActive ? '#00E5A8' : '#64748B',
-              border: isActive ? '1px solid rgba(0, 229, 168, 0.25)' : '1px solid var(--border-subtle)',
-            }}
+      {/* Header: identity + live status */}
+      <div className="counter-card-head">
+        <div className="counter-identity">
+          <span
+            className="counter-num mono"
+            style={isActive ? undefined : { color: 'var(--text-muted)' }}
           >
-            {counter.number ?? '—'}
-          </div>
+            {String(counter.number ?? '—').padStart(2, '0')}
+          </span>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <p style={{ fontWeight: 700, fontSize: '15px', color: '#F8FAFC', lineHeight: 1.2 }}>
-                {counter.name}
-              </p>
+          <div className="counter-id-text">
+            <div className="counter-name-row">
+              <p className="counter-name">{counter.name}</p>
               <a
                 href={`/counter/${counter._id}`}
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: '#64748B', display: 'flex', alignItems: 'center', transition: 'color 0.15s ease' }}
+                className="counter-open-link"
                 title="Open fullscreen display board"
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#00E5A8')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#64748B')}
+                aria-label={`Open fullscreen display board for ${counter.name}`}
               >
                 <ExternalLink size={13} />
               </a>
             </div>
-            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '2px' }}>
-              {serviceName} • {servedCount} served today
+            <p className="counter-meta">
+              {serviceName}
+              <span className="counter-meta-sep">&middot;</span>
+              {servedCount} served today
             </p>
           </div>
         </div>
 
-        {/* Status Pill & Settings */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => onOpenAssign(counter)}
-            className="btn-secondary"
-            style={{ padding: '6px', borderRadius: '8px' }}
-            title="Reassign Service"
-          >
-            <Settings size={13} />
-          </button>
-
+        <div className="counter-head-actions">
           <span
-            className="badge"
+            className="counter-state"
             style={{
-              fontSize: '10px',
-              background: isActive
-                ? 'rgba(0, 229, 168, 0.12)'
-                : isBreak
-                ? 'rgba(245, 158, 11, 0.15)'
-                : 'rgba(100, 116, 139, 0.15)',
-              color: isActive ? '#00E5A8' : isBreak ? '#FBBF24' : '#94A3B8',
-              borderColor: isActive
-                ? 'rgba(0, 229, 168, 0.3)'
-                : isBreak
-                ? 'rgba(245, 158, 11, 0.3)'
-                : 'rgba(100, 116, 139, 0.25)',
+              color: isActive ? 'var(--color-primary)' : isBreak ? 'var(--color-warning)' : 'var(--text-muted)',
             }}
           >
+            <span
+              className="counter-state-dot"
+              style={{
+                background: isActive ? 'var(--color-primary)' : isBreak ? 'var(--color-warning)' : 'var(--text-dim)',
+              }}
+            />
             {counter.status}
           </span>
+
+          <button
+            onClick={() => onOpenAssign(counter)}
+            className="btn-secondary btn-icon"
+            title="Reassign Service"
+            aria-label={`Reassign service for ${counter.name}`}
+          >
+            <Settings size={14} />
+          </button>
         </div>
       </div>
 
-      {/* Serving Area */}
-      <div
-        style={{
-          padding: '16px 18px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <p className="mono" style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              NOW SERVING
-            </p>
+      {/* Now serving + lifecycle actions */}
+      <div className="counter-card-body">
+        <div className="counter-serving">
+          <div className="counter-serving-head">
+            <span className="eyebrow">Now serving</span>
             {tokenStatus && (
-              <span
-                className={`badge badge-${tokenStatus.toLowerCase()}`}
-                style={{ fontSize: '9px', padding: '1px 6px' }}
-              >
-                {tokenStatus}
-              </span>
+              <span className={`badge badge-${tokenStatus.toLowerCase()}`}>{tokenStatus}</span>
             )}
           </div>
-          <p
-            className="mono"
-            style={{
-              fontSize: '28px',
-              fontWeight: 800,
-              color: isServing ? '#00E5A8' : '#64748B',
-              lineHeight: 1,
-              textShadow: isServing ? '0 0 18px rgba(0, 229, 168, 0.3)' : 'none',
-            }}
-          >
-            {currentTokenCode}
-          </p>
+          <p className="counter-token mono">{currentTokenCode}</p>
         </div>
 
-        {/* Dynamic Action Buttons based on Token Lifecycle */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'flex-end' }}>
-          {/* If a token is currently CALLED -> offer Start Serving or Skip */}
+        <div className="counter-actions">
+          {/* CALLED -> Start Serving or Skip */}
           {tokenStatus === 'CALLED' && (
             <>
               <button
                 onClick={() => onStartServing(counter._id)}
                 disabled={isLoading}
-                className="btn-primary"
-                style={{ padding: '7px 14px', fontSize: '12px' }}
+                className="btn-primary btn-compact"
                 title="Customer has arrived at counter"
               >
                 <Play size={13} />
@@ -195,8 +126,7 @@ export default function CounterCard({
               <button
                 onClick={() => onSkip(counter._id, currentToken?._id)}
                 disabled={isLoading}
-                className="btn-danger"
-                style={{ padding: '7px 12px', fontSize: '12px' }}
+                className="btn-danger btn-compact"
                 title="Customer did not arrive"
               >
                 <SkipForward size={13} />
@@ -205,14 +135,13 @@ export default function CounterCard({
             </>
           )}
 
-          {/* If a token is currently SERVING -> offer Complete or Skip */}
+          {/* SERVING -> Complete or Skip */}
           {tokenStatus === 'SERVING' && (
             <>
               <button
                 onClick={() => onComplete(counter._id)}
                 disabled={isLoading}
-                className="btn-success"
-                style={{ padding: '7px 16px', fontSize: '12px' }}
+                className="btn-success btn-compact"
                 title="Finish service"
               >
                 <CheckCircle2 size={14} />
@@ -221,34 +150,32 @@ export default function CounterCard({
               <button
                 onClick={() => onSkip(counter._id, currentToken?._id)}
                 disabled={isLoading}
-                className="btn-danger"
-                style={{ padding: '7px 10px', fontSize: '12px' }}
+                className="btn-danger btn-icon"
                 title="Abandon / Skip"
+                aria-label={`Skip current token at ${counter.name}`}
               >
                 <SkipForward size={13} />
               </button>
             </>
           )}
 
-          {/* If no active token or counter is idle -> Call Next */}
-          {(!currentToken || currentTokenCode === '—') && (
+          {/* Idle -> Call Next */}
+          {(!currentToken || currentTokenCode === '\u2014') && (
             <button
               onClick={() => onCallNext(counter._id)}
               disabled={isLoading || !isActive || !counter.serviceId}
-              className="btn-primary"
-              style={{ padding: '8px 18px', fontSize: '12px' }}
+              className="btn-primary btn-compact"
             >
-              <span>Call Next →</span>
+              <span>Call Next &rarr;</span>
             </button>
           )}
 
-          {/* Break / Active switch */}
+          {/* Break / Resume */}
           {!isClosed && (
             <button
               onClick={handleToggleBreak}
               disabled={isLoading}
-              className="btn-secondary"
-              style={{ padding: '7px 12px', fontSize: '12px' }}
+              className="btn-secondary btn-compact"
               title={isActive ? 'Put counter on break' : 'Resume counter from break'}
             >
               <Coffee size={13} />
@@ -256,15 +183,14 @@ export default function CounterCard({
             </button>
           )}
 
-          {/* Close / Open toggle */}
+          {/* Close / Open */}
           <button
             onClick={handleToggleClosed}
             disabled={isLoading}
-            className="btn-secondary"
-            style={{ padding: '7px 10px', fontSize: '12px' }}
+            className="btn-secondary btn-compact"
             title={isClosed ? 'Open Counter' : 'Close Counter'}
           >
-            <span style={{ fontSize: '11px' }}>{isClosed ? 'Open' : 'Close'}</span>
+            <span>{isClosed ? 'Open' : 'Close'}</span>
           </button>
         </div>
       </div>

@@ -147,7 +147,7 @@ function createLimiter(config = {}) {
   return rateLimit({
     windowMs,
     max,
-    standardHeaders: true,
+    standardHeaders: config.standardHeaders !== undefined ? config.standardHeaders : true,
     legacyHeaders: false,
     message,
     keyGenerator,
@@ -268,6 +268,31 @@ const documentActionLimiter = createLimiter({
   message: { success: false, message: 'Too many document requests, please try again later.' },
 });
 
+/**
+ * IoT telemetry limiter.
+ *
+ * Crowd sensors are machine clients publishing an authoritative occupancy
+ * reading roughly once per second, plus RFID and QR scanner hardware. They
+ * authenticated as devices (x-iot-secret), not as end users, so they get their
+ * own explicitly bounded budget rather than sharing the human-facing
+ * `generalLimiter`.
+ *
+ * This is deliberately NOT unlimited. 120/min is twice the 1 Hz publish cadence,
+ * which tolerates a missed or retried beat while still capping a malfunctioning
+ * or hostile device at 2 req/s. The global `generalLimiter` is left untouched and
+ * still governs every other API route.
+ */
+const iotTelemetryLimiter = createLimiter({
+  prefix: 'rl:iot:',
+  windowMs: 1 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 120,
+  keyGenerator: ipKeyGenerator,
+  message: {
+    success: false,
+    message: 'IoT telemetry rate limit exceeded. Publish at most once per second.',
+  },
+});
+
 module.exports = {
   createLimiter,
   QueueFlowDistributedStore,
@@ -285,5 +310,6 @@ module.exports = {
   swapActionLimiter,
   documentUploadLimiter,
   documentActionLimiter,
+  iotTelemetryLimiter,
 };
 

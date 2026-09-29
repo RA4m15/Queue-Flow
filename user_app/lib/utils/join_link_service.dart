@@ -61,6 +61,23 @@ class PendingJoinLink extends Notifier<QrJoinPayload?> {
   void set(QrJoinPayload payload) => state = payload;
 
   void clear() => state = null;
+
+  /// Clears the parked link only if it is still the same one.
+  ///
+  /// Consumers hand the link to the router and then want to forget it, but they
+  /// cannot do that synchronously: the router is mid-build when it decides on a
+  /// destination, and writing provider state there throws. They therefore
+  /// schedule the clear for after the frame — by which time a *new* scan may
+  /// have replaced the payload. Comparing first means the cleanup for the
+  /// previous link can never discard the next one.
+  ///
+  /// Returns whether the parked link was this one, and has now been consumed.
+  bool take(QrJoinPayload payload) {
+    final current = state;
+    if (current == null || current != payload) return false;
+    state = null;
+    return true;
+  }
 }
 
 final pendingJoinLinkProvider =
@@ -72,6 +89,27 @@ final pendingJoinLinkProvider =
 /// path. The route exists purely so an inbound link does not render the 404
 /// screen while the join flow runs.
 String joinLinkLocation() => kCanonicalJoinPath;
+
+/// The in-app destination a validated join payload belongs on.
+///
+/// Pure and total, so the *same* payload always produces the *same* route no
+/// matter who is asking — the router redirect after a sign-in, or the transit
+/// screen on a warm deep link. That is what makes "scan the QR, then log in"
+/// land on the same queue rather than on a re-derived guess.
+///
+/// Two properties are deliberate:
+///
+///   * **Ids only.** No resolved model, no `state.extra`. A query-string route
+///     is addressable, so it survives the `/login` redirect the router applies
+///     to an unauthenticated user, and a process restart. The destination
+///     screens re-read the backend themselves, which also means nothing cached
+///     in this app can make a stale preview look current.
+///   * **The center-only QR goes to the selector, not to a preview.** The
+///     backend has no single queue to show for a QR that names no service, so
+///     naming a fake one would be a lie.
+String joinRouteFor(QrJoinPayload payload) => payload.hasService
+    ? '/join/preview?centerId=${payload.centerId}&serviceId=${payload.serviceId}'
+    : '/join/services?centerId=${payload.centerId}';
 
 // ─── Platform route capture ──────────────────────────────────────────────────
 

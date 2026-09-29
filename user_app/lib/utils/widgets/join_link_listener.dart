@@ -3,22 +3,34 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/auth_provider.dart';
-import '../join_flow_controller.dart';
 import '../join_link_service.dart';
 import '../qr_payload_parser.dart';
 
-/// Bridges inbound App Link / Universal Link URLs into the existing queue join
-/// flow.
+/// Parks inbound App Link / Universal Link payloads for the queue join flow.
 ///
 /// There is one queue-join flow, not two. A link opened from the phone camera
-/// and a QR read by the in-app scanner both end up calling
-/// [JoinFlowController.handleJoinPayload] with the same [QrJoinPayload], so the
-/// resulting behaviour is identical by construction.
+/// and a QR read by the in-app scanner both end up on the same id-bearing
+/// queue-preview route, which re-reads the backend itself, and the only path to
+/// a token is still an explicit tap on JOIN QUEUE.
 ///
-/// It is mounted above the router in `MaterialApp.router.builder` so it stays
-/// alive across navigation and can act the moment the app is in a state where a
-/// queue join makes sense.
+/// ## Why this widget does not navigate
+///
+/// It is mounted above the router, in `MaterialApp.router.builder`, so it stays
+/// alive across navigation. That position is also why it cannot navigate: a
+/// `builder` context sits *above* the [Navigator] and its [Overlay], so
+/// `GoRouter.of(context)` and `Overlay.of(context)` are both null there, and
+/// calling either would throw. Pushing a route from here is not a matter of
+/// finding the right ancestor — the router simply is not in scope.
+///
+/// So this widget only records the validated payload, and the two consumers
+/// that *do* have a router context act on it:
+///
+///   * the router `redirect`, which turns a link parked before sign-in back
+///     into the same centre and service after it (see `app_router.dart`), and
+///   * [JoinLinkTransitScreen], the `/join` route's own screen, which hands a
+///     warm link to the flow.
+///
+/// Both derive the destination with [joinRouteFor], so they cannot disagree.
 ///
 /// It waits for authentication on purpose. Every route in this app redirects an
 /// unauthenticated user to `/login`, so acting on the link immediately would
@@ -42,7 +54,10 @@ class _JoinLinkListenerState extends ConsumerState<JoinLinkListener> {
     super.initState();
     _subscription = joinLinkRouteObserver.joins.listen((payload) {
       // A platform route is an explicit user action (they just scanned a QR),
-      // so it is safe to write provider state from the stream callback.
+      // so it is safe to write provider state from the stream callback. This
+      // also keeps a link that arrives on a *different* route from being
+      // mistaken for one already being handled: parking is unconditional, and
+      // only an authenticated consumer takes it.
       ref.read(pendingJoinLinkProvider.notifier).set(payload);
     });
   }
@@ -54,20 +69,5 @@ class _JoinLinkListenerState extends ConsumerState<JoinLinkListener> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final QrJoinPayload? pending = ref.watch(pendingJoinLinkProvider);
-    final isAuthenticated = ref.watch(authProvider).isAuthenticated;
-
-    if (pending != null && isAuthenticated) {
-      // Clear synchronously so a rebuild cannot start a second identical run;
-      // the flow itself pops a loading sheet and navigates.
-      ref.read(pendingJoinLinkProvider.notifier).clear();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        joinFlowController(ref).handleJoinPayload(context, pending);
-      });
-    }
-
-    return widget.child;
-  }
+  Widget build(BuildContext context) => widget.child;
 }

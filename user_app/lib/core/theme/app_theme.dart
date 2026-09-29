@@ -57,6 +57,9 @@ class AppColors {
       case 'CANCELLED':
       case 'EXPIRED':
       case 'SKIPPED':
+      // Phase 2: an automatic skip for leaving the service area. Same urgency
+      // as any other removal from the queue — the customer lost their place.
+      case 'SKIPPED_OUT_OF_RANGE':
         return danger;
       default:
         return textSecondary;

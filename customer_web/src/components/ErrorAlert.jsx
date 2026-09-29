@@ -4,8 +4,8 @@ export function ErrorAlert({ message, onRetry }) {
       role="alert"
       className="qf-card"
       style={{
-        border: '1px solid rgba(239, 68, 68, 0.4)',
-        background: 'rgba(239, 68, 68, 0.08)',
+        border: '1px solid color-mix(in srgb, var(--color-danger) 40%, transparent)',
+        background: 'color-mix(in srgb, var(--color-danger) 8%, transparent)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -20,11 +20,11 @@ export function ErrorAlert({ message, onRetry }) {
           width: '44px',
           height: '44px',
           borderRadius: '50%',
-          background: 'rgba(239, 68, 68, 0.15)',
+          background: 'color-mix(in srgb, var(--color-danger) 15%, transparent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#EF4444',
+          color: 'var(--color-danger)',
         }}
         aria-hidden="true"
       >
@@ -36,7 +36,7 @@ export function ErrorAlert({ message, onRetry }) {
       </div>
 
       <div>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#F87171', marginBottom: '0.25rem' }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--color-danger)', marginBottom: '0.25rem' }}>
           Unable to Load Information
         </h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>

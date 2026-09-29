@@ -89,7 +89,31 @@ async function describe_run() {
     });
 
     // Seed test fixtures
-    testCenter = await ServiceCenter.findOne({ isOpen: true });
+    //
+    // Channel intake (WhatsApp / SMS / Telegram) has no GPS input, so the
+    // geofence gate (LOCATION_REQUIRED) can only apply to centers that
+    // actually configure a position. Select an open center with NO configured
+    // position (neither top-level latitude/longitude nor the location
+    // subdocument) so this suite exercises the channel layer instead of the
+    // geofence, which has its own dedicated suites
+    // (location_queue_joining.test.js / phase2_geofence_call_next.test.js).
+    // Only an existing center is read — no shared center is created or
+    // modified. The geofence enforcement itself is left completely untouched.
+    testCenter = await ServiceCenter.findOne({
+      isOpen: true,
+      $and: [
+        { $or: [{ latitude: null }, { latitude: { $exists: false } }] },
+        { $or: [{ longitude: null }, { longitude: { $exists: false } }] },
+        { $or: [{ 'location.latitude': null }, { 'location.latitude': { $exists: false } }] },
+        { $or: [{ 'location.longitude': null }, { 'location.longitude': { $exists: false } }] },
+        // Skip the regression-center fixtures owned by
+        // live_metrics_realtime_regression.test.js
+        { name: { $not: /regression center/i } },
+      ],
+    });
+    if (!testCenter) {
+      testCenter = await ServiceCenter.findOne({ isOpen: true });
+    }
     if (!testCenter) {
       testCenter = await ServiceCenter.create({
         name: 'Phase D Test Center',

@@ -9,6 +9,7 @@ import { ErrorAlert } from '../components/ErrorAlert';
 import { AuthModal } from '../components/AuthModal';
 import { OfflineBanner } from '../components/OfflineBanner';
 import DocumentChecklist from '../components/DocumentChecklist';
+import { BackButton } from '../components/BackButton';
 
 export function QueuePreviewPage() {
   const [searchParams] = useSearchParams();
@@ -47,6 +48,9 @@ export function QueuePreviewPage() {
       setLoading(true);
       setError(null);
       setJoinError(null);
+      setCenter(null);
+      setService(null);
+      setQueueData(null);
 
       const [cRes, sRes, qRes] = await Promise.all([
         serviceCenterAPI.getById(centerId),
@@ -166,7 +170,7 @@ export function QueuePreviewPage() {
   if (!centerId || !serviceId) {
     return (
       <div className="qf-card" style={{ textAlign: 'center', padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#F87171' }}>
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--color-danger)' }}>
           Invalid Queue Parameters
         </h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
@@ -182,6 +186,33 @@ export function QueuePreviewPage() {
   const waitingCount = queueData?.waitingCount !== undefined ? queueData.waitingCount : 'No data available';
   const queueStatus = queueData?.status || 'No data available';
 
+  // A QR can carry centerId + serviceId straight to this page, bypassing the
+  // service list. If the center has been deactivated, stop here with a clean
+  // message: the backend refuses the join, so offering "Join Queue" would be a
+  // guaranteed failure. `isOpen` is a persisted field, so `false` is decisive.
+  if (!loading && !error && center?.isOpen === false) {
+    return (
+      <div
+        className="qf-card"
+        data-testid="center-unavailable"
+        style={{ textAlign: 'center', padding: '2rem' }}
+      >
+        <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+          Service center unavailable
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+          {center?.name
+            ? `${center.name} is not currently accepting queue requests.`
+            : 'This service center is not currently accepting queue requests.'}
+          {' '}Please choose another service center.
+        </p>
+        <Link to="/centers" className="btn-primary">
+          Browse Centers
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -193,22 +224,7 @@ export function QueuePreviewPage() {
 
         {/* Navigation Breadcrumb */}
         <div>
-          <Link
-            to={`/center/${centerId}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              color: 'var(--text-secondary)',
-              fontSize: '0.85rem',
-              marginBottom: '0.75rem',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Back to Services
-          </Link>
+          <BackButton label="Back to Services" fallback={centerId ? `/center/${centerId}` : '/centers'} />
 
           <h1 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.2rem' }}>
             Queue Preview
@@ -227,7 +243,7 @@ export function QueuePreviewPage() {
             {/* Live Queue Metrics Card */}
             <div className="qf-card" style={{ border: '1px solid var(--border-accent)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: '700', color: (isCached || !isOnline) ? '#FBBF24' : 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: '700', color: (isCached || !isOnline) ? 'var(--color-warning)' : 'var(--text-muted)', textTransform: 'uppercase' }}>
                   {isCached || !isOnline ? 'Last Known Queue Status' : 'Live Queue Status'}
                 </span>
                 <span
@@ -236,9 +252,9 @@ export function QueuePreviewPage() {
                     fontWeight: '700',
                     padding: '0.25rem 0.6rem',
                     borderRadius: '9999px',
-                    background: (isCached || !isOnline) ? 'rgba(245, 158, 11, 0.12)' : queueStatus === 'OPEN' ? 'var(--color-primary-subtle)' : 'rgba(255, 255, 255, 0.08)',
-                    color: (isCached || !isOnline) ? '#FBBF24' : queueStatus === 'OPEN' ? 'var(--color-primary)' : 'var(--text-muted)',
-                    border: (isCached || !isOnline) ? '1px solid rgba(245, 158, 11, 0.25)' : queueStatus === 'OPEN' ? '1px solid var(--border-accent)' : '1px solid var(--border-subtle)',
+                    background: (isCached || !isOnline) ? 'color-mix(in srgb, var(--color-warning) 12%, transparent)' : queueStatus === 'OPEN' ? 'var(--color-primary-subtle)' : 'var(--bg-card-alt)',
+                    color: (isCached || !isOnline) ? 'var(--color-warning)' : queueStatus === 'OPEN' ? 'var(--color-primary)' : 'var(--text-muted)',
+                    border: (isCached || !isOnline) ? '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)' : queueStatus === 'OPEN' ? '1px solid var(--border-accent)' : '1px solid var(--border-subtle)',
                   }}
                 >
                   {isCached || !isOnline ? 'LAST KNOWN' : queueStatus}
@@ -246,32 +262,32 @@ export function QueuePreviewPage() {
               </div>
 
               {/* Waiting & Estimated Time */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '1rem',
-                  textAlign: 'center',
-                  marginBottom: '1rem',
-                }}
-              >
-                <div style={{ background: 'rgba(8, 12, 22, 0.5)', padding: '1rem', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                    {isCached || !isOnline ? 'Last Known Waiting' : 'Waiting in Queue'}
+              <div className="metric-pair">
+                <div className="metric-tile">
+                  <div className="metric-tile-label">
+                    {isCached || !isOnline ? 'Last known waiting' : 'Waiting in queue'}
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: '800', color: (isCached || !isOnline) ? '#FBBF24' : 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
+                  <div
+                    className={`metric-tile-value ${
+                      isCached || !isOnline ? 'is-muted' : 'is-green'
+                    }`}
+                  >
                     {waitingCount}
                   </div>
                 </div>
 
-                <div style={{ background: 'rgba(8, 12, 22, 0.5)', padding: '1rem', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                    {isCached || !isOnline ? 'Last Known Est. Wait' : 'Est. Wait Time'}
+                <div className="metric-tile">
+                  <div className="metric-tile-label">
+                    {isCached || !isOnline ? 'Last known est. wait' : 'Est. wait time'}
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: '800', color: (isCached || !isOnline) ? '#FBBF24' : 'var(--color-cyan)', fontFamily: 'var(--font-mono)' }}>
+                  <div
+                    className={`metric-tile-value ${
+                      isCached || !isOnline ? 'is-muted' : 'is-cyan'
+                    }`}
+                  >
                     {typeof estimatedWaitMinutes === 'number'
                       ? `~${estimatedWaitMinutes}m`
-                      : 'No data available'}
+                      : 'No data yet'}
                   </div>
                 </div>
               </div>
@@ -292,7 +308,7 @@ export function QueuePreviewPage() {
                           fontWeight: '700',
                           padding: '0.35rem 0.65rem',
                           borderRadius: '8px',
-                          background: 'rgba(0, 210, 255, 0.1)',
+                          background: 'color-mix(in srgb, var(--color-cyan) 10%, transparent)',
                           border: '1px solid var(--border-cyan)',
                           color: 'var(--color-cyan)',
                         }}
@@ -320,7 +336,7 @@ export function QueuePreviewPage() {
                           fontWeight: '600',
                           padding: '0.35rem 0.65rem',
                           borderRadius: '8px',
-                          background: 'rgba(255, 255, 255, 0.05)',
+                          background: 'var(--bg-card-alt)',
                           border: '1px solid var(--border-subtle)',
                           color: 'var(--text-secondary)',
                         }}
@@ -331,6 +347,81 @@ export function QueuePreviewPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Current crowd - mirrors the mobile app's crowd card exactly:
+                "N / M inside", a quiet status dot, a thin capacity bar and a
+                small muted caption. Informational only; it never gates joining. */}
+            <div className="section-block">
+              <span className="section-label">Current crowd</span>
+              <div className="qf-card crowd-card">
+                {(() => {
+                  const capacity = center?.capacity;
+                  const current = center?.currentCrowd;
+                  const hasCapacity = typeof capacity === 'number' && capacity > 0;
+                  const hasCount = typeof current === 'number';
+                  const percent = hasCapacity && hasCount
+                    ? Math.min(100, Math.round((current / capacity) * 100))
+                    : null;
+                  const rawStatus = String(center?.crowdStatus || 'LOW').toUpperCase();
+                  const crowdColor = rawStatus === 'HIGH' || rawStatus === 'CRITICAL'
+                    ? 'var(--color-danger)'
+                    : rawStatus === 'MODERATE'
+                      ? 'var(--color-warning)'
+                      : 'var(--color-success)';
+                  const crowdLabel = rawStatus === 'HIGH' || rawStatus === 'CRITICAL'
+                    ? 'Busy'
+                    : rawStatus === 'MODERATE'
+                      ? 'Moderate'
+                      : 'Quiet';
+
+                  if (!hasCapacity) {
+                    return (
+                      <p className="crowd-note">
+                        This centre has not reported a capacity, so crowd level is not
+                        available. This does not affect joining.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div className="crowd-top">
+                        <div className="crowd-figure">
+                          <span className="crowd-count">{hasCount ? current : '\u2014'}</span>
+                          <span className="crowd-inside">/ {capacity} inside</span>
+                        </div>
+
+                        <span
+                          className="crowd-chip"
+                          style={{
+                            color: crowdColor,
+                            background: `color-mix(in srgb, ${crowdColor} 12%, transparent)`,
+                            borderColor: `color-mix(in srgb, ${crowdColor} 30%, transparent)`,
+                          }}
+                        >
+                          <span className="crowd-chip-dot" style={{ background: crowdColor }} />
+                          {crowdLabel}
+                        </span>
+                      </div>
+
+                      <div className="crowd-track">
+                        <div
+                          className="crowd-fill"
+                          style={{ width: `${percent ?? 0}%`, background: crowdColor }}
+                        />
+                      </div>
+
+                      <p className="crowd-note">
+                        {percent !== null ? `${percent}% of capacity` : 'Capacity not reported'}
+                        {' \u00b7 '}
+                        {rawStatus}. Crowd level is informational &mdash; the service
+                        centre decides who is admitted.
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Tier 4 Feature 4: Document-Ready Gate Checklist */}
@@ -347,9 +438,9 @@ export function QueuePreviewPage() {
                 style={{
                   padding: '1rem',
                   borderRadius: '12px',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  color: '#F87171',
+                  background: 'color-mix(in srgb, var(--color-danger) 12%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-danger) 35%, transparent)',
+                  color: 'var(--color-danger)',
                   fontSize: '0.9rem',
                   display: 'flex',
                   flexDirection: 'column',

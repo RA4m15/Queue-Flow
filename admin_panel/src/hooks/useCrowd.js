@@ -1,18 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { crowdAPI, devAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import {
+  EMPTY_CROWD,
+  adoptCrowdEvent,
+  adoptCrowdRead,
+  isCrowdReadingStale,
+} from '../services/crowdState';
 
+export { CROWD_SENSOR_STALE_MS, isCrowdReadingStale } from '../services/crowdState';
+
+/**
+ * Authoritative crowd state for a center.
+ *
+ * Every value here is the backend's: the stored occupancy, the percentage and
+ * status the server derived from it, and the server's own freshness verdict.
+ * Nothing is calculated locally, so the Admin Dashboard and the Live Counter
+ * cannot show different numbers for the same center.
+ *
+ * The rules themselves live in `services/crowdState.js` so they can be tested
+ * directly.
+ */
 export function useCrowd(centerId) {
-  const [crowdData, setCrowdData] = useState({
-    currentCrowd: 24,
-    capacity: 200,
-    crowdPercent: 12,
-    crowdStatus: 'LOW',
-    entriesToday: 142,
-    exitsToday: 118,
-    events: [],
-  });
-  const [loading, setLoading] = useState(false);
+  const [crowdData, setCrowdData] = useState(EMPTY_CROWD);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { on } = useSocket();
 
@@ -25,10 +36,7 @@ export function useCrowd(centerId) {
       setError(null);
       const res = await crowdAPI.getStatus(centerId);
       if (res.success && res.data) {
-        setCrowdData((prev) => ({
-          ...prev,
-          ...res.data,
-        }));
+        setCrowdData(adoptCrowdRead(res.data, centerId));
       }
     } catch (err) {
       console.warn('Using default crowd fallback:', err.message);
@@ -41,31 +49,26 @@ export function useCrowd(centerId) {
     fetchCrowd();
   }, [fetchCrowd]);
 
-  // Real-time crowd update via Socket.IO
+  // Real-time crowd update via Socket.IO. The server has already validated the
+  // reading, derived the percentage and status, and scoped the emission to this
+  // center's room; `adoptCrowdEvent` re-checks the center and adopts the payload
+  // verbatim.
   useEffect(() => {
     if (!centerId) return;
 
     const unsubCrowd = on('crowd.updated', (data) => {
-      if (data.centerId === centerId) {
-        setCrowdData((prev) => {
-          const current = data.currentCrowd ?? prev.currentCrowd;
-          const cap = data.capacity ?? prev.capacity;
-          const pct = data.crowdPercent ?? (cap ? Math.round(((current || 0) / cap) * 100) : null);
-          return {
-            ...prev,
-            currentCrowd: current,
-            capacity: cap ?? null,
-            crowdPercent: pct,
-            crowdStatus: data.crowdStatus ?? prev.crowdStatus,
-          };
-        });
-      }
+      setCrowdData((prev) => adoptCrowdEvent(prev, data, centerId));
+    });
+
+    const unsubConnect = on('connect', () => {
+      fetchCrowd();
     });
 
     return () => {
       unsubCrowd();
+      unsubConnect();
     };
-  }, [centerId, on]);
+  }, [centerId, on, fetchCrowd]);
 
   // Simulator actions for development/testing
   const simulateCrowd = async (type, count = 1) => {
@@ -94,6 +97,7 @@ export function useCrowd(centerId) {
     crowdData,
     loading,
     error,
+    isReadingStale: isCrowdReadingStale,
     simulateCrowd,
     resetCrowd,
     refreshCrowd: fetchCrowd,

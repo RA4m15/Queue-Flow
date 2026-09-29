@@ -7,16 +7,16 @@ export default function ErrorMessage({ message = 'An error occurred loading data
       style={{
         padding: '20px 24px',
         borderRadius: '16px',
-        background: 'rgba(239, 68, 68, 0.08)',
-        border: '1px solid rgba(239, 68, 68, 0.3)',
+        background: 'color-mix(in srgb, var(--color-danger) 8%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
         textAlign: 'center',
         margin: '16px 0',
         backdropFilter: 'blur(8px)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
-        <AlertTriangle size={18} color="#EF4444" />
-        <p style={{ color: '#F87171', fontSize: '14px', fontWeight: 600 }}>
+        <AlertTriangle size={18} color="var(--color-danger)" />
+        <p style={{ color: 'var(--color-danger)', fontSize: '14px', fontWeight: 600 }}>
           {message}
         </p>
       </div>

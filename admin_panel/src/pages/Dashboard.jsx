@@ -30,7 +30,7 @@ export default function Dashboard() {
     assignService,
     refreshCounters,
   } = useCounters(activeCenterId);
-  const { crowdData, simulateCrowd, resetCrowd, refreshCrowd } = useCrowd(activeCenterId);
+  const { crowdData, isReadingStale, refreshCrowd } = useCrowd(activeCenterId);
   const { analytics, refreshAnalytics } = useAnalytics(activeCenterId);
 
   const [selectedCounterForAssign, setSelectedCounterForAssign] = useState(null);
@@ -59,7 +59,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
               Live Operations Command
             </h1>
             <span
@@ -69,15 +69,15 @@ export default function Dashboard() {
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: 'rgba(0, 229, 168, 0.12)',
-                color: '#00E5A8',
-                border: '1px solid rgba(0, 229, 168, 0.3)',
+                background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+                color: 'var(--color-primary)',
+                border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
               }}
             >
               REALTIME MESH
             </span>
           </div>
-          <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '3px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '3px' }}>
             Real-time counter orchestration, IoT crowd footfall, and synchronized queue state
           </p>
         </div>
@@ -105,13 +105,13 @@ export default function Dashboard() {
             queues={queues}
             counters={counters}
             avgWaitSeconds={analytics?.summary?.avgWaitSeconds}
+            metrics={analytics?.summary}
           />
 
           {/* IoT Live Footfall Card */}
           <CrowdWidget
             crowdData={crowdData}
-            onSimulate={simulateCrowd}
-            onReset={resetCrowd}
+            isReadingStale={isReadingStale}
           />
 
           {/* Main 2-Column Grid: Counters on left, Live Log & Queues on right */}
@@ -119,7 +119,7 @@ export default function Dashboard() {
             {/* Left Column: Counters */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: '#64748B', textTransform: 'uppercase' }}>
+                <p className="mono" style={{ fontSize: '10px', letterSpacing: '0.1em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                   FACILITY COUNTERS ({counters.length})
                 </p>
               </div>
@@ -130,7 +130,7 @@ export default function Dashboard() {
                   style={{
                     padding: '36px 24px',
                     textAlign: 'center',
-                    color: '#64748B',
+                    color: 'var(--text-muted)',
                     fontSize: '13px',
                     borderRadius: '18px',
                   }}

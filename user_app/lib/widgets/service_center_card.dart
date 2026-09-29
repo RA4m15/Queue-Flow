@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../models/service_center.dart';
+import '../services/location_service.dart';
 import 'crowd_indicator.dart';
 
 class ServiceCenterCard extends StatelessWidget {
@@ -8,10 +9,12 @@ class ServiceCenterCard extends StatelessWidget {
     super.key,
     required this.center,
     required this.onTap,
+    this.userLocation,
   });
 
   final ServiceCenter center;
   final VoidCallback onTap;
+  final UserLocation? userLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +36,9 @@ class ServiceCenterCard extends StatelessWidget {
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceElevated,
+                      color: context.themeSurfaceElevated,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: context.themeBorder),
                     ),
                     child: Text(
                       center.typeEmoji,
@@ -97,7 +100,57 @@ class ServiceCenterCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const Divider(color: AppColors.border, height: 24),
+              if (userLocation != null && center.location?.isConfigured == true) ...[
+                const SizedBox(height: 8),
+                Builder(
+                  builder: (context) {
+                    final dist = calculateHaversineDistanceMeters(
+                      center.location!.latitude!,
+                      center.location!.longitude!,
+                      userLocation!.latitude,
+                      userLocation!.longitude,
+                    );
+                    final radius = center.geofence?.radiusMeters ?? 100;
+                    final inRange = dist <= radius;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: inRange
+                            ? AppColors.success.withValues(alpha: 0.12)
+                            : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: inRange
+                              ? AppColors.success.withValues(alpha: 0.3)
+                              : context.themeBorder,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            inRange ? Icons.near_me_rounded : Icons.location_off_rounded,
+                            size: 11,
+                            color: inRange ? AppColors.success : AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            inRange
+                                ? 'Within range · ${formatDistance(dist)}'
+                                : 'Out of range · ${formatDistance(dist)}',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: inRange ? AppColors.success : AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+              Divider(color: context.themeBorder, height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -111,7 +164,7 @@ class ServiceCenterCard extends StatelessWidget {
                       Text(
                         'View queues',
                         style: TextStyle(
-                          color: AppColors.primary,
+                          color: context.themePrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -120,7 +173,7 @@ class ServiceCenterCard extends StatelessWidget {
                       Icon(
                         Icons.arrow_forward_ios_rounded,
                         size: 12,
-                        color: AppColors.primary,
+                        color: context.themePrimary,
                       ),
                     ],
                   ),

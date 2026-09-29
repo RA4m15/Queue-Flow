@@ -42,7 +42,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'register'
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(5, 7, 13, 0.85)',
+        background: 'var(--bg-app)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
@@ -85,9 +85,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'register'
             style={{
               padding: '0.75rem',
               borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#F87171',
+              background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
+              color: 'var(--color-danger)',
               fontSize: '0.85rem',
               marginBottom: '1rem',
             }}

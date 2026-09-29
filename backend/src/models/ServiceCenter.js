@@ -87,6 +87,30 @@ const serviceCenterSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Center Location & Geofence (Top-level + subdocument compatibility)
+    latitude: {
+      type: Number,
+      min: [-90, 'Latitude must be between -90 and 90'],
+      max: [90, 'Latitude must be between -90 and 90'],
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      min: [-180, 'Longitude must be between -180 and 180'],
+      max: [180, 'Longitude must be between -180 and 180'],
+      default: null,
+    },
+    joiningRadiusMeters: {
+      type: Number,
+      min: [1, 'Joining radius must be at least 1 meter'],
+      max: [50000, 'Joining radius must not exceed 50,000 meters'],
+      default: 100,
+    },
+    // Centralized Resource Allocation — automatic distribution of eligible waiting customers to ready counters
+    autoResourceAllocation: {
+      type: Boolean,
+      default: false,
+    },
     // Tier 4 Feature 1: Ghost Queue Geofencing Configuration
     // Location coordinates (latitude / longitude). Centers without coordinates must not participate in geofencing.
     location: {
@@ -113,21 +137,21 @@ const serviceCenterSchema = new mongoose.Schema(
         type: Number,
         min: [10, 'Geofence radius must be at least 10 meters'],
         max: [50000, 'Geofence radius must not exceed 50,000 meters'],
-        default: 500,
+        default: 100,
       },
       // Near radius: in immediate vicinity of center (meters)
       nearRadiusMeters: {
         type: Number,
         min: [20, 'Near radius must be at least 20 meters'],
         max: [50000, 'Near radius must not exceed 50,000 meters'],
-        default: 1000,
+        default: 500,
       },
       // Outer radius: approaching notification boundary (meters)
       approachingRadiusMeters: {
         type: Number,
         min: [50, 'Approaching radius must be at least 50 meters'],
         max: [100000, 'Approaching radius must not exceed 100,000 meters'],
-        default: 2000,
+        default: 1000,
       },
     },
   },
@@ -136,6 +160,35 @@ const serviceCenterSchema = new mongoose.Schema(
     toJSON: { virtuals: true },
   }
 );
+
+// ─── Pre-save synchronization hook ───────────────
+serviceCenterSchema.pre('save', function (next) {
+  if (this.latitude !== undefined && this.latitude !== null) {
+    if (!this.location) this.location = {};
+    this.location.latitude = this.latitude;
+  } else if (this.location && this.location.latitude !== undefined && this.location.latitude !== null) {
+    this.latitude = this.location.latitude;
+  }
+
+  if (this.longitude !== undefined && this.longitude !== null) {
+    if (!this.location) this.location = {};
+    this.location.longitude = this.longitude;
+  } else if (this.location && this.location.longitude !== undefined && this.location.longitude !== null) {
+    this.longitude = this.location.longitude;
+  }
+
+  if (this.joiningRadiusMeters !== undefined && this.joiningRadiusMeters !== null) {
+    if (!this.geofence) this.geofence = {};
+    this.geofence.radiusMeters = this.joiningRadiusMeters;
+    if (this.latitude !== null && this.longitude !== null) {
+      this.geofence.enabled = true;
+    }
+  } else if (this.geofence && this.geofence.radiusMeters !== undefined && this.geofence.radiusMeters !== null) {
+    this.joiningRadiusMeters = this.geofence.radiusMeters;
+  }
+
+  next();
+});
 
 // ─── Virtuals ─────────────────────────────────────
 serviceCenterSchema.virtual('crowdPercent').get(function () {
@@ -151,12 +204,13 @@ serviceCenterSchema.virtual('crowdStatus').get(function () {
 });
 
 serviceCenterSchema.virtual('isLocationConfigured').get(function () {
+  const lat = this.latitude ?? this.location?.latitude;
+  const lng = this.longitude ?? this.location?.longitude;
   return Boolean(
-    this.location &&
-    typeof this.location.latitude === 'number' &&
-    typeof this.location.longitude === 'number' &&
-    Number.isFinite(this.location.latitude) &&
-    Number.isFinite(this.location.longitude)
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng)
   );
 });
 

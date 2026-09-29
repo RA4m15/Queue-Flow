@@ -1,178 +1,135 @@
-import React, { useState } from 'react';
-import { UserPlus, UserMinus, RotateCcw, Cpu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CROWD_SENSOR_STALE_MS } from '../../services/crowdState';
 
-export default function CrowdWidget({ crowdData, onSimulate, onReset }) {
-  const [simLoading, setSimLoading] = useState(false);
+/**
+ * LIVE FOOTFALL - the Admin dashboard's read-only view of the authoritative crowd.
+ *
+ * Every number and status shown here is the backend's. The widget is strictly
+ * read-only: it does not calculate occupancy, classify a level, or substitute
+ * a fake value of its own. If the sensor is not reporting or stale, the card
+ * displays a dash ("—") and marks the sensor OFFLINE.
+ */
+export default function CrowdWidget({ crowdData, isReadingStale }) {
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  // Re-evaluate freshness on a short cadence so a sensor that stops reporting
+  // is marked offline promptly, without polling the API. This only ages the
+  // server's own verdict; it never changes a value.
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 5000);
+    return () => clearInterval(id);
+  }, []);
+
   const currentCrowd = crowdData?.currentCrowd;
-  const isCrowdLoaded = typeof currentCrowd === 'number';
+  const hasReading = typeof currentCrowd === 'number';
   const capacity = typeof crowdData?.capacity === 'number' && crowdData.capacity > 0 ? crowdData.capacity : null;
-  const crowdPercent = capacity !== null && isCrowdLoaded
-    ? (crowdData?.crowdPercent ?? Math.min(100, Math.round((currentCrowd / capacity) * 100)))
+
+  // The backend derived the percentage from the stored occupancy and capacity.
+  // Fall back to the same staleness window it uses, so the card goes offline on
+  // the same schedule the server would.
+  const serverStale = typeof isReadingStale === 'function' ? isReadingStale(crowdData) : false;
+  const stamp = crowdData?.crowdUpdatedAt ? new Date(crowdData.crowdUpdatedAt) : null;
+  const agedOut = stamp && !Number.isNaN(stamp.getTime())
+    ? nowTick - stamp.getTime() > CROWD_SENSOR_STALE_MS
+    : false;
+  const isStale = !hasReading || serverStale || agedOut;
+
+  // No occupancy figure may be presented when the reading cannot be trusted, so
+  // a stopped sensor shows the last known state as unavailable rather than as a
+  // current value.
+  const crowdPercent = !isStale && typeof crowdData?.crowdPercent === 'number'
+    ? crowdData.crowdPercent
     : null;
 
-  const statusColor = (crowdPercent ?? 0) >= 80 ? '#EF4444' : (crowdPercent ?? 0) >= 50 ? '#F59E0B' : '#00E5A8';
+  const rawStatus = (crowdData?.crowdStatus || '').toUpperCase();
 
-  const handleSimulate = async (type) => {
-    if (!onSimulate) return;
-    setSimLoading(true);
-    try {
-      await onSimulate(type, 1);
-    } finally {
-      setSimLoading(false);
-    }
-  };
+  // Vocabulary matches the mobile app's CrowdIndicator and the lobby board, so
+  // the control room, the TV and the phone describe one state identically.
+  const statusLabel = rawStatus === 'HIGH' ? 'BUSY' : rawStatus === 'MODERATE' ? 'MODERATE' : 'QUIET';
+  const tone = isStale
+    ? 'var(--text-muted)'
+    : rawStatus === 'HIGH'
+      ? 'var(--color-danger)'
+      : rawStatus === 'MODERATE'
+        ? 'var(--color-warning)'
+        : 'var(--color-success)';
 
-  const handleReset = async () => {
-    if (!onReset || !window.confirm('Reset current crowd count to 0?')) return;
-    setSimLoading(true);
-    try {
-      await onReset();
-    } finally {
-      setSimLoading(false);
-    }
-  };
+  const lastUpdatedLabel = stamp && !Number.isNaN(stamp.getTime())
+    ? stamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
 
   return (
-    <div
-      className="q-card"
-      style={{
-        background: 'linear-gradient(135deg, rgba(13, 20, 34, 0.85) 0%, rgba(8, 14, 25, 0.8) 100%)',
-        border: '1px solid rgba(0, 210, 255, 0.22)',
-        borderRadius: '18px',
-        padding: '18px 22px',
-        marginBottom: '24px',
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '20px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(0, 210, 255, 0.03)',
-      }}
-    >
-      {/* Sensor Info */}
-      <div style={{ flex: '1', minWidth: '240px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-          <span className="pulsing-dot">
-            <span className="pulsing-dot-ping" style={{ backgroundColor: '#00D2FF' }} />
-            <span className="pulsing-dot-core" style={{ backgroundColor: '#00D2FF' }} />
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Cpu size={14} color="#00D2FF" />
-            <p className="mono" style={{ fontSize: '11px', fontWeight: 700, color: '#00D2FF', letterSpacing: '0.05em' }}>
-              IOT LIVE FOOTFALL SENSOR
-            </p>
+    <div className="q-card crowd-widget">
+      {/* Headline: big number, small muted unit, status chip */}
+      <div className="crowd-head">
+        <div className="crowd-headline">
+          <div className="crowd-title-row">
+            {isStale ? (
+              <span className="pulsing-dot" style={{ color: 'var(--text-muted)' }}>
+                <span className="pulsing-dot-core" style={{ backgroundColor: 'var(--text-muted)' }} />
+              </span>
+            ) : (
+              <span className="pulsing-dot" style={{ color: 'var(--color-cyan)' }}>
+                <span className="pulsing-dot-ping" style={{ backgroundColor: 'var(--color-cyan)' }} />
+                <span className="pulsing-dot-core" style={{ backgroundColor: 'var(--color-cyan)' }} />
+              </span>
+            )}
+            <span className="eyebrow">LIVE FOOTFALL</span>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          {isCrowdLoaded ? (
-            <>
-              <span
-                className="mono"
-                style={{
-                  fontSize: '28px',
-                  fontWeight: 800,
-                  color: '#F8FAFC',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                {currentCrowd}
-              </span>
-              <span style={{ fontSize: '13px', color: '#94A3B8' }}>
-                people on premises right now
-              </span>
-            </>
+          {isStale ? (
+            <div className="crowd-figure">
+              <span className="crowd-count" style={{ color: 'var(--text-muted)' }}>&mdash;</span>
+            </div>
           ) : (
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748B' }}>
-              Connecting to IoT sensors...
-            </span>
+            <div className="crowd-figure">
+              <span className="crowd-count">{currentCrowd}</span>
+              {capacity !== null && <span className="crowd-capacity">/ {capacity} inside</span>}
+            </div>
           )}
         </div>
+
+        <span
+          className="crowd-status-chip"
+          style={{
+            color: tone,
+            background: `color-mix(in srgb, ${tone} 12%, transparent)`,
+            borderColor: `color-mix(in srgb, ${tone} 30%, transparent)`,
+          }}
+        >
+          <span className="crowd-status-dot" style={{ background: tone }} />
+          <span>{isStale ? 'OFFLINE' : 'ONLINE'}</span>
+          {!isStale && <span className="crowd-status-sub">&middot; {statusLabel}</span>}
+        </span>
       </div>
 
-      {/* Capacity Progress Bar */}
-      <div style={{ minWidth: '180px', textAlign: 'right' }}>
-        {!isCrowdLoaded ? (
-          <p className="mono" style={{ fontSize: '11px', color: '#64748B' }}>
-            Loading telemetry...
-          </p>
-        ) : capacity !== null && crowdPercent !== null ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span className="mono" style={{ fontSize: '10px', color: '#94A3B8', letterSpacing: '0.04em' }}>
-                OCCUPANCY GAUGE
-              </span>
-              <span className="mono" style={{ fontSize: '11px', fontWeight: 700, color: statusColor }}>
-                {crowdPercent}% ({crowdData?.crowdStatus || 'NORMAL'})
-              </span>
-            </div>
-
+      {/* Occupancy gauge — only ever rendered from a trusted reading */}
+      {!isStale && crowdPercent !== null && capacity !== null ? (
+        <div className="crowd-gauge">
+          <div className="crowd-track">
             <div
-              style={{
-                width: '180px',
-                height: '8px',
-                borderRadius: '9999px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                overflow: 'hidden',
-                margin: '0 0 4px auto',
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  borderRadius: '9999px',
-                  width: `${Math.min(100, crowdPercent ?? 0)}%`,
-                  background: `linear-gradient(90deg, #00E5A8 0%, ${statusColor} 100%)`,
-                  boxShadow: `0 0 10px ${statusColor}60`,
-                  transition: 'width 0.5s ease',
-                }}
-              />
-            </div>
-            <p className="mono" style={{ fontSize: '10px', color: '#64748B' }}>
-              Capacity limit: {capacity} max
-            </p>
-          </>
-        ) : (
-          <p className="mono" style={{ fontSize: '11px', color: '#64748B' }}>
-            Facility capacity unconfigured
+              className="crowd-fill"
+              style={{ width: `${Math.min(100, crowdPercent)}%`, background: tone }}
+            />
+          </div>
+          <p className="crowd-caption">
+            <span className="mono">{crowdPercent}%</span> of capacity
+            <span className="crowd-caption-sep">&middot;</span>
+            <span className="mono">{rawStatus || 'LOW'}</span>
+            <span className="crowd-caption-sep">&middot;</span>
+            limit {capacity}
           </p>
-        )}
-      </div>
-
-      {/* Dev Simulator Controls */}
-      {import.meta.env.DEV && onSimulate && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '16px' }}>
-          <button
-            onClick={() => handleSimulate('ENTRY')}
-            disabled={simLoading}
-            className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '11px', gap: '5px' }}
-            title="Simulate 1 IoT Entry"
-          >
-            <UserPlus size={13} color="#00E5A8" />
-            <span>+ Entry</span>
-          </button>
-          <button
-            onClick={() => handleSimulate('EXIT')}
-            disabled={simLoading || currentCrowd === 0}
-            className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '11px', gap: '5px' }}
-            title="Simulate 1 IoT Exit"
-          >
-            <UserMinus size={13} color="#EF4444" />
-            <span>- Exit</span>
-          </button>
-          <button
-            onClick={handleReset}
-            disabled={simLoading || currentCrowd === 0}
-            className="btn-secondary"
-            style={{ padding: '6px 10px', fontSize: '11px' }}
-            title="Reset crowd count"
-          >
-            <RotateCcw size={13} />
-          </button>
         </div>
-      )}
+      ) : !isStale && capacity === null ? (
+        <p className="crowd-caption">Facility capacity not configured &mdash; occupancy unavailable.</p>
+      ) : null}
+
+      {/* Freshness: the backend's stamp, so an operator can judge the reading */}
+      <p className="crowd-caption" style={{ marginTop: '8px' }}>
+        {isStale
+          ? 'Last reading is no longer being reported.'
+          : `Last updated: ${lastUpdatedLabel ?? 'just now'}`}
+      </p>
     </div>
   );
 }

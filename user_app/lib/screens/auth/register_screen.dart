@@ -43,7 +43,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
 
     if (success && mounted) {
-      context.go('/home');
+      // The destination is not decided here. The router redirect owns it: an
+      // authenticated customer goes to /home, unless a queue-join link was
+      // scanned before they had an account, in which case it goes to that
+      // queue. Navigating from this screen as well would race the redirect for
+      // the same route — and `authProvider` changing has already scheduled the
+      // frame the redirect runs in.
     }
   }
 
@@ -52,7 +57,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -215,9 +220,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Login Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    // Login Link. A `Wrap` rather than a `Row`, for the same
+                    // reason as the sign-in screen: a clipped "Sign In" is
+                    // worse than it wrapping onto a second line.
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
                       children: [
                         Text(
                           'Already have an account? ',

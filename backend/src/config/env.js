@@ -339,12 +339,17 @@ function validateEnv(env = process.env) {
     REDIS_PASSWORD: env.REDIS_PASSWORD || undefined,
     REDIS_TLS: env.REDIS_TLS === 'true',
     REDIS_ENABLED: env.REDIS_ENABLED !== 'false',
-    // FCM server-side push. Credentials are read directly from process.env by
-    // channels/fcmPushProvider.js (never from this object) so key material has
-    // exactly one read site. FCM_SERVER_KEY was the legacy FCM HTTP API
-    // credential and is no longer used: firebase-admin authenticates with a
-    // service account instead.
+    // Firebase Admin SDK / FCM HTTP v1
+    // FCM_ENABLED follows an explicit opt-in convention: push delivery stays
+    // disabled unless explicitly set to 'true'.
+    // Credentials are referenced by filesystem path only (local service-account
+    // file or Application Default Credentials). Private key material is never
+    // parsed into configuration, never returned to callers, and never logged.
+    // The legacy FCM_SERVER_KEY is intentionally not supported.
+    FCM_ENABLED: env.FCM_ENABLED === 'true',
     FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID || undefined,
+    FIREBASE_SERVICE_ACCOUNT_PATH: env.FIREBASE_SERVICE_ACCOUNT_PATH || undefined,
+    GOOGLE_APPLICATION_CREDENTIALS: env.GOOGLE_APPLICATION_CREDENTIALS || undefined,
     FCM_ANDROID_CHANNEL_ID: env.FCM_ANDROID_CHANNEL_ID || 'queueflow_alerts',
     MONGODB_MAX_POOL_SIZE: maxPoolSize,
     MONGODB_MIN_POOL_SIZE: minPoolSize,

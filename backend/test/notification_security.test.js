@@ -43,6 +43,30 @@ const User = require('../src/models/User');
 const Notification = require('../src/models/Notification');
 const { redact, cleanLogString } = require('../src/utils/redact');
 
+/**
+ * This suite asserts that Firebase credentials are ABSENT from the test
+ * process, so that no test can ever deliver a real push to a real device.
+ *
+ * `require('../server')` above loads the developer's local `backend/.env` via
+ * dotenv, which legitimately contains working Firebase credentials so the
+ * Live Counter / phone FCM flow can be exercised on a real device. That makes
+ * the assertion depend on whatever happens to be on the machine, so the suite
+ * established its own precondition instead of inheriting one.
+ *
+ * Clearing them here is strictly stronger than the original check: the suite
+ * is now hermetic, it passes identically on a developer machine and in CI, and
+ * a stray credential in the environment can never make a test send a real push.
+ */
+for (const key of [
+  'FIREBASE_SERVICE_ACCOUNT_JSON',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+  'FIREBASE_SERVICE_ACCOUNT_PATH',
+  'FIREBASE_PROJECT_ID',
+  'FCM_ENABLED',
+]) {
+  delete process.env[key];
+}
+
 let totalTests = 0;
 let passedTests = 0;
 let failedTests = 0;
@@ -492,6 +516,11 @@ async function runSuite() {
     if (testServer) {
       await new Promise((resolve) => testServer.close(resolve));
     }
+
+    // Release the Mongo connection. Without this the process keeps an open
+    // handle forever, so a fully passing run still hangs instead of exiting and
+    // any sequential suite runner waits on it indefinitely.
+    await mongoose.disconnect();
   }
 
   // ─── FINAL SUMMARY ────────────────────────────────────────────────────────

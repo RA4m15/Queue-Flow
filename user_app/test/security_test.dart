@@ -498,6 +498,10 @@ class _DelayApiService extends ApiService {
     required String serviceId,
     bool notifyApp = true,
     bool notifySms = false,
+    double? latitude,
+    double? longitude,
+    double? accuracy,
+    DateTime? timestamp,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 50));
     return const TokenModel(

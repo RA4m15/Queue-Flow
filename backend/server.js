@@ -19,7 +19,7 @@ const { closeDB } = require('./src/config/database');
 const { initRedis, closeRedis } = require('./src/config/redis');
 const { initSocket, closeSocket, closeSocketAdapter } = require('./src/config/socket');
 const { shutdown, registerShutdownTargets } = require('./src/utils/shutdown');
-const { generalLimiter, authLimiter } = require('./src/middleware/rateLimiter');
+const { generalLimiter, authLimiter, iotTelemetryLimiter } = require('./src/middleware/rateLimiter');
 
 // ─── Route Imports ────────────────────────────────
 const authRoutes = require('./src/routes/auth');
@@ -38,6 +38,7 @@ const channelRoutes = require('./src/routes/channels');
 const serviceGraphRoutes = require('./src/routes/serviceGraph');
 const swapRoutes = require('./src/routes/swaps');
 const documentRoutes = require('./src/routes/documents');
+const supportRoutes = require('./src/routes/support');
 
 // ─── App Init ─────────────────────────────────────
 const app = express();
@@ -143,6 +144,14 @@ app.use(sanitizeNoSql);
 
 app.use(accessLoggerMiddleware);
 
+// ─── IoT Telemetry (device-authenticated) ────────────────────────────────
+// Mounted BEFORE the general limiter and given its own explicitly bounded
+// budget. Crowd sensors publish an authoritative occupancy reading about once a
+// second; under the human-facing generalLimiter (200 / 15 min) a single sensor
+// would exhaust the shared per-IP budget and starve every other API caller,
+// which is what previously made both dashboards appear "offline" at once.
+app.use('/api/iot', iotTelemetryLimiter, iotRoutes);
+
 // ─── Rate Limiting ────────────────────────────────
 app.use('/api/', generalLimiter);
 
@@ -159,11 +168,11 @@ app.use('/api/counters', counterRoutes);
 app.use('/api/crowd', crowdRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/iot', iotRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/service-graph', serviceGraphRoutes);
 app.use('/api/swaps', swapRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/support', supportRoutes);
 
 // Dev simulator — only available in non-production environments when enabled
 if (config.DEV_SIMULATOR_ENABLED) {

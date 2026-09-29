@@ -32,6 +32,9 @@ class ApiConstants {
   static const String notifications = '/notifications';
   static const String notificationsReadAll = '/notifications/read-all';
 
+  // Support Endpoints
+  static const String supportTickets = '/support/tickets';
+
   // Socket.IO Rooms & Events
   static const String roomJoinCenter = 'join:center';
   static const String roomJoinUser = 'join:user';

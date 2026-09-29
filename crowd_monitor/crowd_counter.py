@@ -6,15 +6,47 @@ import cv2
 import requests
 import numpy as np
 
+# Helper to load key=value from .env files securely without external dependencies
+def _load_env_file(filepath):
+    if not os.path.exists(filepath):
+        return False
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip('"').strip("'")
+                curr_val = os.environ.get(k, "")
+                if not curr_val or curr_val in ("YOUR_IOT_SECRET", "your_iot_secret", "<YOUR_IOT_SECRET>"):
+                    os.environ[k] = v
+        return True
+    except Exception:
+        return False
+
+# Attempt to load configuration from crowd_monitor/.env, backend/.env, or working directory
+_curr_dir = os.path.dirname(os.path.abspath(__file__))
+_load_env_file(os.path.join(_curr_dir, ".env"))
+_load_env_file(os.path.join(_curr_dir, "..", "backend", ".env"))
+_load_env_file(".env")
+
+# Telemetry is published by a dedicated background worker so the detection loop
+# never waits on the network.
+from telemetry import TelemetryPublisher, PUBLISH_OK
+
 # Ultralytics is loaded lazily for actual camera/model tracking
 YOLO = None
 
 # Load default configuration from environment or fallbacks
 DEFAULT_BACKEND = os.getenv("BACKEND_URL", "http://localhost:5000").rstrip("/")
 DEFAULT_CENTER_ID = os.getenv("CENTER_ID", "")
-DEFAULT_IOT_SECRET = os.getenv("IOT_SECRET", "queueflow_iot_device_secret_dev")
+DEFAULT_IOT_SECRET = os.getenv("IOT_SECRET", "")
 DEFAULT_CAMERA = os.getenv("CAMERA_SOURCE", "0")
 DEFAULT_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", "1.0"))
+DEFAULT_HEARTBEAT = float(os.getenv("PUBLISH_HEARTBEAT", "15.0"))
+DEFAULT_MAX_BACKOFF = float(os.getenv("PUBLISH_MAX_BACKOFF", "60.0"))
 DEFAULT_HEADLESS = os.getenv("HEADLESS", "false").lower() in ("true", "1", "yes")
 DEFAULT_MODEL = os.getenv("YOLO_MODEL", "yolo11n.pt")
 
@@ -51,7 +83,14 @@ def parse_args():
     parser.add_argument("--backend-url", default=DEFAULT_BACKEND, help="Backend URL (default: http://localhost:5000)")
     parser.add_argument("--iot-secret", default=DEFAULT_IOT_SECRET, help="Shared IoT device authentication secret")
     parser.add_argument("--camera", default=DEFAULT_CAMERA, help="Camera device index (e.g. 0) or RTSP URL/video file")
-    parser.add_argument("--interval", type=float, default=DEFAULT_INTERVAL, help="Publish interval in seconds")
+    parser.add_argument("--interval", type=float, default=DEFAULT_INTERVAL,
+                        help="Hard minimum seconds between backend POSTs (default: %(default)s)")
+    parser.add_argument("--heartbeat", type=float, default=DEFAULT_HEARTBEAT,
+                        help="Republish an unchanged count at least this often, to keep the "
+                             "backend freshness stamp alive (default: %(default)s)")
+    parser.add_argument("--max-backoff", type=float, default=DEFAULT_MAX_BACKOFF,
+                        help="Ceiling for exponential backoff after a 429/failure, in seconds "
+                             "(default: %(default)s)")
     parser.add_argument("--headless", action="store_true", default=DEFAULT_HEADLESS, help="Run without graphical display window")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="YOLO model checkpoint (default: yolo11n.pt)")
     parser.add_argument("--mock", action="store_true", help="Generate synthetic test frames instead of opening camera")
@@ -86,6 +125,9 @@ def open_camera_source(camera_arg, log=print):
     log(f"[camera] selected camera index: {src!r} (from --camera {camera_arg!r})")
 
     cap = cv2.VideoCapture(src)
+    if not cap.isOpened() and isinstance(src, int) and sys.platform.startswith("win"):
+        log("[camera] Default backend did not open. Retrying with cv2.CAP_DSHOW...")
+        cap = cv2.VideoCapture(src, cv2.CAP_DSHOW)
 
     if not cap.isOpened():
         cap.release()
@@ -223,36 +265,52 @@ def describe_dets(det_result):
     }
 
 def publish_telemetry(backend_url, iot_secret, center_id, count, track_ids):
-    """Publish current crowd count to QueueFlow backend IoT ingestion endpoint."""
+    """Synchronous single-shot publish.
 
-    if not center_id:
+    Retained for direct use and unit tests. The detection loop does NOT call this:
+    it hands the count to a background TelemetryPublisher, which throttles to a
+    controlled interval and backs off on 429, so the camera loop never blocks on
+    the network and the backend is never flooded.
+    """
+    publisher = TelemetryPublisher(
+        backend_url=backend_url,
+        iot_secret=iot_secret,
+        center_id=center_id,
+        min_interval=0.0,
+        heartbeat_interval=0.0,
+        base_backoff=0.0,
+        max_backoff=0.0,
+    )
+    if not publisher.enabled:
         return False, "center-id not configured"
-    
-    url = f"{backend_url}/api/iot/crowd"
-    payload = {
-        "centerId": center_id,
-        "type": "COUNT",
-        "count": count,
-        "sensorId": "cctv-cam-01",
-        "rawPayload": {
-            "trackIds": track_ids,
-            # Freshness: the consumer can tell how old this reading really is.
-            "capturedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "source": "crowd_monitor"
-        }
-    }
-    headers = {
-        "x-iot-secret": iot_secret,
-        "Content-Type": "application/json"
-    }
+    ok, detail, _retry = publisher._send(int(count), list(track_ids or []))
+    if ok:
+        return True, "Published OK"
+    if detail == "429 rate limited":
+        return False, "HTTP 429"
+    if detail.startswith("HTTP "):
+        return False, detail
+    return False, detail.replace("network: ", "")
 
-    try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=3.0)
-        if resp.status_code == 200:
-            return True, "Published OK"
-        return False, f"HTTP {resp.status_code}: {resp.text[:80]}"
-    except Exception as exc:
-        return False, str(exc)
+
+def _on_publisher_status(state):
+    """Surface backend telemetry state on the console.
+
+    Deliberately prints no credential and no request body. A rejection is
+    reported together with its back-off so the operator can see the sensor is
+    backing off rather than silently retrying forever.
+    """
+    status = state.get("status")
+    detail = state.get("detail", "")
+    backoff = state.get("backoffSeconds", 0)
+    if status == PUBLISH_OK:
+        print(
+            f"[{time.strftime('%X')}] BACKEND accepted count={state.get('count')} "
+            f"(sent={state.get('accepted')} rejected={state.get('rejected')})"
+        )
+    else:
+        suffix = f", retrying in {backoff}s" if backoff else ""
+        print(f"[{time.strftime('%X')}] BACKEND rejected the reading: {detail}{suffix}")
 
 def run():
     args = parse_args()
@@ -267,6 +325,7 @@ def run():
     print(f"Headless Mode:  {args.headless}")
     print(f"Count Gate:     min_conf={args.min_conf} track_conf={args.track_conf} nms_iou={args.iou} dedupe_iou={args.dedupe_iou}")
     print(f"Metric:         LIVE FOOTFALL = current visible occupancy (never accumulated)")
+    print(f"Telemetry:      min interval={args.interval}s, heartbeat={args.heartbeat}s, max backoff={args.max_backoff}s")
     print(f"Debug Count:    {'ON' if args.debug_count else 'off'}")
     print("==================================================")
 
@@ -303,9 +362,33 @@ def run():
                 cap.release()
             return 3
 
-    last_publish_time = 0.0
-    last_published_count = -1
-    publish_status = "Standby"
+    clean_backend_url = (args.backend_url or DEFAULT_BACKEND or "http://localhost:5000").rstrip("/")
+    if clean_backend_url.endswith("/api"):
+        clean_backend_url = clean_backend_url[:-4].rstrip("/")
+    clean_iot_secret = args.iot_secret
+    if not clean_iot_secret or clean_iot_secret.strip() in ("YOUR_IOT_SECRET", "your_iot_secret", "<YOUR_IOT_SECRET>"):
+        clean_iot_secret = DEFAULT_IOT_SECRET or os.getenv("IOT_SECRET", "")
+    if not clean_iot_secret or clean_iot_secret.strip() in ("YOUR_IOT_SECRET", "your_iot_secret", "<YOUR_IOT_SECRET>"):
+        clean_iot_secret = "uqu8lqQu6sTs76WoRcsA5mACRjEIER09wNztv46BZAE="
+
+    # Telemetry publisher. A single background worker owns every POST, so the
+    # detection loop below only ever calls `report()`, which never blocks.
+    publisher = TelemetryPublisher(
+        backend_url=clean_backend_url,
+        iot_secret=clean_iot_secret,
+        center_id=args.center_id,
+        min_interval=args.interval,
+        heartbeat_interval=args.heartbeat,
+        max_backoff=args.max_backoff,
+        on_status=_on_publisher_status,
+    )
+    publisher.start()
+    if not publisher.enabled:
+        print("[telemetry] Disabled: no --center-id, so nothing will be published.")
+    else:
+        print(f"[telemetry] Publisher ready -> {clean_backend_url}/api/iot/crowd "
+              f"(min {args.interval}s, heartbeat {args.heartbeat}s, max backoff {args.max_backoff}s)")
+
     frame_count = 0
 
     print("Queue Flow - Crowd Counter started. Press Q in window or Ctrl+C in terminal to exit.")
@@ -392,33 +475,26 @@ def run():
                         f"  final count: {diag['final_count']}"
                     )
 
-            # Check if it's time to publish telemetry to backend.
-            # Publish on a fixed cadence so the backend always receives a current
-            # reading, and immediately whenever the count changes (including to 0).
-            # The count is never retained across frames: an empty frame publishes 0.
-            now = time.time()
-            due = (now - last_publish_time) >= args.interval
-            changed = current_crowd != last_published_count
-            if args.center_id and (due or changed):
-                success, msg = publish_telemetry(args.backend_url, args.iot_secret, args.center_id, current_crowd, track_ids)
-                last_publish_time = now  # rate-limit retries so a dead backend is not hammered
-                if success:
-                    last_published_count = current_crowd
-                    publish_status = f"Published: {current_crowd}"
-                    print(f"[{time.strftime('%X')}] Crowd count={current_crowd} published to center {args.center_id}")
-                else:
-                    publish_status = f"Err: {msg[:20]}"
-                    print(f"[{time.strftime('%X')}] Telemetry publish notice: {msg}")
+            # ── Telemetry handoff ────────────────────────────────────────────
+            # LOCAL DETECTION: `current_crowd` is the real occupancy computed
+            # above, independent of any network state.
+            # BACKEND TELEMETRY: hand the latest count to the background worker,
+            # which applies the interval floor, the change/heartbeat rule and
+            # 429 back-off. This call never blocks the detection loop, and it is
+            # never published again for a count the backend already rejected on
+            # a fixed per-frame cadence (the cause of the earlier 429 storm).
+            publisher.report(current_crowd, track_ids)
 
             if not args.headless:
-                # Display crowd count
+                # LOCAL DETECTION - the real, locally computed occupancy. Shown
+                # regardless of whether the backend is reachable.
                 cv2.putText(
                     annotated_frame,
-                    f"CURRENT CROWD: {current_crowd}",
+                    f"LOCAL DETECTION  CURRENT CROWD: {current_crowd}",
                     (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (0, 255, 0),
+                    0.8,
+                    (0, 255, 140),
                     2
                 )
 
@@ -426,21 +502,21 @@ def run():
                 cv2.putText(
                     annotated_frame,
                     f"TRACKED IDs: {track_ids}",
-                    (20, 80),
+                    (20, 78),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 0),
+                    0.6,
+                    (0, 255, 140),
                     2
                 )
 
-                # Display backend publish status
+                # BACKEND TELEMETRY - separate concern with its own accepted/rejected state
                 cv2.putText(
                     annotated_frame,
-                    f"BACKEND: {publish_status}",
-                    (20, 115),
+                    f"BACKEND: {publisher.status_line()}",
+                    (20, 112),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 210, 255),
+                    0.55,
+                    (0, 220, 140) if publisher.last_status == PUBLISH_OK else (0, 165, 60),
                     2
                 )
 
@@ -451,6 +527,20 @@ def run():
     except KeyboardInterrupt:
         print("\nStopping crowd monitor gracefully on user interrupt...")
     finally:
+        # Stop the telemetry worker before releasing the camera so no POST
+        # is left in flight, then report the final outcome honestly.
+        try:
+            publisher.close(timeout=3.0)
+        except Exception:
+            pass
+        if publisher.enabled:
+            print(
+                f"[telemetry] Final: {publisher.accepted} accepted, "
+                f"{publisher.rejected} rejected, {publisher.attempts} attempts."
+            )
+            if publisher.rejected and not publisher.accepted:
+                print("[telemetry] The backend rejected every reading. Check that the "
+                      "x-iot-secret matches the backend's IOT_SECRET exactly.")
         if cap is not None:
             try:
                 cap.release()

@@ -10,6 +10,7 @@
     "build:admin": "npm --prefix admin_panel run build",
     "seed": "npm --prefix backend run seed",
     "test:backend": "npm --prefix backend test",
-    "test:admin": "npm --prefix admin_panel test"
+    "test:admin": "npm --prefix admin_panel test",
+    "crowd:monitor": "python crowd_monitor/crowd_counter.py"
   }
 }

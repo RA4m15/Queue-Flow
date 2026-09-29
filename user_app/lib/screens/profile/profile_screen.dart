@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/date_formatter.dart';
 import '../../models/token.dart';
 import '../../models/user.dart';
 import '../../providers/alerts_preference_provider.dart';
@@ -564,14 +565,30 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.email_outlined,
                       title: 'Email Support',
                       subtitle: 'support@queueflow.io',
-                      onTap: () {
+                      onTap: () async {
                         Navigator.of(ctx).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Support address copied: support@queueflow.io'),
-                            backgroundColor: AppColors.success,
-                          ),
-                        );
+                        final uri = Uri(scheme: 'mailto', path: 'support@queueflow.io');
+                        bool launched = false;
+                        try {
+                          if (await canLaunchUrl(uri)) {
+                            launched = await launchUrl(uri);
+                          }
+                        } catch (_) {
+                          launched = false;
+                        }
+                        if (!launched) {
+                          await Clipboard.setData(const ClipboardData(text: 'support@queueflow.io'));
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(launched
+                                  ? 'Opening email client (support@queueflow.io)...'
+                                  : 'Support email copied to clipboard: support@queueflow.io'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
                       },
                     ),
                     const SizedBox(height: 8),
@@ -580,14 +597,30 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.phone_in_talk_outlined,
                       title: 'Customer Helpline',
                       subtitle: '+1 (800) 555-QUEUE (Toll-Free)',
-                      onTap: () {
+                      onTap: () async {
                         Navigator.of(ctx).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Helpline: +1 (800) 555-QUEUE'),
-                            backgroundColor: AppColors.info,
-                          ),
-                        );
+                        final uri = Uri(scheme: 'tel', path: '+18005557838');
+                        bool launched = false;
+                        try {
+                          if (await canLaunchUrl(uri)) {
+                            launched = await launchUrl(uri);
+                          }
+                        } catch (_) {
+                          launched = false;
+                        }
+                        if (!launched) {
+                          await Clipboard.setData(const ClipboardData(text: '+1 (800) 555-QUEUE'));
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(launched
+                                  ? 'Initiating call to Helpline (+1 800-555-QUEUE)...'
+                                  : 'Helpline number copied to clipboard: +1 (800) 555-QUEUE'),
+                              backgroundColor: launched ? AppColors.info : AppColors.success,
+                            ),
+                          );
+                        }
                       },
                     ),
                     const SizedBox(height: 16),
@@ -844,14 +877,30 @@ class ProfileScreen extends ConsumerWidget {
                             : () async {
                                 if (!formKey.currentState!.validate()) return;
                                 setModalState(() => isSubmitting = true);
-                                await Future.delayed(const Duration(milliseconds: 600));
-                                final ticketId =
-                                    'QF-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-                                if (ctx.mounted) {
-                                  Navigator.of(ctx).pop();
-                                }
-                                if (context.mounted) {
-                                  _showTicketConfirmationDialog(context, ticketId, subjectController.text.trim());
+                                try {
+                                  final apiService = ref.read(apiServiceProvider);
+                                  final res = await apiService.createSupportTicket(
+                                    category: selectedCategory,
+                                    subject: subjectController.text.trim(),
+                                    description: descriptionController.text.trim(),
+                                  );
+                                  final realTicketId = res['ticketId']?.toString() ?? res['id']?.toString() ?? 'CONFIRMED';
+                                  if (ctx.mounted) {
+                                    Navigator.of(ctx).pop();
+                                  }
+                                  if (context.mounted) {
+                                    _showTicketConfirmationDialog(context, realTicketId, subjectController.text.trim());
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    setModalState(() => isSubmitting = false);
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(
+                                        content: Text(ApiException.getUserMessage(e)),
+                                        backgroundColor: AppColors.danger,
+                                      ),
+                                    );
+                                  }
                                 }
                               },
                         child: isSubmitting
@@ -1023,98 +1072,6 @@ class ProfileScreen extends ConsumerWidget {
   }
 
 
-  void _showFeedbackDialog(BuildContext context, WidgetRef ref, TokenModel token) {
-    int rating = 5;
-    final commentController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: context.themeSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Rate Your Visit', style: TextStyle(color: context.themeTextPrimary)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'How was your experience for ticket ${token.tokenCode}?',
-                style: TextStyle(color: context.themeTextSecondary, fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final starIndex = index + 1;
-                  return IconButton(
-                    icon: Icon(
-                      starIndex <= rating ? Icons.star_rounded : Icons.star_border_rounded,
-                      color: AppColors.warning,
-                      size: 32,
-                    ),
-                    onPressed: () {
-                      setDialogState(() => rating = starIndex);
-                    },
-                  );
-                }),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: commentController,
-                maxLines: 2,
-                style: TextStyle(color: context.themeTextPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Add a comment (optional)...',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text('Cancel', style: TextStyle(color: context.themeTextSecondary)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: context.themePrimary,
-                foregroundColor: context.isDarkMode ? Colors.black : Colors.white,
-              ),
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                try {
-                  await ref.read(tokenProvider.notifier).submitFeedback(
-                        tokenId: token.id,
-                        rating: rating,
-                        comment: commentController.text,
-                      );
-                  ref.invalidate(tokenHistoryProvider);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Feedback submitted. Thank you!'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Unable to submit feedback: ${ApiException.getUserMessage(e)}'),
-                        backgroundColor: AppColors.danger,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Submit'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showCancelTicketDialog(BuildContext context, WidgetRef ref, TokenModel token) {
     showDialog(
       context: context,
@@ -1209,11 +1166,10 @@ class ProfileScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final alertsEnabled = ref.watch(alertsPreferenceProvider);
     final tokenState = ref.watch(tokenProvider);
-    final historyAsync = ref.watch(tokenHistoryProvider);
     final pushState = ref.watch(pushNotificationServiceProvider);
 
     final activeToken = tokenState.activeToken;
-    final hasActiveToken = activeToken != null && activeToken.isActive;
+    final token = (activeToken != null && activeToken.isActive) ? activeToken : null;
 
     final isDark = context.isDarkMode;
     final surfaceColor = context.themeSurface;
@@ -1388,105 +1344,17 @@ class ProfileScreen extends ConsumerWidget {
             _buildSectionHeader(
               context,
               title: 'Active Ticket',
-              badge: hasActiveToken ? '1 ACTIVE' : null,
+              badge: token != null ? '1 ACTIVE' : null,
               badgeColor: AppColors.secondary,
             ),
             const SizedBox(height: 8),
-            if (hasActiveToken)
-              _buildActiveTicketCard(context, ref, activeToken)
+            if (token != null)
+              _buildActiveTicketCard(context, ref, token)
             else
               _buildNoActiveTicketCard(context),
             const SizedBox(height: 22),
 
-            // ─── 3. RECENT TICKETS HISTORY ─────────────────────────
-            _buildSectionHeader(
-              context,
-              title: 'Recent Tickets History',
-              trailingAction: TextButton(
-                onPressed: () => context.go('/history'),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'View All',
-                      style: TextStyle(
-                        color: primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(Icons.arrow_forward_ios_rounded, size: 11, color: primaryColor),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            historyAsync.when(
-              loading: () => Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: surfaceColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor),
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-              error: (err, _) => Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: surfaceColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, color: AppColors.warning, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Unable to load ticket history.',
-                        style: TextStyle(color: textSecondary, fontSize: 13),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => ref.invalidate(tokenHistoryProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-              data: (tokens) {
-                final recentTokens = tokens.take(3).toList();
-                if (recentTokens.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'No previous tickets found.',
-                        style: TextStyle(color: textSecondary, fontSize: 13),
-                      ),
-                    ),
-                  );
-                }
-
-                return Column(
-                  children: recentTokens.map((token) {
-                    return _buildRecentTicketItem(context, ref, token);
-                  }).toList(),
-                );
-              },
-            ),
-            const SizedBox(height: 22),
-
-            // ─── 4. APP PREFERENCES & THEME ────────────────────────
+            // ─── 3. APP PREFERENCES & THEME ────────────────────────
             _buildSectionHeader(context, title: 'App Preferences'),
             const SizedBox(height: 8),
             Container(
@@ -2128,109 +1996,6 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentTicketItem(BuildContext context, WidgetRef ref, TokenModel token) {
-    final textColor = context.themeTextPrimary;
-    final textSecondary = context.themeTextSecondary;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.themeSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.themeBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                token.tokenCode,
-                style: AppTheme.monoStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.statusColor(token.status),
-                ),
-              ),
-              TokenStatusBadge(status: token.status, fontSize: 10),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  token.serviceName ?? 'Service',
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                DateFormatter.formatRelative(token.createdAt),
-                style: TextStyle(color: textSecondary, fontSize: 11),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            token.centerName ?? 'Center',
-            style: TextStyle(color: textSecondary, fontSize: 12),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (token.isCompleted) ...[
-            const SizedBox(height: 10),
-            const Divider(height: 1),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (token.hasFeedback)
-                  Row(
-                    children: [
-                      const Icon(Icons.star_rounded, color: AppColors.warning, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Rated ${token.feedback?.rating ?? 5}/5',
-                        style: TextStyle(color: textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                  )
-                else
-                  Text(
-                    'No rating submitted',
-                    style: TextStyle(color: textSecondary, fontSize: 11),
-                  ),
-                if (!token.hasFeedback)
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () => _showFeedbackDialog(context, ref, token),
-                    icon: const Icon(Icons.star_border_rounded, size: 14, color: AppColors.warning),
-                    label: const Text(
-                      'Rate Experience',
-                      style: TextStyle(fontSize: 11, color: AppColors.warning, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-              ],
-            ),
-          ],
         ],
       ),
     );

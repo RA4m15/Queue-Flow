@@ -5,6 +5,7 @@ const FootfallEvent = require('../models/FootfallEvent');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendNotFound } = require('../utils/apiResponse');
 const { emitToCenter } = require('../config/socket');
+const { buildCrowdState } = require('../utils/crowdMetrics');
 
 /**
  * GET /api/crowd/:centerId
@@ -17,24 +18,16 @@ const getCrowd = asyncHandler(async (req, res) => {
 
   if (!center) return sendNotFound(res, 'Service center not found');
 
-  // A reading is only trustworthy while the sensor is still reporting.
-  const SENSOR_STALE_MS = 90000;
-  const crowdUpdatedAt = center.crowdUpdatedAt || null;
-  const crowdSensorOnline = Boolean(
-    crowdUpdatedAt && (Date.now() - new Date(crowdUpdatedAt).getTime()) < SENSOR_STALE_MS
-  );
+  // crowdPercent / crowdStatus are schema virtuals, which a lean query does not
+  // produce, so they are derived centrally here. The freshness rule is the
+  // backend's own; a client never ages a value against its own clock.
+  const crowd = buildCrowdState(center);
 
   return sendSuccess(res, {
     data: {
-      centerId: center._id,
+      ...crowd,
       name: center.name,
-      currentCrowd: center.currentCrowd,
-      capacity: center.capacity,
-      crowdPercent: center.crowdPercent,
-      crowdStatus: center.crowdStatus,
       capacityAlertThreshold: center.capacityAlertThreshold,
-      crowdUpdatedAt,
-      crowdSensorOnline,
     },
   });
 });

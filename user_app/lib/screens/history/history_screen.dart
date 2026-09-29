@@ -22,8 +22,8 @@ class HistoryScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          title: const Text('Rate Your Experience'),
+          backgroundColor: context.themeSurface,
+          title: Text('Rate Your Experience', style: TextStyle(color: context.themeTextPrimary)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -52,7 +52,7 @@ class HistoryScreen extends ConsumerWidget {
               TextField(
                 controller: commentController,
                 maxLines: 2,
-                style: const TextStyle(color: AppColors.textPrimary),
+                style: TextStyle(color: context.themeTextPrimary),
                 decoration: const InputDecoration(
                   hintText: 'Add a comment (optional)...',
                 ),
@@ -62,7 +62,7 @@ class HistoryScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+              child: Text('Cancel', style: TextStyle(color: context.themeTextSecondary)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -106,7 +106,7 @@ class HistoryScreen extends ConsumerWidget {
     final historyAsync = ref.watch(tokenHistoryProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       appBar: AppBar(
         title: const Text('Token History'),
         actions: [
@@ -129,8 +129,8 @@ class HistoryScreen extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            color: AppColors.primary,
-            backgroundColor: AppColors.surface,
+            color: context.themePrimary,
+            backgroundColor: context.themeSurface,
             onRefresh: () async => ref.invalidate(tokenHistoryProvider),
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -142,9 +142,9 @@ class HistoryScreen extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.themeSurface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: context.themeBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,7 +156,7 @@ class HistoryScreen extends ConsumerWidget {
                             token.tokenCode,
                             style: AppTheme.monoStyle(
                               fontSize: 20,
-                              color: AppColors.primary,
+                              color: context.themePrimary,
                             ),
                           ),
                           TokenStatusBadge(status: token.status),
@@ -175,7 +175,7 @@ class HistoryScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 12),
-                      const Divider(color: AppColors.border, height: 1),
+                      Divider(color: context.themeBorder, height: 1),
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

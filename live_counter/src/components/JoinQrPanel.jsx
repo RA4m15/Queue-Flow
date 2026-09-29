@@ -5,10 +5,7 @@ export function JoinQrPanel({ centerId, serviceId = null, centerName }) {
   const [qrSrc, setQrSrc] = useState('');
   const { deepLink, webUrl } = buildJoinUrls(centerId, serviceId);
 
-  // The canonical payload is the HTTPS Customer Web /join link. It is the only
-  // format that works for customers who do not have QueueFlow installed: the
-  // phone falls back to the browser and lands on the same /join route. The
-  // custom scheme is only used when no Customer Web base is configured at all.
+  // The canonical payload is the HTTPS Customer Web /join link.
   const qrPayload = webUrl || deepLink;
   const publicBase = isPublicCustomerWebBase();
 
@@ -16,11 +13,11 @@ export function JoinQrPanel({ centerId, serviceId = null, centerName }) {
     let isMounted = true;
 
     async function loadQr() {
-      if (!qrPayload) {
+      if (!qrPayload || !publicBase) {
         setQrSrc('');
         return;
       }
-      const dataUrl = await generateQrDataUrl(qrPayload, 260);
+      const dataUrl = await generateQrDataUrl(qrPayload, 300);
       if (isMounted) {
         setQrSrc(dataUrl);
       }
@@ -30,7 +27,15 @@ export function JoinQrPanel({ centerId, serviceId = null, centerName }) {
     return () => {
       isMounted = false;
     };
-  }, [qrPayload]);
+  }, [qrPayload, publicBase]);
+
+  useEffect(() => {
+    if (!publicBase && typeof console !== 'undefined' && console.warn) {
+      console.warn(
+        '[QueueFlow] Live Counter QR: Customer Web base URL is not a public HTTPS origin. Ensure VITE_CUSTOMER_WEB_URL is configured with the deployed HTTPS domain.'
+      );
+    }
+  }, [publicBase]);
 
   return (
     <aside className="display-card qr-join-panel" aria-label="Join Queue QR Panel">
@@ -43,41 +48,29 @@ export function JoinQrPanel({ centerId, serviceId = null, centerName }) {
         {qrSrc ? (
           <img
             src={qrSrc}
-            alt={`Scan QR code to join queue at ${centerName || 'center'}`}
-            style={{ width: '220px', height: '220px', display: 'block' }}
+            alt={`Scan QR code to join queue at ${centerName || 'service center'}`}
+            className="qr-code-image"
             data-testid="qr-code-image"
           />
+        ) : !centerId ? (
+          <div className="qr-state-notice" data-testid="qr-empty-state" role="status">
+            <p className="qr-state-desc">Select a service facility</p>
+          </div>
+        ) : !publicBase ? (
+          <div className="qr-state-notice" data-testid="qr-error-state" role="status">
+            <p className="qr-state-title">Check-in Unavailable</p>
+            <p className="qr-state-desc">Please visit the service desk</p>
+          </div>
         ) : (
-          <div style={{ width: '220px', height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0B132B' }}>
-            Generating QR...
+          <div className="qr-loading-placeholder" data-testid="qr-loading" role="status">
+            <span>Generating QR code...</span>
           </div>
         )}
       </div>
 
-      {!publicBase && (
-        // A localhost / http Customer Web base produces a QR that no customer
-        // standing at the display can open. Surface it instead of printing a
-        // dead code on a public screen.
-        <div className="qr-config-warning" data-testid="qr-config-warning" role="alert">
-          Customer Web URL is not publicly reachable
-          (<code>{qrPayload}</code>). Set <code>VITE_CUSTOMER_WEB_URL</code> to the
-          deployed HTTPS domain before using this display.
-        </div>
-      )}
-
-      <div className="qr-fallback-info">
-        <strong>No app?</strong>
-        <span>Scan with your camera to open QueueFlow Web</span>
-        {/* Show the URL that is actually encoded in the QR above, so an
-            operator can transcribe it when the code will not scan. */}
-        <div className="qr-deep-link-preview" data-testid="qr-join-url-preview">
-          {qrPayload || 'No join URL configured'}
-        </div>
-        {/* Legacy custom scheme, kept for backwards compatibility. Not the
-            primary QR payload — it only opens the app if it is installed. */}
-        <div className="qr-deep-link-preview qr-deep-link-preview--legacy" data-testid="qr-deeplink-preview">
-          {deepLink}
-        </div>
+      <div className="qr-instructions">
+        <p className="qr-instruction-primary">Scan with your phone camera to join the queue</p>
+        <p className="qr-instruction-secondary">Open with your camera</p>
       </div>
     </aside>
   );

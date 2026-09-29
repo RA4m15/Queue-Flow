@@ -62,6 +62,19 @@ const updateMeValidation = [
       }
       return true;
     }),
+  body('preferences').optional().isObject().withMessage('Preferences must be an object'),
+  body('preferences.notifyApp').optional().isBoolean().withMessage('notifyApp must be a boolean'),
+  body('preferences.notifySms').optional().isBoolean().withMessage('notifySms must be a boolean'),
+  body('preferences.notifyAheadCount')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('notifyAheadCount must be an integer between 1 and 50'),
+  body('preferences.language')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 2, max: 10 })
+    .withMessage('language must be 2–10 characters'),
 ];
 
 // ─── Controllers ──────────────────────────────────
@@ -293,12 +306,24 @@ const getMe = asyncHandler(async (req, res) => {
  * Update profile (name, phone, preferences, fcmToken).
  */
 const updateMe = asyncHandler(async (req, res) => {
-  const allowedFields = ['name', 'phone', 'preferences', 'fcmToken'];
+  const simpleFields = ['name', 'phone', 'fcmToken'];
   const updates = {};
 
-  for (const field of allowedFields) {
+  for (const field of simpleFields) {
     if (req.body[field] !== undefined) {
       updates[field] = req.body[field];
+    }
+  }
+
+  // Safely unpack preferences using dot notation to preserve all untouched preference fields
+  if (req.body.preferences !== undefined) {
+    if (typeof req.body.preferences === 'object' && req.body.preferences !== null) {
+      const allowedPrefKeys = ['notifyApp', 'notifySms', 'notifyAheadCount', 'language'];
+      for (const [key, val] of Object.entries(req.body.preferences)) {
+        if (allowedPrefKeys.includes(key) && val !== undefined) {
+          updates[`preferences.${key}`] = val;
+        }
+      }
     }
   }
 

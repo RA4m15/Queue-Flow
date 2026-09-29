@@ -178,7 +178,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
   // ─── Styles ────────────────────────────────────────────────────────────────
 
   const cardStyle = {
-    background: 'linear-gradient(135deg, rgba(17,24,39,0.95) 0%, rgba(10,15,30,0.98) 100%)',
+    background: 'var(--bg-card)',
     border: '1px solid rgba(99,102,241,0.3)',
     borderRadius: '16px',
     padding: '1.25rem',
@@ -232,7 +232,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
               background: 'rgba(99,102,241,0.15)',
               border: '1px solid rgba(99,102,241,0.4)',
               borderRadius: '10px',
-              color: '#A5B4FC',
+              color: 'var(--color-cyan)',
               fontSize: '0.82rem',
               fontWeight: '600',
               cursor: 'pointer',
@@ -250,7 +250,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
               background: 'rgba(16,185,129,0.15)',
               border: '1px solid rgba(16,185,129,0.35)',
               borderRadius: '10px',
-              color: '#6EE7B7',
+              color: 'var(--color-success)',
               fontSize: '0.82rem',
               fontWeight: '600',
               cursor: 'pointer',
@@ -274,7 +274,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
         </div>
 
         {error && (
-          <div style={{ padding: '0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#FCA5A5', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+          <div style={{ padding: '0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: 'var(--color-danger)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
             {error}
           </div>
         )}
@@ -288,7 +288,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
             {/* Your current position */}
             <div style={{ background: 'rgba(99,102,241,0.08)', borderRadius: '10px', padding: '0.75rem', marginBottom: '0.85rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
               <span style={{ color: 'var(--text-muted)' }}>Your position:</span>{' '}
-              <strong style={{ color: '#A5B4FC' }}>#{token.currentPosition}</strong>{' '}
+              <strong style={{ color: 'var(--color-cyan)' }}>#{token.currentPosition}</strong>{' '}
               <span style={{ color: 'var(--text-muted)' }}>· Token</span>{' '}
               <strong style={{ color: 'var(--text-main)' }}>{token.tokenCode}</strong>
             </div>
@@ -315,7 +315,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         padding: '0.5rem 0.75rem',
-                        background: selectedPartner?.tokenId === p.tokenId ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
+                        background: selectedPartner?.tokenId === p.tokenId ? 'rgba(99,102,241,0.2)' : 'var(--bg-card-alt)',
                         border: `1px solid ${selectedPartner?.tokenId === p.tokenId ? 'rgba(99,102,241,0.5)' : 'var(--border-subtle)'}`,
                         borderRadius: '8px',
                         cursor: 'pointer',
@@ -343,7 +343,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
               rows={2}
               style={{
                 width: '100%',
-                background: 'rgba(255,255,255,0.04)',
+                background: 'var(--bg-card-alt)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '8px',
                 color: 'var(--text-main)',
@@ -357,7 +357,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
 
             <div style={{ display: 'flex', gap: '0.6rem' }}>
               <button type="button" onClick={() => setView('idle')}
-                style={{ flex: 1, padding: '0.55rem', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-subtle)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.82rem', cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '0.55rem', background: 'var(--bg-card-alt)', border: '1px solid var(--border-subtle)', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.82rem', cursor: 'pointer' }}>
                 Cancel
               </button>
               <button
@@ -371,7 +371,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
                   background: actionLoading ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.2)',
                   border: '1px solid rgba(16,185,129,0.4)',
                   borderRadius: '10px',
-                  color: '#6EE7B7',
+                  color: 'var(--color-success)',
                   fontSize: '0.82rem',
                   fontWeight: '700',
                   cursor: actionLoading ? 'not-allowed' : 'pointer',
@@ -401,7 +401,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
         </div>
 
         {error && (
-          <div style={{ padding: '0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#FCA5A5', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+          <div style={{ padding: '0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: 'var(--color-danger)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
             {error}
           </div>
         )}
@@ -413,7 +413,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
             {/* My pending offer status */}
             {myPending && (
               <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '10px', padding: '0.75rem', marginBottom: '0.85rem' }}>
-                <div style={{ fontSize: '0.78rem', color: '#FCD34D', fontWeight: '700', marginBottom: '0.35rem' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-warning)', fontWeight: '700', marginBottom: '0.35rem' }}>
                   Your Pending Offer
                   <span style={pill('rgba(245,158,11,0.5)')}>PENDING</span>
                 </div>
@@ -425,7 +425,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
                   type="button"
                   onClick={() => handleCancelOffer(myPending._id)}
                   disabled={actionLoading === myPending._id}
-                  style={{ marginTop: '0.5rem', padding: '0.4rem 0.75rem', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#FCA5A5', fontSize: '0.78rem', cursor: 'pointer' }}>
+                  style={{ marginTop: '0.5rem', padding: '0.4rem 0.75rem', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: 'var(--color-danger)', fontSize: '0.78rem', cursor: 'pointer' }}>
                   {actionLoading === myPending._id ? 'Cancelling…' : 'Cancel Offer'}
                 </button>
               </div>
@@ -470,7 +470,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
                         background: 'rgba(16,185,129,0.18)',
                         border: '1px solid rgba(16,185,129,0.35)',
                         borderRadius: '7px',
-                        color: '#6EE7B7',
+                        color: 'var(--color-success)',
                         fontSize: '0.78rem',
                         fontWeight: '600',
                         cursor: actionLoading ? 'not-allowed' : 'pointer',
@@ -488,7 +488,7 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
                         background: 'rgba(239,68,68,0.1)',
                         border: '1px solid rgba(239,68,68,0.25)',
                         borderRadius: '7px',
-                        color: '#FCA5A5',
+                        color: 'var(--color-danger)',
                         fontSize: '0.78rem',
                         cursor: actionLoading ? 'not-allowed' : 'pointer',
                       }}>
@@ -503,12 +503,12 @@ export function SwapPanel({ token, socket, onSwapComplete, isOnline = true }) {
             <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.75rem' }}>
               <button type="button" onClick={loadOffers}
                 disabled={loading}
-                style={{ flex: 1, padding: '0.45rem', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', borderRadius: '9px', color: 'var(--text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                style={{ flex: 1, padding: '0.45rem', background: 'var(--bg-card-alt)', border: '1px solid var(--border-subtle)', borderRadius: '9px', color: 'var(--text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
                 Refresh
               </button>
               {!myPending && (
                 <button id="swap-go-create-btn" type="button" onClick={() => setView('create')}
-                  style={{ flex: 2, padding: '0.45rem', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '9px', color: '#6EE7B7', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer' }}>
+                  style={{ flex: 2, padding: '0.45rem', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '9px', color: 'var(--color-success)', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer' }}>
                   + Offer Swap
                 </button>
               )}

@@ -104,8 +104,14 @@ export function useServices(centerId) {
 
 /**
  * useCenters — lightweight hook to load the center list for the center picker.
+ *
+ * Defaults to active centers only, so the operational facility selector shows
+ * exactly the centers a customer can queue at. The decision is made by the
+ * backend via `?isOpen=true`; nothing is filtered or hardcoded here. Pass
+ * `activeOnly: false` for management views that must also reach deactivated
+ * facilities and their historical data.
  */
-export function useCenters() {
+export function useCenters({ activeOnly = true } = {}) {
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -114,14 +120,16 @@ export function useCenters() {
     setLoading(true);
     setError(null);
     try {
-      const res = await serviceCenterAPI.list();
+      const res = await serviceCenterAPI.list(
+        activeOnly ? { isOpen: true } : {},
+      );
       setCenters(res.data?.centers ?? []);
     } catch (err) {
       setError(err.message ?? 'Failed to load service centers');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeOnly]);
 
-  return { centers, loading, error, fetchCenters };
+  return { centers, setCenters, loading, error, fetchCenters };
 }

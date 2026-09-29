@@ -13,6 +13,7 @@ import CounterDisplay from './pages/CounterDisplay';
 import Services from './pages/Services';
 import OperatorPortal from './pages/OperatorPortal';
 import ResourceHub from './pages/ResourceHub';
+import Profile from './pages/Profile';
 import { useAuth } from './context/AuthContext';
 
 function RootRedirect() {
@@ -121,6 +122,18 @@ export default function App() {
                 <ProtectedRoute>
                   <AdminLayout>
                     <OperatorPortal />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Personal settings — kept out of the live operations dashboard */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <Profile />
                   </AdminLayout>
                 </ProtectedRoute>
               }

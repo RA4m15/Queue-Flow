@@ -31,6 +31,7 @@ const queueEventSchema = new mongoose.Schema(
         'TOKEN_SERVING',
         'TOKEN_COMPLETED',
         'TOKEN_SKIPPED',
+        'TOKEN_SKIPPED_OUT_OF_RANGE',
         'TOKEN_CANCELLED',
         'TOKEN_EXPIRED',
         'COUNTER_OPENED',

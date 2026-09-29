@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { BackButton } from '../components/BackButton';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,6 +31,7 @@ export function LoginPage() {
 
   return (
     <div style={{ maxWidth: '420px', margin: '2rem auto', width: '100%' }}>
+      <BackButton label="Back" fallback="/" />
       <div className="qf-card">
         <h1 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '0.25rem' }}>
           Customer Sign In
@@ -44,9 +46,9 @@ export function LoginPage() {
             style={{
               padding: '0.75rem',
               borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#F87171',
+              background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
+              color: 'var(--color-danger)',
               fontSize: '0.85rem',
               marginBottom: '1.25rem',
             }}

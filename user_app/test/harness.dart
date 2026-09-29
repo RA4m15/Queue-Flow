@@ -4,12 +4,16 @@ import 'dart:convert';
 import 'package:user_app/core/network/api_exception.dart';
 import 'package:user_app/core/network/network_status.dart';
 import 'package:user_app/models/notification.dart';
+import 'package:user_app/models/crowd_status.dart';
+import 'package:user_app/models/queue_status.dart';
 import 'package:user_app/models/service.dart';
 import 'package:user_app/models/service_center.dart';
 import 'package:user_app/models/token.dart';
 import 'package:user_app/models/user.dart';
 import 'package:user_app/providers/auth_provider.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:user_app/services/api_service.dart';
+import 'package:user_app/services/location_service.dart';
 import 'package:user_app/services/push_messaging_client.dart';
 import 'package:user_app/services/storage_service.dart';
 
@@ -88,6 +92,166 @@ Map<String, dynamic> userJson({
     'isActive': isActive,
     'isVerified': isVerified,
     'createdAt': '2026-09-26T08:00:00.000Z',
+  };
+}
+
+/// Builds a service-center payload shaped exactly like the backend `ServiceCenter`
+/// document returned by `GET /api/service-centers/:id`.
+///
+/// That endpoint reads with `lean({ virtuals: true })`, so `crowdStatus` and
+/// `crowdPercent` are genuinely present here — unlike the plain `.lean()` list
+/// endpoint, which omits virtuals. `operatingHours` is included because it is the
+/// only time-bound data the centre schema has, and the join screens derive their
+/// countdown from it and nothing else.
+Map<String, dynamic> serviceCenterJson({
+  String id = kCenterId,
+  String name = 'Test Center',
+  String code = 'TST-01',
+  String type = 'BANK',
+  bool isOpen = true,
+  int capacity = 100,
+  int currentCrowd = 20,
+  int activeCounters = 2,
+  String? crowdStatus,
+  int? crowdPercent,
+  List<Map<String, dynamic>> operatingHours = const [],
+  Map<String, dynamic>? address,
+  String? phone,
+  Map<String, dynamic>? location,
+  Map<String, dynamic>? geofence,
+  double? latitude,
+  double? longitude,
+  int? joiningRadiusMeters,
+}) {
+  return {
+    '_id': id,
+    'name': name,
+    'code': code,
+    'type': type,
+    'isOpen': isOpen,
+    'capacity': capacity,
+    'currentCrowd': currentCrowd,
+    'activeCounters': activeCounters,
+    'capacityAlertThreshold': 80,
+    'operatingHours': operatingHours,
+    'address': ?address,
+    'phone': ?phone,
+    'crowdStatus': ?crowdStatus,
+    'location': ?location,
+    'geofence': ?geofence,
+    'latitude': ?latitude,
+    'longitude': ?longitude,
+    'joiningRadiusMeters': ?joiningRadiusMeters,
+    'createdAt': '2026-09-26T08:00:00.000Z',
+  };
+}
+
+/// One `operatingHours[]` entry as stored by the backend `ServiceCenter` schema.
+Map<String, dynamic> operatingHoursDay({
+  required String day,
+  String open = '09:00',
+  String close = '17:00',
+  bool isClosed = false,
+}) {
+  return {'day': day, 'open': open, 'close': close, 'isClosed': isClosed};
+}
+
+/// Builds a `GET /api/queue/:centerId` array item.
+Map<String, dynamic> queueSummaryJson({
+  required String serviceId,
+  String serviceName = 'Test Service',
+  String tokenPrefix = 'A',
+  int waitingCount = 0,
+  int activeCount = 1,
+  int completedCount = 0,
+  int totalIssued = 0,
+  String status = 'OPEN',
+  int? avgServiceTimeMinutes,
+  int? estimatedWaitMinutes,
+}) {
+  return {
+    'service': {
+      '_id': serviceId,
+      'name': serviceName,
+      'tokenPrefix': tokenPrefix,
+      'avgServiceTimeMinutes': avgServiceTimeMinutes,
+    },
+    'waitingCount': waitingCount,
+    'activeCount': activeCount,
+    'completedCount': completedCount,
+    'totalIssued': totalIssued,
+    'status': status,
+    'estimatedWaitMinutes': ?estimatedWaitMinutes,
+  };
+}
+
+/// Builds a `GET /api/queue/:centerId/:serviceId` payload.
+///
+/// `estimatedWaitMinutes` is present only when the backend EWT engine produced
+/// one. Omitting it is the realistic "the engine has not settled yet" case, and
+/// the join screens must report that rather than invent a figure.
+Map<String, dynamic> serviceQueueJson({
+  String centerId = kCenterId,
+  String serviceId = kServiceId,
+  String? queueStatus,
+  int? waitingCount,
+  int? activeCount,
+  List<Map<String, dynamic>> activeCounters = const [],
+  List<Map<String, dynamic>> waitingTokens = const [],
+  List<Map<String, dynamic>> calledTokens = const [],
+  Map<String, dynamic>? servingToken,
+  int? estimatedWaitMinutes,
+}) {
+  return {
+    'queue': {
+      '_id': '507f1f77bcf86cd7994390f1',
+      'centerId': centerId,
+      'serviceId': serviceId,
+      'status': ?queueStatus,
+      'waitingCount': ?waitingCount,
+      'activeCount': ?activeCount,
+    },
+    'activeCounters': activeCounters,
+    'waitingTokens': waitingTokens,
+    'calledTokens': calledTokens,
+    'servingToken': ?servingToken,
+    'estimatedWaitMinutes': ?estimatedWaitMinutes,
+  };
+}
+
+/// One `activeCounters[]` entry as reported by the queue endpoint.
+Map<String, dynamic> activeCounterJson({
+  String id = '507f1f77bcf86cd7994390c1',
+  String displayLabel = 'Counter 1',
+  int number = 1,
+  String? currentToken,
+}) {
+  return {
+    '_id': id,
+    'displayLabel': displayLabel,
+    'number': number,
+    'status': 'ACTIVE',
+    'currentToken': ?currentToken,
+  };
+}
+
+/// A token code entry as it appears inside `waitingTokens` / `calledTokens`.
+Map<String, dynamic> queueTokenJson({
+  String id = kTokenId,
+  String tokenCode = 'A-014',
+  int tokenNumber = 14,
+  String status = 'WAITING',
+  String centerId = kCenterId,
+  String serviceId = kServiceId,
+}) {
+  return {
+    '_id': id,
+    'tokenCode': tokenCode,
+    'tokenNumber': tokenNumber,
+    'status': status,
+    'centerId': centerId,
+    'serviceId': serviceId,
+    'userId': kUserA,
   };
 }
 
@@ -221,10 +385,29 @@ class FakeStorageService extends StorageService {
   }
 
   @override
-  Future<bool> hasToken() async {
-    if (failAll) return false;
-    final t = data['auth_token'];
-    return t != null && t.isNotEmpty;
+  Future<bool> getBool(String key, {bool defaultValue = false}) async {
+    if (failAll) return defaultValue;
+    final val = data[key];
+    if (val == null) return defaultValue;
+    return val == 'true';
+  }
+
+  @override
+  Future<void> setBool(String key, bool value) async {
+    if (failAll) return;
+    data[key] = value.toString();
+  }
+
+  @override
+  Future<String?> getString(String key) async {
+    if (failAll) return null;
+    return data[key];
+  }
+
+  @override
+  Future<void> setString(String key, String value) async {
+    if (failAll) return;
+    data[key] = value;
   }
 }
 
@@ -302,6 +485,56 @@ class FakePushMessagingClient implements PushMessagingClient {
   }
 }
 
+/// Scriptable [LocationService] standing in for real device GPS.
+class FakeLocationService implements LocationService {
+  FakeLocationService({
+    this.enabled = true,
+    this.permission = LocationPermission.always,
+    this.currentLocation,
+  });
+
+  bool enabled;
+  LocationPermission permission;
+  UserLocation? currentLocation;
+  final StreamController<UserLocation> _streamController = StreamController<UserLocation>.broadcast();
+
+  void emitLocation(UserLocation loc) {
+    currentLocation = loc;
+    _streamController.add(loc);
+  }
+
+  /// How many times a fix was requested, and how many of those asked for
+  /// permission. The Phase 2 heartbeat must never be the thing that pops a
+  /// permission dialog at a customer who is merely waiting in line.
+  int getCurrentCalls = 0;
+  final List<bool> getCurrentRequestPermissionFlags = <bool>[];
+
+  @override
+  Future<bool> isLocationServiceEnabled() async => enabled;
+
+  @override
+  Future<LocationPermission> checkPermission() async => permission;
+
+  @override
+  Future<LocationPermission> requestPermission() async => permission;
+
+  @override
+  Future<UserLocation?> getCurrentLocation({bool requestPermission = true}) async {
+    getCurrentCalls++;
+    getCurrentRequestPermissionFlags.add(requestPermission);
+    if (!enabled) return null;
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      return null;
+    }
+    return currentLocation;
+  }
+
+  @override
+  Stream<UserLocation> getPositionStream() {
+    return _streamController.stream;
+  }
+}
+
 /// [AuthNotifier] without the Socket.IO handshake.
 ///
 /// `AuthNotifier.login` opens a real Socket.IO connection, which leaves a
@@ -343,10 +576,34 @@ class FakeApiService extends ApiService {
   // Centers / services / queue
   List<ServiceCenter> centers = [];
   List<Service> services = [];
+
+  /// The single centre `GET /api/service-centers/:id` should return, looked up
+  /// by id. Absent id → the backend's own 404, not a silent empty centre.
+  final Map<String, ServiceCenter> centerDetails = <String, ServiceCenter>{};
+
+  /// Set to make `GET /api/service-centers/:id` fail, for the transport-error
+  /// and not-found paths. A 404 must surface as "this centre does not exist",
+  /// never as a blank preview.
+  Object? centerDetailError;
+
+  /// `GET /api/queue/:centerId` — the per-service summaries behind the
+  /// centre-only service chooser.
+  List<QueueStatus> queueStatuses = [];
+
+  /// When set, `getQueueStatus` throws. The chooser must still list services:
+  /// queue numbers are supplementary, and an unreachable queue feed must be
+  /// shown as unavailable rather than as "0 waiting".
+  Object? queueStatusError;
+
+  /// `GET /api/crowd/:centerId`.
+  CrowdStatus? crowd;
+
   Map<String, dynamic>? queueDetails;
   int centerListCalls = 0;
   int serviceListCalls = 0;
   int queuePreviewCalls = 0;
+  int centerDetailCalls = 0;
+  int queueStatusCalls = 0;
 
   // Tokens
   TokenModel? activeToken;
@@ -396,6 +653,17 @@ class FakeApiService extends ApiService {
     'distanceMeters': 300,
   };
 
+  /// Phase 2 heartbeat. Every reading the app shares, in order, so a test can
+  /// assert the cadence and the stop conditions without a real network.
+  final List<UserLocation> sharedLocations = [];
+
+  /// The verdict returned by `POST /tokens/:id/location`. Set per test to
+  /// simulate the backend placing the customer inside or outside the radius.
+  Map<String, dynamic>? locationVerdict;
+
+  /// When set, the next [shareTokenLocation] simulates a transport failure.
+  bool failNextLocationShare = false;
+
   // Device token
   final List<String> registeredDeviceTokens = [];
   int deviceTokenCalls = 0;
@@ -416,9 +684,33 @@ class FakeApiService extends ApiService {
   Object? loginError;
 
   @override
-  Future<List<ServiceCenter>> getServiceCenters() async {
+  Future<List<ServiceCenter>> getServiceCenters({bool? isOpen = true}) async {
     centerListCalls++;
+    if (isOpen != null) {
+      return centers.where((c) => c.isOpen == isOpen).toList();
+    }
     return centers;
+  }
+
+  @override
+  Future<Map<String, dynamic>> getServiceCenterDetail(String centerId) async {
+    centerDetailCalls++;
+    if (centerDetailError != null) throw centerDetailError!;
+    final center = centerDetails[centerId];
+    if (center == null) {
+      // Mirrors the backend's own response for an unknown id.
+      throw ApiException(
+        message: 'Service center not found',
+        statusCode: 404,
+      );
+    }
+    // Shaped like the real response: the endpoint returns the centre alone.
+    // There is no `services` key to read, which is exactly why the service list
+    // has to come from `GET /api/services?centerId=…`.
+    return {
+      'center': center,
+      'currentCrowd': center.currentCrowd,
+    };
   }
 
   @override
@@ -428,9 +720,25 @@ class FakeApiService extends ApiService {
   }
 
   @override
+  Future<List<QueueStatus>> getQueueStatus(String centerId) async {
+    queueStatusCalls++;
+    if (queueStatusError != null) throw queueStatusError!;
+    return queueStatuses;
+  }
+
+  @override
+  Future<CrowdStatus> getCrowd(String centerId) async => crowd!;
+
+  @override
   Future<Map<String, dynamic>> getServiceQueue(String centerId, String serviceId) async {
     queuePreviewCalls++;
-    return queueDetails ?? const {'queue': null, 'calledTokens': <dynamic>[]};
+    return queueDetails ??
+        const {
+          'queue': null,
+          'activeCounters': <dynamic>[],
+          'waitingTokens': <dynamic>[],
+          'calledTokens': <dynamic>[],
+        };
   }
 
   @override
@@ -446,13 +754,52 @@ class FakeApiService extends ApiService {
   @override
   Future<List<TokenModel>> getMyTokens({int page = 1, int limit = 20}) async => myTokens;
 
+  String? lastLocationTokenId;
+
+  @override
+  Future<Map<String, dynamic>?> shareTokenLocation({
+    required String tokenId,
+    required double latitude,
+    required double longitude,
+    double? accuracy,
+    DateTime? timestamp,
+  }) async {
+    locationUpdateCalls++;
+    lastLocationTokenId = tokenId;
+    sharedLocations.add(UserLocation(
+      latitude: latitude,
+      longitude: longitude,
+      accuracy: accuracy,
+      timestamp: timestamp,
+    ));
+    if (failNextLocationShare) {
+      failNextLocationShare = false;
+      // The real implementation swallows transport failures and returns null.
+      return null;
+    }
+    return locationVerdict;
+  }
+
+  double? lastJoinLatitude;
+  double? lastJoinLongitude;
+  double? lastJoinAccuracy;
+  DateTime? lastJoinTimestamp;
+
   @override
   Future<TokenModel> joinQueue({
     required String centerId,
     required String serviceId,
     bool notifyApp = true,
     bool notifySms = false,
+    double? latitude,
+    double? longitude,
+    double? accuracy,
+    DateTime? timestamp,
   }) async {
+    lastJoinLatitude = latitude;
+    lastJoinLongitude = longitude;
+    lastJoinAccuracy = accuracy;
+    lastJoinTimestamp = timestamp;
     networkStatus.requireOnline();
     if (joinError != null) {
       final e = joinError!;

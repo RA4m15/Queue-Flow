@@ -129,15 +129,32 @@ export function useQueue(centerId) {
     };
 
     const unsubQueue = on('queue.updated', (data) => {
-      if (data.centerId === centerId) {
-        setQueues((prev) =>
-          prev.map((q) =>
-            q.service?._id === data.serviceId
-              ? { ...q, waitingCount: data.waitingCount, totalIssued: data.totalIssued }
-              : q
-          )
-        );
-      }
+      // The socket is already scoped to this center's room, so a payload that
+      // omits centerId is still ours. Previously the guard required an exact
+      // centerId match, which silently discarded every update whose payload
+      // did not carry one.
+      if (data.centerId && data.centerId !== centerId) return;
+
+      // Merge only fields that are actually present. The old code assigned
+      // `totalIssued` unconditionally, so a payload without that field wrote
+      // `undefined` over a real number.
+      const serviceId = data.serviceId;
+      setQueues((prev) => {
+        if (!serviceId) return prev;
+        let changed = false;
+        const next = prev.map((q) => {
+          if (q.service?._id !== serviceId && q._id !== serviceId) return q;
+          const updated = { ...q };
+          for (const key of ['waitingCount', 'activeCount', 'totalIssued']) {
+            if (typeof data[key] === 'number') {
+              if (updated[key] !== data[key]) changed = true;
+              updated[key] = data[key];
+            }
+          }
+          return changed ? updated : q;
+        });
+        return changed ? next : prev;
+      });
     });
 
     const unsubTokenCreated = on('token.created', (data) => {

@@ -638,10 +638,19 @@ async function runTests() {
     assert.strictEqual(checkA.body.data.status, 'READY');
 
     // Customer A joins queue -> token minted successfully!
+    // Location is supplied because the Phase 1 join geofence requires it for
+    // any center that has a position configured. The point is the center's own
+    // coordinate, i.e. unambiguously inside the 100 m radius.
     const tokenRes = await request(
       'POST',
       '/api/tokens',
-      { centerId: centerA._id.toString(), serviceId: serviceA._id.toString() },
+      {
+        centerId: centerA._id.toString(),
+        serviceId: serviceA._id.toString(),
+        latitude: 12.9716,
+        longitude: 77.5946,
+        accuracy: 5,
+      },
       { Authorization: `Bearer ${customerAJwt}` }
     );
     assert.strictEqual(tokenRes.status, 201);
@@ -657,7 +666,13 @@ async function runTests() {
     const blockedRes = await request(
       'POST',
       '/api/tokens',
-      { centerId: centerA._id.toString(), serviceId: serviceA._id.toString() },
+      {
+        centerId: centerA._id.toString(),
+        serviceId: serviceA._id.toString(),
+        latitude: 12.9716,
+        longitude: 77.5946,
+        accuracy: 5,
+      },
       { Authorization: `Bearer ${customerCJwt}` }
     );
     assert.strictEqual(blockedRes.status, 403);
@@ -697,7 +712,13 @@ async function runTests() {
     const joinC = await request(
       'POST',
       '/api/tokens',
-      { centerId: centerA._id.toString(), serviceId: serviceC._id.toString() },
+      {
+        centerId: centerA._id.toString(),
+        serviceId: serviceC._id.toString(),
+        latitude: 12.9716,
+        longitude: 77.5946,
+        accuracy: 5,
+      },
       { Authorization: `Bearer ${customerAJwt}` }
     );
     assert.strictEqual(joinC.status, 403);
@@ -734,7 +755,13 @@ async function runTests() {
     const tokenBRes = await request(
       'POST',
       '/api/tokens',
-      { centerId: centerA._id.toString(), serviceId: serviceA._id.toString() },
+      {
+        centerId: centerA._id.toString(),
+        serviceId: serviceA._id.toString(),
+        latitude: 12.9716,
+        longitude: 77.5946,
+        accuracy: 5,
+      },
       { Authorization: `Bearer ${customerBJwt}` }
     );
     assert.strictEqual(tokenBRes.status, 201);
@@ -897,7 +924,13 @@ async function runTests() {
       request(
         'POST',
         '/api/tokens',
-        { centerId: centerA._id.toString(), serviceId: serviceA._id.toString() },
+        {
+          centerId: centerA._id.toString(),
+          serviceId: serviceA._id.toString(),
+          latitude: 12.9716,
+          longitude: 77.5946,
+          accuracy: 5,
+        },
         { Authorization: `Bearer ${customerCJwt}` }
       )
     );

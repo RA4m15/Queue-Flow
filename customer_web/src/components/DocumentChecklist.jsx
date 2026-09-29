@@ -113,7 +113,7 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
   // Truthful empty state if no requirements exist
   if (!requirements || requirements.length === 0) {
     return (
-      <div className="qf-card" style={{ padding: '1.25rem', marginTop: '1.5rem', borderLeft: '4px solid #10B981' }}>
+      <div className="qf-card" style={{ padding: '1.25rem', marginTop: '1.5rem', borderLeft: '4px solid var(--color-success)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <span style={{ fontSize: '1.25rem' }}>📋</span>
           <div>
@@ -130,20 +130,20 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
   const getStatusBadge = (status) => {
     switch (status) {
       case 'VERIFIED':
-        return <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Verified ✓</span>;
+        return <span style={{ background: 'color-mix(in srgb, var(--color-success) 15%, transparent)', color: 'var(--color-success)', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Verified ✓</span>;
       case 'PENDING':
       case 'UPLOADED':
-        return <span style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Pending Review</span>;
+        return <span style={{ background: 'color-mix(in srgb, var(--color-warning) 15%, transparent)', color: 'var(--color-warning)', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Pending Review</span>;
       case 'REJECTED':
-        return <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Rejected ✕</span>;
+        return <span style={{ background: 'color-mix(in srgb, var(--color-danger) 15%, transparent)', color: 'var(--color-danger)', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Rejected ✕</span>;
       default:
-        return <span style={{ background: 'rgba(156, 163, 175, 0.15)', color: '#9CA3AF', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Not Uploaded</span>;
+        return <span style={{ background: 'color-mix(in srgb, var(--text-secondary) 15%, transparent)', color: 'var(--text-secondary)', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>Not Uploaded</span>;
     }
   };
 
   return (
     <div className="qf-card" style={{ padding: '1.5rem', marginTop: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color, rgba(255,255,255,0.08))', paddingBottom: '0.75rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color, var(--bg-card-alt))', paddingBottom: '0.75rem' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>📄</span> Document-Ready Gate
@@ -155,11 +155,11 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
         {readiness && (
           <div>
             {readiness.isReady ? (
-              <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10B981', border: '1px solid #10B981', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700 }}>
+              <span style={{ background: 'color-mix(in srgb, var(--color-success) 20%, transparent)', color: 'var(--color-success)', border: '1px solid var(--color-success)', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700 }}>
                 READY TO JOIN
               </span>
             ) : (
-              <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: '1px solid #EF4444', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700 }}>
+              <span style={{ background: 'color-mix(in srgb, var(--color-danger) 15%, transparent)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 700 }}>
                 DOCUMENTS REQUIRED
               </span>
             )}
@@ -168,7 +168,7 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
       </div>
 
       {uploadError && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem', color: '#EF4444', fontSize: '0.85rem' }}>
+        <div style={{ background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)', border: '1px solid var(--color-danger)', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem', color: 'var(--color-danger)', fontSize: '0.85rem' }}>
           {uploadError}
         </div>
       )}
@@ -191,8 +191,8 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
                 justifyContent: 'space-between',
                 padding: '0.85rem 1rem',
                 borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid var(--border-color, rgba(255,255,255,0.06))',
+                background: 'var(--bg-card-alt)',
+                border: '1px solid var(--border-color, var(--bg-card-alt))',
                 flexWrap: 'wrap',
                 gap: '0.5rem',
               }}
@@ -201,7 +201,7 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{req.name}</span>
                   {isReq ? (
-                    <span style={{ fontSize: '0.7rem', color: '#EF4444', fontWeight: 700, textTransform: 'uppercase' }}>Required</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--color-danger)', fontWeight: 700, textTransform: 'uppercase' }}>Required</span>
                   ) : (
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Optional</span>
                   )}
@@ -212,7 +212,7 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
                   </p>
                 )}
                 {userDoc?.rejectionReason && (
-                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: '#EF4444' }}>
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--color-danger)' }}>
                     Rejection note: {userDoc.rejectionReason}
                   </p>
                 )}
@@ -232,7 +232,7 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
                         fontWeight: 600,
                         borderRadius: '6px',
                         cursor: isUploading ? 'not-allowed' : 'pointer',
-                        background: status === 'VERIFIED' ? 'rgba(255,255,255,0.08)' : 'var(--primary-color, #3B82F6)',
+                        background: status === 'VERIFIED' ? 'var(--bg-card-alt)' : 'var(--primary-color, var(--color-cyan))',
                         color: '#fff',
                         transition: 'opacity 0.2s',
                         opacity: isUploading ? 0.6 : 1,
@@ -262,8 +262,8 @@ export default function DocumentChecklist({ serviceId, onReadinessChange, isAuth
       </div>
 
       {readiness && !readiness.isReady && (
-        <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#F87171', fontWeight: 500 }}>
+        <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', borderRadius: '8px', background: 'color-mix(in srgb, var(--color-danger) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-danger) 20%, transparent)' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-danger)', fontWeight: 500 }}>
             {readiness.message || 'Complete required documentation to proceed.'}
           </p>
         </div>

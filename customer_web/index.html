@@ -11,14 +11,32 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Google Fonts: Outfit & JetBrains Mono -->
+    <!-- Shared product type stack: Inter + JetBrains Mono (matches the mobile app) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <title>QueueFlow — Zero-Install Digital Queue</title>
   </head>
   <body>
+    <!-- QueueFlow theme bootstrap: applies the saved Dark/Light preference before
+         first paint so a reload never flashes the default dark palette. Kept in
+         sync with src/services/theme.js (same storage key, same values). -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('queueflow_customer_theme');
+          if (stored === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          } else {
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

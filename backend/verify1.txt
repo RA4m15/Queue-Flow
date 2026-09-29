@@ -1,0 +1,46 @@
+=== 1. GET /api/service-centers?isOpen=true (public discovery) ===
+status=200  count=5
+  AIIMSBPL    All India Institute of Medical Sciences (AIIMS), Bhopal
+             id=6abadce537343714d1578146 type=HOSPITAL isOpen=true
+  BMCBPL01    Bhopal Municipal Corporation
+             id=6abadce837343714d15781e3 type=GOVT isOpen=true
+  COLLEGE01   College Account
+             id=6ab93df8da6b1eefeb19caa2 type=SUPPORT isOpen=true
+  COLBPL01    Office of the Collector and District Magistrate, Bhopal
+             id=6abadceb37343714d1578281 type=GOVT isOpen=true
+  SBIPBB01    State Bank of India — PBB New Market
+             id=6abadce237343714d15780b8 type=BANK isOpen=true
+
+assert count === 5: PASS
+assert College Account present & active: PASS
+assert College name unchanged: PASS
+assert College code unchanged: PASS
+
+=== 2. No test/stress center is discoverable while active ===
+suspicious names in active set: 0 -> PASS
+
+=== 3. Unfiltered list still returns everything (admin/archive path) ===
+unfiltered count=487 (487 >= 5 -> PASS)
+inactive records still returned when unfiltered: 482
+
+=== 4. Each active center is individually fetchable ===
+  AIIMSBPL    status=200 name="All India Institute of Medical Sciences (AIIMS), Bhopal"
+  BMCBPL01    status=200 name="Bhopal Municipal Corporation"
+  COLLEGE01   status=200 name="College Account"
+  COLBPL01    status=200 name="Office of the Collector and District Magistrate, Bhopal"
+  SBIPBB01    status=200 name="State Bank of India — PBB New Market"
+
+=== 5. A deactivated center is not in active discovery ===
+SBANK001 (6ab030edfb8baa6b361738db) in active list: PASS
+direct fetch status=200 isOpen=false (record retained, flagged closed)
+
+=== 6. Joining an inactive center is refused by the backend ===
+join inactive center -> status=400 message="Service center is currently closed"
+assert rejected: PASS
+
+=== 7. Live counter display token available for each active center ===
+  AIIMSBPL    status=200 displayToken=PRESENT counters=2
+  BMCBPL01    status=200 displayToken=PRESENT counters=2
+  COLLEGE01   status=200 displayToken=PRESENT counters=2
+  COLBPL01    status=200 displayToken=PRESENT counters=2
+  SBIPBB01    status=200 displayToken=PRESENT counters=2

@@ -138,12 +138,19 @@ async function testAdminFlow() {
   // ── [2/7] Dashboard API — Service Center, Queue, Counters, Crowd, Analytics ─
   console.log('\n▶ [2/7] Dashboard API (Centers, Queue, Counters, Crowd, Analytics)');
 
-  const centersRes = await axios.get(`${API_BASE}/service-centers`);
-  assert(centersRes.data.data.centers.length > 0, 'At least one service center must exist');
-  const center = centersRes.data.data.centers[0];
+  // Query the active centers explicitly. Taking the first entry of the
+  // unfiltered list would pick a deactivated facility, and every later step
+  // (queue join, counters, call-next) legitimately fails against a closed
+  // center. The backend stays authoritative: this asks it which centers are open.
+  const centersRes = await axios.get(`${API_BASE}/service-centers?isOpen=true`);
+  const activeCenters = centersRes.data.data.centers;
+  assert(activeCenters.length > 0, 'At least one active service center must exist');
+  const center = activeCenters[0];
   const centerId = center._id;
   assert(typeof center.capacity === 'number' && center.capacity > 0, 'Center must have numeric capacity > 0');
+  assert.strictEqual(center.isOpen, true, 'Selected center must be open');
   console.log(`  ✅ Service Center: ${center.name} (Code: ${center.code}, Capacity: ${center.capacity})`);
+  console.log(`     active centers available: ${activeCenters.length}`);
 
   const [queueRes, countersRes, crowdRes, analyticsRes] = await Promise.all([
     axios.get(`${API_BASE}/queue/${centerId}`),
@@ -184,10 +191,12 @@ async function testAdminFlow() {
   const adminSocket = io(SOCKET_URL, {
     transports: ['websocket', 'polling'],
     timeout: 20000,
+    auth: { token: adminToken },
   });
   const displaySocket = io(SOCKET_URL, {
     transports: ['websocket', 'polling'],
     timeout: 20000,
+    auth: { token: adminToken },
   });
 
   const adminEvents = [];

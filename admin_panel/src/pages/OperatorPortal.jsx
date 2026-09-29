@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { counterAPI } from '../services/api';
+import useOperatorCounter from '../hooks/useOperatorCounter';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 import {
   Play,
   CheckCircle2,
@@ -16,801 +18,540 @@ import {
   AlertTriangle,
   RefreshCw,
   Layers,
-  ChevronRight,
   ShieldAlert,
+  LogOut,
+  Building2,
+  DoorOpen,
+  X,
+  UserCog,
   Activity,
-  Gauge,
 } from 'lucide-react';
-import LoadingSpinner from '../components/common/LoadingSpinner';
+
+/** Status → colour ramp, shared by the counter badge and the status buttons. */
+const STATUS_COLORS = {
+  ACTIVE: 'var(--color-primary)',
+  BREAK: 'var(--color-warning)',
+  CLOSED: 'var(--color-danger)',
+};
+
+const STATUS_BUTTON = [
+  { value: 'ACTIVE', label: 'ACTIVE', icon: Power },
+  { value: 'BREAK', label: 'BREAK', icon: Coffee },
+  { value: 'CLOSED', label: 'CLOSED', icon: PowerOff },
+];
+
+const card = {
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: '14px',
+};
+
+function StatusBadge({ status }) {
+  const color = STATUS_COLORS[status] || 'var(--text-secondary)';
+  return (
+    <span
+      style={{
+        fontSize: '0.72rem',
+        fontWeight: 700,
+        padding: '3px 10px',
+        borderRadius: '12px',
+        letterSpacing: '0.04em',
+        background: `color-mix(in srgb, ${color} 15%, transparent)`,
+        color,
+        border: `1px solid color-mix(in srgb, ${color} 32%, transparent)`,
+      }}
+    >
+      {status || 'UNKNOWN'}
+    </span>
+  );
+}
 
 export default function OperatorPortal() {
-  const { user } = useAuth();
-  const { isConnected, on, setActiveCenterId } = useSocket();
+  const { user, logout } = useAuth();
+  const { isConnected, on, activeCenterId, setActiveCenterId } = useSocket();
+  const navigate = useNavigate();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmSkip, setConfirmSkip] = useState(false);
 
-  const [counterData, setCounterData] = useState(null);
-  const [queueData, setQueueData] = useState(null);
-  const [waitingTokens, setWaitingTokens] = useState([]);
-  const [workloadData, setWorkloadData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [confirmSkipModal, setConfirmSkipModal] = useState(false);
+  const op = useOperatorCounter({ centerId: activeCenterId, on, setActiveCenterId });
 
-  // Fetch operator counter data from backend
-  const fetchOperatorState = useCallback(async () => {
-    try {
-      setErrorMessage('');
-      const res = await counterAPI.getOperatorCounter();
-      if (res.success && res.data) {
-        setCounterData(res.data.counter);
-        setQueueData(res.data.queue);
-        setWaitingTokens(res.data.waitingTokens || []);
-        if (res.data.workload) {
-          setWorkloadData(res.data.workload);
-        }
-        if (res.data.counter?.centerId?._id) {
-          setActiveCenterId(res.data.counter.centerId._id);
-        }
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to load operator counter data');
-    } finally {
-      setLoading(false);
-    }
-  }, [setActiveCenterId]);
+  const isAdmin = user?.role === 'ADMIN';
+  const canChooseCounter = isAdmin || op.canSelectAnyCounter;
 
-  useEffect(() => {
-    fetchOperatorState();
-  }, [fetchOperatorState]);
-
-  // Real-time socket events for counter and queue updates
-  useEffect(() => {
-    const unsubQueue = on('queue.updated', () => {
-      fetchOperatorState();
-    });
-
-    const unsubCounter = on('counter.updated', (payload) => {
-      if (payload?.counter?._id === counterData?._id) {
-        setCounterData((prev) => ({ ...prev, ...payload.counter }));
-      }
-    });
-
-    const unsubCalled = on('token.called', (payload) => {
-      if (payload?.counter?._id === counterData?._id) {
-        fetchOperatorState();
-      }
-    });
-
-    const unsubServing = on('token.serving', () => {
-      fetchOperatorState();
-    });
-
-    const unsubCompleted = on('token.completed', () => {
-      fetchOperatorState();
-    });
-
-    const unsubSkipped = on('token.skipped', () => {
-      fetchOperatorState();
-    });
-
-    const unsubWorkload = on('workload.updated', () => {
-      fetchOperatorState();
-    });
-
-    return () => {
-      unsubQueue?.();
-      unsubCounter?.();
-      unsubCalled?.();
-      unsubServing?.();
-      unsubCompleted?.();
-      unsubSkipped?.();
-      unsubWorkload?.();
-    };
-  }, [on, counterData?._id, fetchOperatorState]);
-
-  // Action Handlers
-  const handleCallNext = async () => {
-    if (!counterData?._id) return;
-    setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      const res = await counterAPI.callNext(counterData._id);
-      if (res.success) {
-        if (res.data?.token) {
-          setSuccessMessage(`Token ${res.data.token.tokenCode} called successfully`);
-        } else {
-          setSuccessMessage('No more waiting tokens in queue');
-        }
-        await fetchOperatorState();
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to call next token');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRecall = async () => {
-    if (!counterData?._id) return;
-    setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      const res = await counterAPI.recall(counterData._id);
-      if (res.success) {
-        setSuccessMessage(`Token ${res.data?.token?.tokenCode} re-called!`);
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to re-call token');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleStartServing = async () => {
-    if (!counterData?._id) return;
-    setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      const res = await counterAPI.startServing(counterData._id);
-      if (res.success) {
-        setSuccessMessage(`Token ${res.data?.token?.tokenCode} is now SERVING`);
-        await fetchOperatorState();
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to start serving token');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleComplete = async () => {
-    if (!counterData?._id) return;
-    setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      const res = await counterAPI.complete(counterData._id);
-      if (res.success) {
-        setSuccessMessage(`Token ${res.data?.token?.tokenCode} COMPLETED successfully`);
-        await fetchOperatorState();
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to complete token');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleSignOut = () => {
+    logout();
+    navigate('/login');
   };
 
   const handleSkip = async () => {
-    if (!counterData?._id) return;
-    setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    setConfirmSkipModal(false);
-    try {
-      const res = await counterAPI.skip(counterData._id);
-      if (res.success) {
-        setSuccessMessage(`Token skipped`);
-        await fetchOperatorState();
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to skip token');
-    } finally {
-      setActionLoading(false);
-    }
+    setConfirmSkip(false);
+    await op.skip();
   };
 
-  const handleStatusChange = async (nextStatus) => {
-    if (!counterData?._id) return;
-    setActionLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    try {
-      const res = await counterAPI.updateStatus(counterData._id, nextStatus);
-      if (res.success) {
-        setSuccessMessage(`Counter status changed to ${nextStatus}`);
-        await fetchOperatorState();
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Failed to update counter status');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  if (loading) {
-    return <LoadingSpinner message="Connecting to assigned counter..." />;
+  if (op.loading && !op.counter) {
+    return <LoadingSpinner message="Loading counter state..." />;
   }
 
-  if (!counterData) {
+  // ── No facility selected ───────────────────────────────────────────────────
+  if (!activeCenterId) {
     return (
-      <div style={{ padding: '40px 24px', maxWidth: '800px', margin: '40px auto', textAlign: 'center' }}>
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '16px',
-            padding: '48px 32px',
-          }}
-        >
-          <ShieldAlert size={48} color="#F59E0B" style={{ marginBottom: '16px' }} />
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-            No Assigned Counter Found
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.6 }}>
-            You are logged in as <strong>{user?.name}</strong> ({user?.role}). An administrator has not statically assigned your account to an active counter in this service center yet.
-          </p>
-          <button
-            onClick={fetchOperatorState}
-            className="btn btn-outline"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-          >
-            <RefreshCw size={16} /> Re-check Counter Assignment
-          </button>
-        </div>
+      <div style={{ padding: '48px 24px', maxWidth: '760px', margin: '0 auto', textAlign: 'center', ...card }}>
+        <Building2 size={44} color="var(--color-warning)" style={{ marginBottom: '12px' }} />
+        <h2 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', marginBottom: '8px' }}>
+          No active facility selected
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+          Pick the service center you are operating from the ACTIVE FACILITY selector above. Every counter,
+          token and queue number on this panel comes from that facility only.
+        </p>
+        <button onClick={op.reload} className="btn btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <RefreshCw size={15} /> Retry
+        </button>
       </div>
     );
   }
 
-  const currentToken = counterData.currentTokenId;
-  const isCalled = currentToken && currentToken.status === 'CALLED';
-  const isServing = currentToken && currentToken.status === 'SERVING';
-  const isBreak = counterData.status === 'BREAK';
-  const isClosed = counterData.status === 'CLOSED';
-  const isActive = counterData.status === 'ACTIVE';
+  // ── No counter selected / assigned ────────────────────────────────────────
+  if (!op.counter) {
+    const assignedHint = !isAdmin
+      ? 'Your account has not been assigned to a counter in this facility by an administrator.'
+      : 'Choose which counter in this facility you want to operate.';
+
+    return (
+      <div style={{ padding: '48px 24px', maxWidth: '760px', margin: '0 auto', textAlign: 'center', ...card }}>
+        <ShieldAlert size={44} color="var(--color-warning)" style={{ marginBottom: '12px' }} />
+        <h2 style={{ fontSize: '1.3rem', color: 'var(--text-primary)', marginBottom: '8px' }}>
+          {isAdmin ? 'Choose a counter' : 'No assigned counter'}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+          {op.errorMessage || assignedHint}
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setPickerOpen(true)}
+            className="btn btn-primary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+          >
+            <DoorOpen size={16} /> CHOOSE COUNTER
+          </button>
+          <button onClick={op.reload} className="btn btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <RefreshCw size={15} /> Re-check assignment
+          </button>
+        </div>
+
+        {pickerOpen && (
+          <CounterPicker
+            counters={op.operableCounters}
+            loading={op.countersLoading}
+            selectedId={op.selectedCounterId}
+            onClose={() => setPickerOpen(false)}
+            onSelect={async (id) => {
+              setPickerOpen(false);
+              await op.selectCounter(id);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const { counter, center, service } = op;
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Top Header Bar */}
+    <div style={{ padding: '20px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* ── Top: facility, connection, identity, sign out ─────────────────── */}
       <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '16px',
-          marginBottom: '24px',
-          background: 'var(--bg-card)',
-          padding: '16px 24px',
-          borderRadius: '14px',
-          border: '1px solid var(--border-subtle)',
+          gap: '14px',
+          padding: '12px 18px',
+          marginBottom: '14px',
+          ...card,
         }}
       >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              {counterData.name || `Counter ${counterData.number}`}
-            </h1>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                padding: '3px 10px',
-                borderRadius: '12px',
-                background: isActive ? 'rgba(0, 229, 168, 0.15)' : isBreak ? 'rgba(245, 158, 11, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                color: isActive ? 'var(--color-primary)' : isBreak ? '#F59E0B' : '#94A3B8',
-                border: `1px solid ${isActive ? 'rgba(0, 229, 168, 0.3)' : isBreak ? 'rgba(245, 158, 11, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
-              }}
-            >
-              {counterData.status}
-            </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building2 size={16} color="var(--color-primary)" />
+            <div>
+              <div style={{ fontSize: '9px', letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Active Facility
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {center?.name || '—'}
+                {center?.code ? ` (${center.code})` : ''}
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <span>Operator: <strong style={{ color: 'var(--text-primary)' }}>{user?.name}</strong></span>
-            <span>•</span>
-            <span>Center: <strong style={{ color: 'var(--text-primary)' }}>{counterData.centerId?.name || 'Assigned Center'}</strong></span>
-            <span>•</span>
-            <span>Service: <strong style={{ color: 'var(--text-primary)' }}>{counterData.serviceId?.name || 'Unassigned'}</strong></span>
-          </div>
-        </div>
 
-        {/* Real-time connection badge & manual refresh */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 12px',
+              padding: '5px 12px',
               borderRadius: '20px',
-              background: isConnected ? 'rgba(0, 229, 168, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-              border: `1px solid ${isConnected ? 'rgba(0, 229, 168, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
-              fontSize: '0.75rem',
-              color: isConnected ? 'var(--color-primary)' : '#EF4444',
+              background: isConnected
+                ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)'
+                : 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+              border: `1px solid ${isConnected ? 'color-mix(in srgb, var(--color-primary) 25%, transparent)' : 'color-mix(in srgb, var(--color-danger) 25%, transparent)'}`,
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              color: isConnected ? 'var(--color-primary)' : 'var(--color-danger)',
             }}
           >
             <Radio size={12} className={isConnected ? 'pulse' : ''} />
-            {isConnected ? 'LIVE CONNECTED' : 'OFFLINE'}
+            {isConnected ? 'LIVE' : 'OFFLINE'}
           </div>
+        </div>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <UserCog size={15} color="var(--text-secondary)" />
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                {user?.name || '—'}
+              </div>
+              <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--color-primary)' }}>
+                {user?.role || '—'}
+              </div>
+            </div>
+          </div>
           <button
-            onClick={fetchOperatorState}
-            disabled={actionLoading}
+            onClick={handleSignOut}
             className="btn btn-outline"
-            style={{ padding: '8px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            <RefreshCw size={14} className={actionLoading ? 'spin' : ''} />
-            Refresh
+            <LogOut size={13} color="var(--color-danger)" />
+            <span style={{ color: 'var(--color-danger)' }}>Sign out</span>
           </button>
         </div>
       </div>
 
-      {/* Alert Banners */}
-      {errorMessage && (
+      {/* ── Counter header ─────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '14px',
+          padding: '14px 18px',
+          marginBottom: '14px',
+          ...card,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <h1 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            {counter.name || `Counter ${counter.number}`}
+          </h1>
+          <StatusBadge status={counter.status} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Operator:{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{counter.staffId?.name || 'Unassigned'}</strong>
+          </span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Facility: <strong style={{ color: 'var(--text-primary)' }}>{center?.name || '—'}</strong>
+          </span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Service:{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{service?.name || 'Unassigned'}</strong>
+          </span>
+
+          {canChooseCounter ? (
+            <button
+              onClick={() => setPickerOpen(true)}
+              className="btn btn-primary"
+              style={{ padding: '8px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 7 }}
+            >
+              <DoorOpen size={14} /> CHOOSE COUNTER
+            </button>
+          ) : (
+            <span
+              title="Your account is bound to this counter by the backend"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 12px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                background: 'var(--bg-card-alt)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '10px',
+              }}
+            >
+              <ShieldAlert size={13} /> Assigned counter — locked
+            </span>
+          )}
+
+          <button
+            onClick={op.reload}
+            disabled={op.actionLoading}
+            className="btn btn-outline"
+            style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
+            title="Refresh from backend"
+          >
+            <RefreshCw size={14} className={op.actionLoading ? 'spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Banners ────────────────────────────────────────────────────────── */}
+      {op.errorMessage && (
         <div
           style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            color: '#FCA5A5',
-            padding: '12px 18px',
+            background: 'color-mix(in srgb, var(--color-danger) 14%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--color-danger) 35%, transparent)',
+            color: 'var(--color-danger)',
+            padding: '10px 16px',
             borderRadius: '10px',
-            marginBottom: '20px',
+            marginBottom: '12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            fontSize: '0.9rem',
+            gap: 10,
+            fontSize: '0.88rem',
           }}
         >
-          <AlertTriangle size={18} color="#EF4444" />
-          <span>{errorMessage}</span>
+          <AlertTriangle size={17} />
+          <span>{op.errorMessage}</span>
         </div>
       )}
 
-      {successMessage && (
+      {op.successMessage && (
         <div
           style={{
-            background: 'rgba(0, 229, 168, 0.12)',
-            border: '1px solid rgba(0, 229, 168, 0.3)',
+            background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)',
             color: 'var(--color-primary)',
-            padding: '12px 18px',
+            padding: '10px 16px',
             borderRadius: '10px',
-            marginBottom: '20px',
+            marginBottom: '12px',
             display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            fontSize: '0.9rem',
+            alignItems: 'flex-start',
+            gap: 10,
+            fontSize: '0.88rem',
           }}
         >
-          <CheckCircle2 size={18} color="var(--color-primary)" />
-          <span>{successMessage}</span>
+          <CheckCircle2 size={17} style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <span>{op.successMessage}</span>
+            {op.actionDetails.length > 0 && (
+              <ul
+                data-testid="call-next-details"
+                style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}
+              >
+                {op.actionDetails.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Main Grid: Operator Action Center & Queue Peek */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 360px', gap: '24px' }}>
-        {/* Left Column: Current Customer / Hero Card & Core Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Hero Token Card */}
+      {/* ── Main: current customer + actions | Queue panel ─────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '16px', alignItems: 'start' }}>
+        {/* Current customer at counter */}
+        <div style={{ padding: '28px 24px', textAlign: 'center', ...card }}>
           <div
-            className="q-card"
             style={{
-              padding: '32px',
-              textAlign: 'center',
-              border: isServing
-                ? '1px solid rgba(0, 229, 168, 0.45)'
-                : isCalled
-                ? '1px solid rgba(59, 130, 246, 0.45)'
-                : '1px solid var(--border-subtle)',
-              boxShadow: isServing
-                ? '0 0 30px rgba(0, 229, 168, 0.12)'
-                : isCalled
-                ? '0 0 30px rgba(59, 130, 246, 0.12)'
-                : 'none',
-              background: isServing
-                ? 'linear-gradient(135deg, rgba(17, 27, 44, 0.95) 0%, rgba(13, 20, 34, 0.85) 100%)'
-                : 'var(--bg-card)',
+              fontSize: '0.78rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-secondary)',
+              marginBottom: 10,
             }}
           >
-            <div style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-              Current Customer at Counter
-            </div>
-
-            {currentToken ? (
-              <div>
-                <div
-                  style={{
-                    fontSize: '4rem',
-                    fontWeight: 800,
-                    letterSpacing: '-0.02em',
-                    color: isServing ? 'var(--color-primary)' : '#60A5FA',
-                    margin: '12px 0',
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  {currentToken.tokenCode}
-                </div>
-
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '20px', background: isServing ? 'rgba(0, 229, 168, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: isServing ? 'var(--color-primary)' : '#60A5FA', fontWeight: 700, fontSize: '0.85rem', marginBottom: '24px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isServing ? 'var(--color-primary)' : '#60A5FA' }} />
-                  {currentToken.status}
-                </div>
-
-                {currentToken.calledAt && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                    Called at: {new Date(currentToken.calledAt).toLocaleTimeString()}
-                    {currentToken.servingAt && ` • Serving started: ${new Date(currentToken.servingAt).toLocaleTimeString()}`}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ padding: '36px 0' }}>
-                <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--text-disabled)', margin: '8px 0' }}>
-                  IDLE
-                </div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                  No customer is currently called at this counter.
-                </p>
-              </div>
-            )}
-
-            {/* Action Buttons Matrix */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                gap: '12px',
-                marginTop: '16px',
-                paddingTop: '20px',
-                borderTop: '1px solid var(--border-subtle)',
-              }}
-            >
-              {/* Call Next Button */}
-              <button
-                onClick={handleCallNext}
-                disabled={actionLoading || isClosed || isBreak}
-                className="btn btn-primary"
-                style={{
-                  padding: '14px 18px',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  opacity: isClosed || isBreak ? 0.5 : 1,
-                }}
-              >
-                <Play size={18} />
-                CALL NEXT
-              </button>
-
-              {/* Re-call Button (only when CALLED) */}
-              <button
-                onClick={handleRecall}
-                disabled={actionLoading || !isCalled}
-                className="btn"
-                style={{
-                  padding: '14px 18px',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: isCalled ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isCalled ? '#60A5FA' : 'var(--text-disabled)',
-                  border: isCalled ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <RotateCcw size={16} />
-                RE-CALL
-              </button>
-
-              {/* Start Serving Button */}
-              <button
-                onClick={handleStartServing}
-                disabled={actionLoading || !isCalled}
-                className="btn"
-                style={{
-                  padding: '14px 18px',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: isCalled ? 'rgba(0, 229, 168, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isCalled ? 'var(--color-primary)' : 'var(--text-disabled)',
-                  border: isCalled ? '1px solid rgba(0, 229, 168, 0.4)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <CheckCircle2 size={16} />
-                START SERVING
-              </button>
-
-              {/* Complete Button */}
-              <button
-                onClick={handleComplete}
-                disabled={actionLoading || (!isServing && !isCalled)}
-                className="btn"
-                style={{
-                  padding: '14px 18px',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: isServing || isCalled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isServing || isCalled ? '#34D399' : 'var(--text-disabled)',
-                  border: isServing || isCalled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <CheckCircle2 size={16} />
-                COMPLETE
-              </button>
-
-              {/* Skip Button */}
-              <button
-                onClick={() => setConfirmSkipModal(true)}
-                disabled={actionLoading || (!isServing && !isCalled)}
-                className="btn"
-                style={{
-                  padding: '14px 18px',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: isServing || isCalled ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isServing || isCalled ? '#F87171' : 'var(--text-disabled)',
-                  border: isServing || isCalled ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <SkipForward size={16} />
-                SKIP
-              </button>
-            </div>
+            Current Customer at Counter
           </div>
 
-          {/* Counter Status Controls */}
-          <div
-            className="q-card"
-            style={{
-              padding: '20px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-            }}
-          >
+          {op.currentToken ? (
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>Counter Operating State</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Manage your availability for token assignment</div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => handleStatusChange('ACTIVE')}
-                disabled={actionLoading || isActive}
-                className="btn"
+              <div
                 style={{
-                  padding: '8px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  background: isActive ? 'rgba(0, 229, 168, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
-                  border: isActive ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+                  fontSize: '3.6rem',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                  color: op.isServing ? 'var(--color-primary)' : 'var(--color-cyan)',
+                  fontFamily: 'monospace',
+                  lineHeight: 1.1,
                 }}
               >
-                <Power size={14} style={{ marginRight: '6px' }} />
-                ACTIVE
-              </button>
-
-              <button
-                onClick={() => handleStatusChange('BREAK')}
-                disabled={actionLoading || isBreak}
-                className="btn"
-                style={{
-                  padding: '8px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  background: isBreak ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isBreak ? '#F59E0B' : 'var(--text-secondary)',
-                  border: isBreak ? '1px solid #F59E0B' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <Coffee size={14} style={{ marginRight: '6px' }} />
-                BREAK
-              </button>
-
-              <button
-                onClick={() => handleStatusChange('CLOSED')}
-                disabled={actionLoading || isClosed}
-                className="btn"
-                style={{
-                  padding: '8px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  background: isClosed ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: isClosed ? '#F87171' : 'var(--text-secondary)',
-                  border: isClosed ? '1px solid #EF4444' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <PowerOff size={14} style={{ marginRight: '6px' }} />
-                CLOSE
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Queue Summary & Upcoming Waiting Customers */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Quick Metrics */}
-          <div
-            className="q-card"
-            style={{
-              padding: '20px 24px',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                <Users size={14} /> PEOPLE WAITING
+                {op.currentToken.tokenCode}
               </div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {queueData?.waitingCount ?? waitingTokens.length}
+              <div style={{ margin: '12px 0 6px' }}>
+                <StatusBadge status={op.tokenStatus} />
               </div>
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                <Clock size={14} /> EST WAIT TIME
-              </div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-primary)' }}>
-                {queueData?.estimatedWaitMinutes ?? (counterData.serviceId?.avgServiceTimeMinutes || 10)}m
-              </div>
-            </div>
-          </div>
-
-          {/* Tier 4 / Feature 5: Operational Workload Balancer Widget */}
-          {workloadData && workloadData.dataSufficiency !== 'INSUFFICIENT_DATA' && (
-            <div
-              className="q-card"
-              style={{
-                padding: '20px 24px',
-                border: workloadData.loadLevel === 'SUSTAINED_HIGH'
-                  ? '1px solid rgba(239, 68, 68, 0.45)'
-                  : workloadData.loadLevel === 'HIGH'
-                  ? '1px solid rgba(245, 158, 11, 0.45)'
-                  : '1px solid var(--border-subtle)',
-                background: workloadData.loadLevel === 'SUSTAINED_HIGH'
-                  ? 'rgba(239, 68, 68, 0.04)'
-                  : 'var(--bg-card)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  <Activity size={16} color={workloadData.loadLevel === 'SUSTAINED_HIGH' ? '#EF4444' : workloadData.loadLevel === 'HIGH' ? '#F59E0B' : 'var(--color-primary)'} />
-                  OPERATIONAL WORKLOAD
-                </div>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    padding: '3px 8px',
-                    borderRadius: '12px',
-                    background: workloadData.loadLevel === 'SUSTAINED_HIGH'
-                      ? 'rgba(239, 68, 68, 0.15)'
-                      : workloadData.loadLevel === 'HIGH'
-                      ? 'rgba(245, 158, 11, 0.15)'
-                      : workloadData.loadLevel === 'MODERATE'
-                      ? 'rgba(59, 130, 246, 0.15)'
-                      : 'rgba(0, 229, 168, 0.15)',
-                    color: workloadData.loadLevel === 'SUSTAINED_HIGH'
-                      ? '#EF4444'
-                      : workloadData.loadLevel === 'HIGH'
-                      ? '#F59E0B'
-                      : workloadData.loadLevel === 'MODERATE'
-                      ? '#60A5FA'
-                      : 'var(--color-primary)',
-                  }}
-                >
-                  {workloadData.loadLevel === 'SUSTAINED_HIGH' ? 'SUSTAINED HIGH' : workloadData.loadLevel} LOAD
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                  {workloadData.workloadScore ?? '--'}
-                </span>
-                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>/ 100</span>
-              </div>
-
-              {/* Contributing factors progress breakdown */}
-              {workloadData.factors && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '12px 0', fontSize: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                    <span>Active Service Load</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.activeServiceLoad?.score ?? 0}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                    <span>Queue Pressure</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.queuePressure?.score ?? 0}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                    <span>Recent Volume</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.recentVolume?.completedCount ?? 0} served</span>
-                  </div>
-                  {workloadData.factors.sustainedWorkload?.continuousMinutes > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                      <span>Continuous Active Duty</span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{workloadData.factors.sustainedWorkload.continuousMinutes} min</span>
-                    </div>
-                  )}
+              {op.currentToken.calledAt && (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Called at {new Date(op.currentToken.calledAt).toLocaleTimeString()}
+                  {op.currentToken.servingAt
+                    ? ` • Serving since ${new Date(op.currentToken.servingAt).toLocaleTimeString()}`
+                    : ''}
                 </div>
               )}
-
-              {/* Operational explanation */}
-              {workloadData.explanation && (
-                <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                  {workloadData.explanation}
-                </p>
-              )}
+            </div>
+          ) : (
+            <div style={{ padding: '24px 0' }}>
+              <div style={{ fontSize: '2.6rem', fontWeight: 800, color: 'var(--text-disabled)' }}>IDLE</div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                No customer is currently called at this counter.
+              </p>
             </div>
           )}
 
-          {/* Next in Line Queue List */}
-          <div className="q-card" style={{ padding: '24px', flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Next in Line ({waitingTokens.length})
+          {/* Action buttons */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: '10px',
+              marginTop: '20px',
+              paddingTop: '18px',
+              borderTop: '1px solid var(--border-subtle)',
+            }}
+          >
+            <button
+              onClick={op.callNext}
+              disabled={op.actionLoading || !op.canCallNext}
+              className="btn btn-primary"
+              style={{
+                padding: '13px 14px',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                opacity: op.canCallNext ? 1 : 0.45,
+              }}
+              title={callNextTooltip(op)}
+            >
+              <Play size={17} /> CALL NEXT
+            </button>
+
+            <button
+              onClick={op.startServing}
+              disabled={op.actionLoading || !op.canStartServing}
+              className="btn"
+              style={actionStyle(op.canStartServing, 'var(--color-primary)')}
+            >
+              <CheckCircle2 size={16} /> START SERVING
+            </button>
+
+            <button
+              onClick={op.complete}
+              disabled={op.actionLoading || !op.canComplete}
+              className="btn"
+              style={actionStyle(op.canComplete, 'var(--color-success)')}
+            >
+              <CheckCircle2 size={16} /> COMPLETE
+            </button>
+
+            <button
+              onClick={() => setConfirmSkip(true)}
+              disabled={op.actionLoading || !op.canSkip}
+              className="btn"
+              style={actionStyle(op.canSkip, 'var(--color-danger)')}
+            >
+              <SkipForward size={16} /> SKIP
+            </button>
+
+            <button
+              onClick={op.recall}
+              disabled={op.actionLoading || !op.canRecall}
+              className="btn"
+              style={actionStyle(op.canRecall, 'var(--color-cyan)')}
+            >
+              <RotateCcw size={16} /> RE-CALL
+            </button>
+          </div>
+        </div>
+
+        {/* Queue side panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ padding: '16px 18px', ...card }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
+                <Users size={13} /> PEOPLE WAITING
               </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>No Customer PII</span>
+              <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>
+                {op.waitingCount}
+              </div>
+            </div>
+            <div style={{ padding: '16px 18px', ...card }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
+                <Clock size={13} /> EST WAIT
+              </div>
+              <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: 4 }}>
+                {op.estimatedWaitMinutes === null ? '—' : `${op.estimatedWaitMinutes}m`}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '18px', ...card }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+              Next in Line ({op.waitingTokens.length})
             </div>
 
-            {waitingTokens.length === 0 ? (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <Layers size={32} color="var(--text-disabled)" style={{ marginBottom: '8px' }} />
-                <p style={{ margin: 0, fontSize: '0.85rem' }}>No tokens waiting in queue</p>
-              </div>
+            {!op.hasService ? (
+              <EmptyQueue message="This counter has no service assigned, so there is no queue to show." />
+            ) : op.waitingTokens.length === 0 ? (
+              <EmptyQueue message="No tokens waiting in this queue" />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {waitingTokens.map((t, idx) => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                {op.waitingTokens.map((t, idx) => (
                   <div
-                    key={t._id || idx}
+                    key={t._id || t.tokenCode}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      padding: '9px 12px',
+                      background: 'var(--bg-card-alt)',
                       borderRadius: '8px',
-                      border: idx === 0 ? '1px solid rgba(0, 229, 168, 0.3)' : '1px solid var(--border-subtle)',
+                      border:
+                        idx === 0
+                          ? '1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)'
+                          : '1px solid var(--border-subtle)',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                       <span
                         style={{
-                          width: '24px',
-                          height: '24px',
+                          width: '22px',
+                          height: '22px',
                           borderRadius: '50%',
-                          background: idx === 0 ? 'rgba(0, 229, 168, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                          background:
+                            idx === 0
+                              ? 'color-mix(in srgb, var(--color-primary) 20%, transparent)'
+                              : 'var(--bg-card-alt)',
                           color: idx === 0 ? 'var(--color-primary)' : 'var(--text-secondary)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '0.75rem',
+                          fontSize: '0.7rem',
                           fontWeight: 700,
                         }}
                       >
                         {idx + 1}
                       </span>
-                      <strong style={{ fontSize: '1rem', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                      <strong style={{ fontSize: '0.95rem', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                         {t.tokenCode}
                       </strong>
                     </div>
-
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      ~{t.waitEstimateMinutes || 5} min
-                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      {t.waitEstimateMinutes === null || t.waitEstimateMinutes === undefined
+                        ? '—'
+                        : `~${t.waitEstimateMinutes} min`}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -819,70 +560,232 @@ export default function OperatorPortal() {
         </div>
       </div>
 
-      {/* Confirmation Modal for Skip */}
-      {confirmSkipModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          <div
-            style={{
-              background: '#0D1422',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '16px',
-              padding: '28px',
-              maxWidth: '420px',
-              width: '90%',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <AlertTriangle size={20} color="#EF4444" />
-              </div>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>Confirm Skip Token</h3>
-            </div>
-
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '24px' }}>
-              Are you sure you want to skip token <strong>{currentToken?.tokenCode}</strong>? This will remove the token from active serving and notify the customer.
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => setConfirmSkipModal(false)}
-                className="btn btn-outline"
-                style={{ padding: '8px 16px' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSkip}
-                className="btn"
-                style={{ padding: '8px 16px', background: '#EF4444', color: '#fff', fontWeight: 600 }}
-              >
-                Yes, Skip Token
-              </button>
-            </div>
+      {/* ── Bottom: counter operating state ─────────────────────────────────── */}
+      <div
+        style={{
+          marginTop: '16px',
+          padding: '14px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '14px',
+          flexWrap: 'wrap',
+          ...card,
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+            Counter Operating State
+          </div>
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+            {op.isClosed
+              ? 'Counter is closed — token actions are disabled'
+              : op.isBreak
+              ? 'Counter is on break — token actions are disabled'
+              : 'Counter is active and accepting customers'}
           </div>
         </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {STATUS_BUTTON.map(({ value, label, icon: Icon }) => {
+            const active = op.counterStatus === value;
+            const color = STATUS_COLORS[value];
+            return (
+              <button
+                key={value}
+                onClick={() => op.setCounterStatus(value)}
+                disabled={op.actionLoading || active}
+                className="btn"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: active ? `color-mix(in srgb, ${color} 20%, transparent)` : 'var(--bg-card-alt)',
+                  color: active ? color : 'var(--text-secondary)',
+                  border: active ? `1px solid ${color}` : '1px solid var(--border-subtle)',
+                }}
+              >
+                <Icon size={14} /> {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Modals ─────────────────────────────────────────────────────────── */}
+      {pickerOpen && (
+        <CounterPicker
+          counters={op.operableCounters}
+          loading={op.countersLoading}
+          selectedId={op.selectedCounterId}
+          onClose={() => setPickerOpen(false)}
+          onSelect={async (id) => {
+            setPickerOpen(false);
+            await op.selectCounter(id);
+          }}
+        />
+      )}
+
+      {confirmSkip && (
+        <Modal title="Confirm skip" onClose={() => setConfirmSkip(false)}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 20 }}>
+            Skip token <strong>{op.currentToken?.tokenCode}</strong>? The customer is notified and the next
+            waiting token becomes available.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button onClick={() => setConfirmSkip(false)} className="btn btn-outline" style={{ padding: '8px 16px' }}>
+              Cancel
+            </button>
+            <button
+              onClick={handleSkip}
+              className="btn"
+              style={{ padding: '8px 16px', background: 'var(--color-danger)', color: '#fff', fontWeight: 600 }}
+            >
+              Yes, skip token
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
+  );
+}
+
+function EmptyQueue({ message }) {
+  return (
+    <div style={{ padding: '22px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+      <Layers size={26} color="var(--text-disabled)" style={{ marginBottom: 6 }} />
+      <p style={{ margin: 0, fontSize: '0.82rem' }}>{message}</p>
+    </div>
+  );
+}
+
+function actionStyle(enabled, color) {
+  return {
+    padding: '13px 14px',
+    fontWeight: 600,
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    background: enabled ? `color-mix(in srgb, ${color} 18%, transparent)` : 'var(--bg-card-alt)',
+    color: enabled ? color : 'var(--text-disabled)',
+    border: enabled ? `1px solid color-mix(in srgb, ${color} 38%, transparent)` : '1px solid var(--border-subtle)',
+    opacity: enabled ? 1 : 0.6,
+  };
+}
+
+/** Explain, in the button tooltip, exactly why CALL NEXT is unavailable. */
+function callNextTooltip(op) {
+  if (!op.hasService) return 'This counter has no service assigned';
+  if (op.isClosed) return 'Counter is CLOSED';
+  if (op.isBreak) return 'Counter is on BREAK';
+  if (op.hasToken) return `Already handling token ${op.currentToken?.tokenCode}`;
+  if (op.waitingCount === 0) return 'No customers waiting in this queue';
+  return 'Call the next waiting customer to this counter';
+}
+
+function Modal({ title, children, onClose }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.72)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        backdropFilter: 'blur(4px)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ ...card, padding: 24, maxWidth: 460, width: '90%' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>{title}</h3>
+          <button onClick={onClose} className="btn btn-outline" style={{ padding: '5px 9px' }} aria-label="Close">
+            <X size={15} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The "CHOOSE COUNTER" picker.
+ *
+ * Every row is a real counter document returned by
+ * `GET /api/counters/operable?centerId=…` for the currently selected facility.
+ * Nothing here is a hardcoded list, and a counter can only be picked when the
+ * backend says `canOperate` for the calling user.
+ */
+function CounterPicker({ counters, loading, selectedId, onSelect, onClose }) {
+  return (
+    <Modal title="Choose counter" onClose={onClose}>
+      {loading ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>Loading counters…</p>
+      ) : !counters || counters.length === 0 ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+          This facility has no counters yet.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '52vh', overflowY: 'auto' }}>
+          {counters.map((c) => {
+            const isSelected = String(c._id) === String(selectedId);
+            const disabled = c.canOperate === false;
+            return (
+              <button
+                key={c._id}
+                onClick={() => !disabled && onSelect(c._id)}
+                disabled={disabled}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '11px 14px',
+                  textAlign: 'left',
+                  borderRadius: '10px',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.5 : 1,
+                  background: isSelected
+                    ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)'
+                    : 'var(--bg-card-alt)',
+                  border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                    {c.name}
+                    {c.number ? ` · #${c.number}` : ''}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                    {c.service?.name || 'No service assigned'}
+                    {c.operator ? ` · ${c.operator.name}` : ' · Unassigned'}
+                    {c.currentToken ? ` · now: ${c.currentToken.tokenCode}` : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <StatusBadge status={c.status} />
+                  {c.isAssignedToCaller && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--color-primary)', fontWeight: 700 }}>
+                      YOURS
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
   );
 }

@@ -10,10 +10,10 @@ export function OfflineBanner({ isOnline = true, cachedAt = null, hasData = true
         style={{
           background: 'rgba(56, 189, 248, 0.15)',
           borderColor: 'rgba(56, 189, 248, 0.35)',
-          color: '#38BDF8',
+          color: 'var(--color-cyan)',
         }}
       >
-        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38BDF8', display: 'inline-block' }} />
+        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-cyan)', display: 'inline-block' }} />
         <span>Refreshing live status...</span>
       </aside>
     );

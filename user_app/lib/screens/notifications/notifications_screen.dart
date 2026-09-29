@@ -29,7 +29,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final state = ref.watch(notificationsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.themeBackground,
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
@@ -56,8 +56,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       icon: Icons.notifications_none_rounded,
                     )
                   : RefreshIndicator(
-                      color: AppColors.primary,
-                      backgroundColor: AppColors.surface,
+                      color: context.themePrimary,
+                      backgroundColor: context.themeSurface,
                       onRefresh: () => ref.read(notificationsProvider.notifier).loadNotifications(),
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 8),

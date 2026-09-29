@@ -379,7 +379,13 @@ async function _aggregateServiceHistory({ centerIdOid, serviceIdOid, since, now 
         _id: null,
         total: { $sum: 1 },
         abandoned: {
-          $sum: { $cond: [{ $in: ['$status', ['SKIPPED', 'CANCELLED', 'EXPIRED']] }, 1, 0] },
+          $sum: {
+            $cond: [
+              { $in: ['$status', ['SKIPPED', 'SKIPPED_OUT_OF_RANGE', 'CANCELLED', 'EXPIRED']] },
+              1,
+              0,
+            ],
+          },
         },
       },
     },

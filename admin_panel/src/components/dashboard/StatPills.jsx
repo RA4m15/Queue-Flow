@@ -1,13 +1,30 @@
 import React from 'react';
 import { Users, Clock, CheckCircle2, Monitor } from 'lucide-react';
 
-export default function StatPills({ queues = [], counters = [], avgWaitSeconds = null }) {
-  const totalWaiting = queues.reduce((sum, q) => sum + (q.waitingCount || 0), 0);
-  const totalServed = counters.reduce((sum, c) => sum + (c.stats?.served || 0), 0);
+export default function StatPills({ queues = [], counters = [], avgWaitSeconds = null, metrics = null }) {
+  // WAITING IN QUEUE — authoritative count of real customers holding a token
+  // and still WAITING. Taken from the backend's Token-derived metrics. The old
+  // source summed `queues[].waitingCount`, which is a day-partitioned Queue
+  // aggregate and is legitimately empty while real customers are still waiting,
+  // so the pill read 0 with a full lobby. The queue-table sum is kept only as
+  // a fallback for a backend that has not yet exposed `metrics`.
+  const totalWaiting = typeof metrics?.waitingCount === 'number'
+    ? metrics.waitingCount
+    : queues.reduce((sum, q) => sum + (q.waitingCount || 0), 0);
+
+  // COMPLETED TODAY — tokens actually COMPLETED today, per the backend's
+  // completion timestamp. `counters[].stats.served` is a lifetime counter per
+  // counter, not a today figure, so it was never a valid "completed today".
+  const totalServed = typeof metrics?.completedToday === 'number'
+    ? metrics.completedToday
+    : counters.reduce((sum, c) => sum + (c.stats?.served || 0), 0);
+
   const activeCounters = counters.filter((c) => c.status === 'ACTIVE').length;
   const totalCounters = counters.length;
 
-  // Format real backend-derived average waiting time
+  // Average WAIT time actually observed by customers who arrived today.
+  // `avgWaitSeconds` is null until at least one of today's arrivals has really
+  // been called, so show an honest dash rather than a fabricated number.
   let avgWaitFormatted = '—';
   if (typeof avgWaitSeconds === 'number' && avgWaitSeconds > 0) {
     avgWaitFormatted = `${Math.round(avgWaitSeconds / 60)}m`;
@@ -17,109 +34,58 @@ export default function StatPills({ queues = [], counters = [], avgWaitSeconds =
     {
       label: 'WAITING IN QUEUE',
       value: totalWaiting,
+      sub: typeof metrics?.waitingCount === 'number'
+        ? `${metrics.waitingCount} holding a token`
+        : 'Customers holding a token',
       icon: Users,
-      color: totalWaiting > 10 ? '#EF4444' : totalWaiting > 5 ? '#F59E0B' : '#00E5A8',
-      accentGlow: 'rgba(0, 229, 168, 0.15)',
+      color: totalWaiting > 10 ? 'var(--color-danger)' : totalWaiting > 5 ? 'var(--color-warning)' : 'var(--color-primary)',
     },
     {
       label: 'AVG WAIT TIME',
       value: avgWaitFormatted,
+      sub: typeof metrics?.waitSampleCount === 'number' && metrics.waitSampleCount > 0
+        ? `From ${metrics.waitSampleCount} real call${metrics.waitSampleCount === 1 ? '' : 's'} today`
+        : 'No measured wait yet today',
       icon: Clock,
-      color: '#00D2FF',
-      accentGlow: 'rgba(0, 210, 255, 0.15)',
+      color: 'var(--color-cyan)',
     },
     {
       label: 'COMPLETED TODAY',
       value: totalServed,
+      sub: `${metrics?.issuedToday ?? '—'} issued today`,
       icon: CheckCircle2,
-      color: '#00E5A8',
-      accentGlow: 'rgba(0, 229, 168, 0.15)',
+      color: 'var(--color-success)',
     },
     {
       label: 'ACTIVE COUNTERS',
       value: (
         <span>
           {activeCounters}
-          <span style={{ fontSize: '18px', color: '#64748B', fontWeight: 600 }}>/{totalCounters}</span>
+          <span className="stat-pill-fraction">/{totalCounters}</span>
         </span>
       ),
+      sub: `${totalCounters - activeCounters} offline or on break`,
       icon: Monitor,
-      color: activeCounters > 0 ? '#00E5A8' : '#94A3B8',
-      accentGlow: 'rgba(0, 229, 168, 0.15)',
+      color: activeCounters > 0 ? 'var(--color-primary)' : 'var(--text-secondary)',
     },
   ];
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px',
-        marginBottom: '24px',
-      }}
-    >
+    <div className="stat-grid">
       {kpis.map((kpi, idx) => {
         const Icon = kpi.icon;
         return (
-          <div
-            key={idx}
-            className="stat-pill"
-            style={{
-              padding: '20px 22px',
-              alignItems: 'flex-start',
-              textAlign: 'left',
-              background: 'linear-gradient(135deg, rgba(17, 27, 44, 0.75) 0%, rgba(13, 20, 34, 0.6) 100%)',
-            }}
-          >
-            <div
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '12px',
-              }}
-            >
-              <span
-                className="mono"
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#94A3B8',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                {kpi.label}
+          <div key={idx} className="stat-pill">
+            <div className="stat-pill-head">
+              <span className="stat-pill-label">{kpi.label}</span>
+              <span className="stat-pill-icon" style={{ color: kpi.color }}>
+                <Icon size={15} />
               </span>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '10px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: kpi.color,
-                }}
-              >
-                <Icon size={16} />
-              </div>
             </div>
 
-            <div
-              className="mono"
-              style={{
-                fontSize: '32px',
-                fontWeight: 800,
-                color: '#F8FAFC',
-                lineHeight: 1,
-                letterSpacing: '-0.03em',
-              }}
-            >
-              {kpi.value}
-            </div>
+            <div className="stat-pill-val">{kpi.value}</div>
+
+            <div className="stat-pill-sub">{kpi.sub}</div>
           </div>
         );
       })}

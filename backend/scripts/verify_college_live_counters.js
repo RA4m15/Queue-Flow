@@ -164,17 +164,7 @@ async function runVerification() {
   await request('PATCH', `/api/service-centers/${COLLEGE_CENTER_ID}`, { autoResourceAllocation: false }, auth(adminToken));
   console.log('  ✓ Disabled autoResourceAllocation for deterministic manual testing');
 
-  let localCounters = buildCountersState(displayData.counters, displayData.nowServing);
-  console.log('  Initial Counters:', localCounters.map((c) => `${c.displayLabel}: ${c.servingToken?.tokenCode || 'IDLE'}`));
-
-  // 3. Clear any active tokens on Counter 01 and 02 first
-  for (const c of localCounters) {
-    if (c.servingToken) {
-      await request('POST', `/api/counters/${c._id}/complete`, { centerId: COLLEGE_CENTER_ID }, auth(adminToken));
-    }
-  }
-
-  // Connect socket client as Live Counter display board
+  // Connect socket client as Live Counter display board first
   const socket = io(BASE_URL, {
     transports: ['websocket'],
     auth: { token: displayToken },
@@ -193,6 +183,21 @@ async function runVerification() {
 
   await new Promise((resolve) => socket.once('connect', resolve));
   console.log('  ✓ Socket.IO connected to display room');
+
+  let localCounters = buildCountersState(displayData.counters, displayData.nowServing);
+
+  // Clear any active tokens on Counter 01 and 02 first
+  for (const c of localCounters) {
+    if (c.servingToken) {
+      await request('POST', `/api/counters/${c._id}/complete`, { centerId: COLLEGE_CENTER_ID }, auth(adminToken));
+    }
+  }
+
+  await new Promise((r) => setTimeout(r, 600));
+
+  const clearedRes = await request('GET', `/api/queue/${COLLEGE_CENTER_ID}/display`);
+  localCounters = buildCountersState(clearedRes.body.data.counters, clearedRes.body.data.nowServing);
+  console.log('  Baseline Counters (should all be IDLE):', localCounters.map((c) => `${c.displayLabel}: ${c.servingToken?.tokenCode || 'IDLE'}`));
 
   const centerLat = displayData.center?.latitude || displayData.center?.location?.latitude || 23.183009;
   const centerLng = displayData.center?.longitude || displayData.center?.location?.longitude || 77.301403;

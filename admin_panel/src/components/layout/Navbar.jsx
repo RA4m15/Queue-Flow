@@ -107,7 +107,7 @@ export default function Navbar({ onToggleSidebar }) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              background: 'rgba(26, 30, 14, 0.75)',
+              background: 'rgba(17, 27, 44, 0.75)',
               border: '1px solid var(--border-medium)',
               borderRadius: '12px',
               padding: '4px 12px',
@@ -116,7 +116,7 @@ export default function Navbar({ onToggleSidebar }) {
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <Building2 size={16} color="#FFE600" style={{ flexShrink: 0 }} />
+            <Building2 size={16} color="#00E5A8" style={{ flexShrink: 0 }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span className="mono" style={{ fontSize: '9px', color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                 ACTIVE FACILITY
@@ -142,7 +142,7 @@ export default function Navbar({ onToggleSidebar }) {
                   <option
                     key={c._id}
                     value={c._id}
-                    style={{ background: '#14170A', color: '#F8FAFC' }}
+                    style={{ background: '#0D1422', color: '#F8FAFC' }}
                   >
                     {c.name} ({c.code})
                   </option>
@@ -178,7 +178,7 @@ export default function Navbar({ onToggleSidebar }) {
               border: '1px solid var(--border-subtle)',
             }}
           >
-            <span style={{ color: '#FFE600', fontWeight: 700 }}>LIVE</span>
+            <span style={{ color: '#00E5A8', fontWeight: 700 }}>LIVE</span>
             <span>{currentTime || '—:—:—'}</span>
           </div>
 
@@ -190,7 +190,7 @@ export default function Navbar({ onToggleSidebar }) {
               gap: '10px',
               padding: '4px 8px 4px 4px',
               borderRadius: '12px',
-              background: 'rgba(26, 30, 14, 0.6)',
+              background: 'rgba(17, 27, 44, 0.6)',
               border: '1px solid var(--border-subtle)',
             }}
           >
@@ -199,12 +199,12 @@ export default function Navbar({ onToggleSidebar }) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '9px',
-                background: 'linear-gradient(135deg, rgba(255, 230, 0, 0.25) 0%, rgba(255, 241, 118, 0.15) 100%)',
-                border: '1px solid rgba(255, 230, 0, 0.3)',
+                background: 'linear-gradient(135deg, rgba(0, 229, 168, 0.25) 0%, rgba(0, 210, 255, 0.15) 100%)',
+                border: '1px solid rgba(0, 229, 168, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#FFE600',
+                color: '#00E5A8',
                 fontWeight: 700,
                 fontSize: '13px',
               }}
@@ -216,8 +216,8 @@ export default function Navbar({ onToggleSidebar }) {
                 {user?.name || '—'}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Shield size={10} color="#FFE600" />
-                <span className="mono" style={{ fontSize: '9px', color: '#FFE600', fontWeight: 700 }}>
+                <Shield size={10} color="#00E5A8" />
+                <span className="mono" style={{ fontSize: '9px', color: '#00E5A8', fontWeight: 700 }}>
                   {user?.role || 'STAFF'}
                 </span>
               </div>

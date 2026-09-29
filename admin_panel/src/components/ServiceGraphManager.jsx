@@ -190,7 +190,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
                     fontWeight: 800,
                     fontSize: '12px',
                     color: 'var(--color-primary)',
-                    background: 'rgba(255, 230, 0,0.1)',
+                    background: 'rgba(0,229,168,0.1)',
                     padding: '2px 6px',
                     borderRadius: '4px',
                   }}
@@ -260,7 +260,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
                         fontWeight: 700,
                         padding: '2px 6px',
                         borderRadius: '4px',
-                        background: 'rgba(255, 241, 118,0.1)',
+                        background: 'rgba(0,210,255,0.1)',
                         color: '#38BDF8',
                         textTransform: 'uppercase',
                       }}
@@ -291,7 +291,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
                         style={{ padding: '4px 8px', fontSize: '11px' }}
                         title={edge.isActive ? 'Deactivate Edge' : 'Activate Edge'}
                       >
-                        {edge.isActive ? <CheckCircle size={12} color="#FFE600" /> : <XCircle size={12} color="#EF4444" />}
+                        {edge.isActive ? <CheckCircle size={12} color="#00E5A8" /> : <XCircle size={12} color="#EF4444" />}
                         <span style={{ marginLeft: '4px' }}>{edge.isActive ? 'Active' : 'Inactive'}</span>
                       </button>
                       <button
@@ -320,7 +320,7 @@ export function ServiceGraphManager({ centerId, isAdmin }) {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(10, 11, 5,0.85)',
+            background: 'rgba(5,7,13,0.85)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',

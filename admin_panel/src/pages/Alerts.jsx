@@ -63,20 +63,20 @@ export default function Alerts() {
               padding: '14px 20px',
               borderRadius: '16px',
               marginBottom: '28px',
-              background: recommendations.length > 0 ? 'rgba(255, 152, 0, 0.12)' : 'rgba(255, 230, 0, 0.12)',
-              border: recommendations.length > 0 ? '1px solid rgba(255, 152, 0, 0.35)' : '1px solid rgba(255, 230, 0, 0.35)',
+              background: recommendations.length > 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(0, 229, 168, 0.1)',
+              border: recommendations.length > 0 ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(0, 229, 168, 0.3)',
             }}
           >
             {recommendations.length > 0 ? (
-              <AlertTriangle size={20} color="#FF9800" />
+              <AlertTriangle size={20} color="#F59E0B" />
             ) : (
-              <CheckCircle2 size={20} color="#FFE600" />
+              <CheckCircle2 size={20} color="#00E5A8" />
             )}
             <p
               style={{
                 fontSize: '13px',
                 fontWeight: 700,
-                color: recommendations.length > 0 ? '#FFB300' : '#FFE600',
+                color: recommendations.length > 0 ? '#FBBF24' : '#00E5A8',
               }}
             >
               {recommendations.length > 0
@@ -101,9 +101,9 @@ export default function Alerts() {
                 {recommendations.map((rec, i) => {
                   const isWarn = rec.type === 'WARN';
                   const isSuggest = rec.type === 'SUGGEST';
-                  const borderColor = isWarn ? 'rgba(255,152,0,0.35)' : isSuggest ? 'rgba(255,230,0,0.35)' : 'rgba(255,241,118,0.35)';
-                  const tagBg = isWarn ? 'rgba(255,152,0,0.12)' : isSuggest ? 'rgba(255,230,0,0.12)' : 'rgba(255,241,118,0.14)';
-                  const tagColor = isWarn ? '#FFB300' : isSuggest ? '#FFE600' : '#FFF176';
+                  const borderColor = isWarn ? 'rgba(245,158,11,0.35)' : isSuggest ? 'rgba(0,229,168,0.35)' : 'rgba(0,210,255,0.35)';
+                  const tagBg = isWarn ? 'rgba(245,158,11,0.12)' : isSuggest ? 'rgba(0,229,168,0.12)' : 'rgba(0,210,255,0.12)';
+                  const tagColor = isWarn ? '#FBBF24' : isSuggest ? '#00E5A8' : '#00D2FF';
 
                   return (
                     <div
@@ -112,7 +112,7 @@ export default function Alerts() {
                       style={{
                         padding: '20px 22px',
                         border: `1px solid ${borderColor}`,
-                        background: 'rgba(22, 25, 12, 0.78)',
+                        background: 'rgba(13, 20, 34, 0.75)',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -174,7 +174,7 @@ export default function Alerts() {
 
             <div className="q-card" style={{ padding: '26px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Radio size={16} color="#FFE600" />
+                <Radio size={16} color="#00E5A8" />
                 <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
                   Facility-Wide Broadcast
                 </h3>
@@ -191,9 +191,9 @@ export default function Alerts() {
                     gap: '10px',
                     padding: '12px 16px',
                     borderRadius: '12px',
-                    background: 'rgba(255, 230, 0,0.12)',
-                    border: '1px solid rgba(255, 230, 0,0.3)',
-                    color: '#FFE600',
+                    background: 'rgba(0,229,168,0.12)',
+                    border: '1px solid rgba(0,229,168,0.3)',
+                    color: '#00E5A8',
                     fontSize: '13px',
                     fontWeight: 600,
                     marginBottom: '18px',

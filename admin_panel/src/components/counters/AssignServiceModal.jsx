@@ -57,11 +57,11 @@ export default function AssignServiceModal({ counter, centerId, onClose, onAssig
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                background: 'rgba(255, 230, 0, 0.12)',
+                background: 'rgba(0, 229, 168, 0.12)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#FFE600',
+                color: '#00E5A8',
               }}
             >
               <Layers size={16} />
@@ -105,8 +105,8 @@ export default function AssignServiceModal({ counter, centerId, onClose, onAssig
                   gap: '12px',
                   padding: '12px 16px',
                   borderRadius: '12px',
-                  border: !selectedServiceId ? '1px solid #FFE600' : '1px solid var(--border-subtle)',
-                  background: !selectedServiceId ? 'rgba(255, 230, 0, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                  border: !selectedServiceId ? '1px solid #00E5A8' : '1px solid var(--border-subtle)',
+                  background: !selectedServiceId ? 'rgba(0, 229, 168, 0.08)' : 'rgba(255, 255, 255, 0.02)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
@@ -117,7 +117,7 @@ export default function AssignServiceModal({ counter, centerId, onClose, onAssig
                   value=""
                   checked={!selectedServiceId}
                   onChange={() => setSelectedServiceId('')}
-                  style={{ accentColor: '#FFE600' }}
+                  style={{ accentColor: '#00E5A8' }}
                 />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
                   Unassigned (Idle Counter)
@@ -135,8 +135,8 @@ export default function AssignServiceModal({ counter, centerId, onClose, onAssig
                       gap: '12px',
                       padding: '12px 16px',
                       borderRadius: '12px',
-                      border: isSelected ? '1px solid #FFE600' : '1px solid var(--border-subtle)',
-                      background: isSelected ? 'rgba(255, 230, 0, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                      border: isSelected ? '1px solid #00E5A8' : '1px solid var(--border-subtle)',
+                      background: isSelected ? 'rgba(0, 229, 168, 0.08)' : 'rgba(255, 255, 255, 0.02)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
@@ -147,12 +147,12 @@ export default function AssignServiceModal({ counter, centerId, onClose, onAssig
                       value={svc._id}
                       checked={isSelected}
                       onChange={() => setSelectedServiceId(svc._id)}
-                      style={{ accentColor: '#FFE600' }}
+                      style={{ accentColor: '#00E5A8' }}
                     />
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>{svc.name}</p>
                       <p className="mono" style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        Prefix: <strong style={{ color: '#FFE600' }}>{svc.tokenPrefix}</strong> • ~{svc.avgServiceTimeMinutes}m estimate
+                        Prefix: <strong style={{ color: '#00E5A8' }}>{svc.tokenPrefix}</strong> • ~{svc.avgServiceTimeMinutes}m estimate
                       </p>
                     </div>
                   </label>

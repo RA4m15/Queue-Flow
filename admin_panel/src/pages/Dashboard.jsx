@@ -69,9 +69,9 @@ export default function Dashboard() {
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: 'rgba(255, 230, 0, 0.14)',
-                color: '#FFE600',
-                border: '1px solid rgba(255, 230, 0, 0.35)',
+                background: 'rgba(0, 229, 168, 0.12)',
+                color: '#00E5A8',
+                border: '1px solid rgba(0, 229, 168, 0.3)',
               }}
             >
               REALTIME MESH

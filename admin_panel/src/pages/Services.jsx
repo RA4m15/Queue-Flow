@@ -545,7 +545,7 @@ export default function Services() {
     fontFamily: 'var(--font-mono)',
     textAlign: 'left',
     borderBottom: '1px solid var(--border-subtle)',
-    background: 'rgba(26, 30, 14, 0.5)',
+    background: 'rgba(17, 27, 44, 0.5)',
   };
 
   return (
@@ -559,7 +559,7 @@ export default function Services() {
             top: '80px',
             right: '24px',
             zIndex: 1200,
-            background: '#1D210F',
+            background: '#111B2C',
             border: '1px solid var(--border-accent)',
             borderRadius: '12px',
             padding: '12px 18px',

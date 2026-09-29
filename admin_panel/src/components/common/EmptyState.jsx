@@ -11,7 +11,7 @@ export default function EmptyState({
       style={{
         textAlign: 'center',
         padding: '48px 24px',
-        background: 'rgba(22, 25, 12, 0.65)',
+        background: 'rgba(13, 20, 34, 0.65)',
         borderRadius: '18px',
         border: '1px dashed rgba(255, 255, 255, 0.12)',
         backdropFilter: 'blur(8px)',
@@ -31,7 +31,7 @@ export default function EmptyState({
           color: '#64748B',
         }}
       >
-        <Inbox size={22} color="#FFE600" style={{ opacity: 0.8 }} />
+        <Inbox size={22} color="#00E5A8" style={{ opacity: 0.8 }} />
       </div>
       <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC', marginBottom: '6px' }}>
         {title}

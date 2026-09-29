@@ -113,12 +113,12 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                 width: '38px',
                 height: '38px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #FFE600 0%, #FFB300 100%)',
+                background: 'linear-gradient(135deg, #00E5A8 0%, #008f6b 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#0A0B05',
-                boxShadow: '0 0 20px rgba(255, 230, 0, 0.4)',
+                color: '#05070D',
+                boxShadow: '0 0 20px rgba(0, 229, 168, 0.35)',
                 flexShrink: 0,
               }}
             >
@@ -131,7 +131,7 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontWeight: 800, fontSize: '18px', color: '#FEFCE8', letterSpacing: '-0.02em' }}>
+                <span style={{ fontWeight: 800, fontSize: '18px', color: '#F8FAFC', letterSpacing: '-0.02em' }}>
                   QueueFlow
                 </span>
                 <span
@@ -141,9 +141,9 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                     fontWeight: 700,
                     padding: '2px 6px',
                     borderRadius: '5px',
-                    background: 'rgba(255, 230, 0, 0.14)',
-                    color: '#FFE600',
-                    border: '1px solid rgba(255, 230, 0, 0.3)',
+                    background: 'rgba(0, 229, 168, 0.12)',
+                    color: '#00E5A8',
+                    border: '1px solid rgba(0, 229, 168, 0.25)',
                   }}
                 >
                   ADMIN
@@ -190,11 +190,11 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                       textDecoration: 'none',
                       transition: 'all 0.18s ease',
                       background: isActive
-                        ? 'linear-gradient(90deg, rgba(255, 230, 0, 0.18) 0%, rgba(255, 230, 0, 0.03) 100%)'
+                        ? 'linear-gradient(90deg, rgba(0, 229, 168, 0.15) 0%, rgba(0, 229, 168, 0.03) 100%)'
                         : 'transparent',
-                      color: isActive ? '#FFE600' : '#94A3B8',
-                      borderLeft: isActive ? '3px solid #FFE600' : '3px solid transparent',
-                      boxShadow: isActive ? 'inset 0 0 15px rgba(255, 230, 0, 0.08)' : 'none',
+                      color: isActive ? '#00E5A8' : '#94A3B8',
+                      borderLeft: isActive ? '3px solid #00E5A8' : '3px solid transparent',
+                      boxShadow: isActive ? 'inset 0 0 15px rgba(0, 229, 168, 0.05)' : 'none',
                     })}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -209,8 +209,8 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                           fontWeight: 700,
                           padding: '2px 5px',
                           borderRadius: '4px',
-                          background: 'rgba(255, 230, 0, 0.18)',
-                          color: '#FFE600',
+                          background: 'rgba(0, 229, 168, 0.18)',
+                          color: '#00E5A8',
                         }}
                       >
                         {item.badge}
@@ -230,7 +230,7 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
             style={{
               padding: '12px 14px',
               borderRadius: '12px',
-              background: 'rgba(26, 30, 14, 0.6)',
+              background: 'rgba(17, 27, 44, 0.6)',
               border: '1px solid var(--border-subtle)',
               marginBottom: '10px',
             }}
@@ -241,11 +241,11 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                 <span className="pulsing-dot">
                   <span
                     className="pulsing-dot-ping"
-                    style={{ backgroundColor: isConnected ? '#FFE600' : '#F59E0B' }}
+                    style={{ backgroundColor: isConnected ? '#00E5A8' : '#F59E0B' }}
                   />
                   <span
                     className="pulsing-dot-core"
-                    style={{ backgroundColor: isConnected ? '#FFE600' : '#F59E0B' }}
+                    style={{ backgroundColor: isConnected ? '#00E5A8' : '#F59E0B' }}
                   />
                 </span>
                 <span
@@ -253,7 +253,7 @@ export default function Sidebar({ isOpen = true, onClose = () => {} }) {
                   style={{
                     fontSize: '10px',
                     fontWeight: 700,
-                    color: isConnected ? '#FFE600' : '#F59E0B',
+                    color: isConnected ? '#00E5A8' : '#F59E0B',
                     letterSpacing: '0.04em',
                   }}
                 >

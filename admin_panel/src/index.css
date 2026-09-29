@@ -1,64 +1,64 @@
 :root {
-  /* ─── Backgrounds & Surfaces (Zesty Lemon Dark Obsidian) ─── */
-  --bg-app: #0A0B05;
-  --bg-app-gradient: radial-gradient(circle at 15% 15%, #1C1E0A 0%, #0A0B05 60%, #050602 100%);
-  --bg-card: rgba(22, 25, 12, 0.78);
-  --bg-card-subtle: rgba(29, 33, 16, 0.65);
-  --bg-card-hover: rgba(38, 43, 21, 0.88);
-  --bg-surface: #14170A;
-  --bg-surface-elevated: #1D210F;
-  --bg-surface-high: #262B14;
-  --bg-sidebar: rgba(12, 14, 6, 0.96);
-  --bg-input: rgba(18, 21, 9, 0.88);
+  /* ─── Backgrounds & Surfaces (Dark Cinematic) ─── */
+  --bg-app: #05070D;
+  --bg-app-gradient: radial-gradient(circle at 15% 15%, #0B1528 0%, #05070D 60%, #030408 100%);
+  --bg-card: rgba(13, 20, 34, 0.75);
+  --bg-card-subtle: rgba(17, 27, 44, 0.6);
+  --bg-card-hover: rgba(22, 32, 51, 0.85);
+  --bg-surface: #0D1422;
+  --bg-surface-elevated: #111B2C;
+  --bg-surface-high: #162033;
+  --bg-sidebar: rgba(8, 12, 22, 0.95);
+  --bg-input: rgba(11, 18, 30, 0.85);
 
   /* ─── Borders ─── */
-  --border-subtle: rgba(255, 230, 0, 0.08);
-  --border-medium: rgba(255, 230, 0, 0.16);
-  --border-strong: rgba(255, 230, 0, 0.28);
-  --border-accent: rgba(255, 230, 0, 0.45);
-  --border-cyan: rgba(255, 241, 118, 0.35);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --border-accent: rgba(0, 229, 168, 0.35);
+  --border-cyan: rgba(6, 182, 212, 0.35);
 
-  /* ─── Primary Accent: Zesty Lemon Electric Glow ─── */
-  --color-primary: #FFE600;
-  --color-primary-hover: #FFF14D;
-  --color-primary-gradient: linear-gradient(135deg, #FFE600 0%, #FFB300 100%);
-  --color-primary-subtle: rgba(255, 230, 0, 0.14);
-  --color-primary-glow: rgba(255, 230, 0, 0.32);
+  /* ─── Primary Accent: Bright Mint / Neon Green ─── */
+  --color-primary: #00E5A8;
+  --color-primary-hover: #00F0A8;
+  --color-primary-gradient: linear-gradient(135deg, #00E5A8 0%, #00B386 100%);
+  --color-primary-subtle: rgba(0, 229, 168, 0.12);
+  --color-primary-glow: rgba(0, 229, 168, 0.25);
 
-  /* ─── Secondary Accent: Lemon Sorbet / Bright Citron Glow ─── */
-  --color-cyan: #FFF176;
-  --color-cyan-hover: #FFF9C4;
-  --color-cyan-subtle: rgba(255, 241, 118, 0.14);
-  --color-cyan-glow: rgba(255, 241, 118, 0.28);
+  /* ─── Secondary Accent: Cyan / Teal Glow ─── */
+  --color-cyan: #00D2FF;
+  --color-cyan-hover: #38BDF8;
+  --color-cyan-subtle: rgba(0, 210, 255, 0.12);
+  --color-cyan-glow: rgba(0, 210, 255, 0.25);
 
   /* ─── Semantic Colors ─── */
-  --color-success: #D4E157;
-  --color-success-subtle: rgba(212, 225, 87, 0.15);
-  --color-warning: #FF9800;
-  --color-warning-subtle: rgba(255, 152, 0, 0.15);
-  --color-danger: #FF3D3D;
-  --color-danger-subtle: rgba(255, 61, 61, 0.15);
-  --color-blue: #64B5F6;
-  --color-blue-subtle: rgba(100, 181, 246, 0.15);
-  --color-purple: #BA68C8;
-  --color-purple-subtle: rgba(186, 104, 200, 0.15);
+  --color-success: #00E5A8;
+  --color-success-subtle: rgba(0, 229, 168, 0.12);
+  --color-warning: #F59E0B;
+  --color-warning-subtle: rgba(245, 158, 11, 0.12);
+  --color-danger: #EF4444;
+  --color-danger-subtle: rgba(239, 68, 68, 0.12);
+  --color-blue: #3B82F6;
+  --color-blue-subtle: rgba(59, 130, 246, 0.12);
+  --color-purple: #A855F7;
+  --color-purple-subtle: rgba(168, 85, 247, 0.12);
 
   /* ─── Typography Colors ─── */
-  --text-main: #FEFCE8;
-  --text-secondary: #E2E8F0;
-  --text-muted: #94A3B8;
-  --text-subtle: #64748B;
+  --text-main: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-subtle: #475569;
 
   /* ─── Fonts ─── */
   --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* ─── Shadows & Glows ─── */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.65);
-  --shadow-glow-mint: 0 0 25px rgba(255, 230, 0, 0.28);
-  --shadow-glow-cyan: 0 0 25px rgba(255, 241, 118, 0.25);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-glow-mint: 0 0 25px rgba(0, 229, 168, 0.22);
+  --shadow-glow-cyan: 0 0 25px rgba(0, 210, 255, 0.2);
 }
 
 * {
@@ -164,20 +164,20 @@ body {
 }
 
 .badge-called {
-  background: rgba(255, 241, 118, 0.14);
+  background: rgba(0, 210, 255, 0.12);
   color: var(--color-cyan);
-  border-color: rgba(255, 241, 118, 0.35);
+  border-color: rgba(0, 210, 255, 0.3);
 }
 .badge-serving {
-  background: rgba(255, 230, 0, 0.16);
+  background: rgba(0, 229, 168, 0.14);
   color: var(--color-primary);
-  border-color: rgba(255, 230, 0, 0.45);
-  box-shadow: 0 0 10px rgba(255, 230, 0, 0.25);
+  border-color: rgba(0, 229, 168, 0.35);
+  box-shadow: 0 0 10px rgba(0, 229, 168, 0.2);
 }
 .badge-done, .badge-completed {
-  background: rgba(255, 230, 0, 0.12);
+  background: rgba(0, 229, 168, 0.1);
   color: var(--color-primary);
-  border-color: rgba(255, 230, 0, 0.3);
+  border-color: rgba(0, 229, 168, 0.25);
 }
 .badge-break, .badge-closed {
   background: rgba(100, 116, 139, 0.18);
@@ -190,9 +190,9 @@ body {
   border-color: rgba(239, 68, 68, 0.3);
 }
 .badge-waiting {
-  background: rgba(255, 179, 0, 0.14);
-  color: #FFB300;
-  border-color: rgba(255, 179, 0, 0.3);
+  background: rgba(245, 158, 11, 0.14);
+  color: #FBBF24;
+  border-color: rgba(245, 158, 11, 0.3);
 }
 .badge-expired {
   background: rgba(148, 163, 184, 0.12);
@@ -218,17 +218,17 @@ body {
 
 /* High-tech Glowing Card Variant */
 .q-card-glow {
-  background: linear-gradient(135deg, rgba(28, 32, 16, 0.85) 0%, rgba(22, 25, 12, 0.7) 100%);
+  background: linear-gradient(135deg, rgba(17, 27, 44, 0.8) 0%, rgba(13, 20, 34, 0.6) 100%);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 230, 0, 0.25);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(255, 230, 0, 0.05);
+  border: 1px solid rgba(0, 229, 168, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(0, 229, 168, 0.03);
 }
 
 /* Button styles */
 .btn-primary {
   background: var(--color-primary);
-  color: #0A0B05;
-  font-weight: 800;
+  color: #05070D;
+  font-weight: 700;
   font-size: 13px;
   padding: 9px 18px;
   border-radius: 12px;
@@ -238,14 +238,14 @@ body {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  box-shadow: 0 2px 14px rgba(255, 230, 0, 0.35);
+  box-shadow: 0 2px 14px rgba(0, 229, 168, 0.28);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--font-main);
   letter-spacing: -0.01em;
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
-  box-shadow: 0 4px 22px rgba(255, 230, 0, 0.55);
+  box-shadow: 0 4px 22px rgba(0, 229, 168, 0.45);
   transform: translateY(-1px);
 }
 .btn-primary:active:not(:disabled) {
@@ -304,9 +304,9 @@ body {
 }
 
 .btn-success {
-  background: rgba(255, 230, 0, 0.15);
+  background: rgba(0, 229, 168, 0.15);
   color: var(--color-primary);
-  border: 1px solid rgba(255, 230, 0, 0.4);
+  border: 1px solid rgba(0, 229, 168, 0.35);
   font-weight: 700;
   font-size: 13px;
   padding: 8px 16px;
@@ -319,8 +319,8 @@ body {
   transition: all 0.2s ease;
 }
 .btn-success:hover:not(:disabled) {
-  background: rgba(255, 230, 0, 0.25);
-  box-shadow: 0 0 15px rgba(255, 230, 0, 0.35);
+  background: rgba(0, 229, 168, 0.25);
+  box-shadow: 0 0 15px rgba(0, 229, 168, 0.3);
 }
 
 /* Stat Pill / KPI Card */
@@ -353,7 +353,7 @@ body {
 }
 .stat-pill:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 230, 0, 0.35);
+  border-color: rgba(0, 229, 168, 0.25);
   box-shadow: var(--shadow-glow-mint);
 }
 .stat-pill:hover::before {
@@ -402,14 +402,14 @@ input[type="password"]:focus,
 textarea:focus,
 select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(255, 230, 0, 0.2);
+  box-shadow: 0 0 0 3px rgba(0, 229, 168, 0.15);
 }
 
 /* Modal Overlay */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 6, 2, 0.85);
+  background: rgba(3, 5, 10, 0.82);
   backdrop-filter: blur(10px);
   z-index: 999;
   display: flex;
@@ -418,10 +418,10 @@ select:focus {
   padding: 16px;
 }
 .modal-content {
-  background: #14170A;
+  background: #0D1422;
   border-radius: 22px;
   border: 1px solid var(--border-medium);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 230, 0, 0.15);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 229, 168, 0.1);
   width: 100%;
   max-width: 500px;
   overflow: hidden;

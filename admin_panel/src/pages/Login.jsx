@@ -44,8 +44,8 @@ export default function Login() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#0A0B05',
-        backgroundImage: 'radial-gradient(circle at 10% 20%, #1A1D0B 0%, #0A0B05 60%, #040502 100%)',
+        background: '#05070D',
+        backgroundImage: 'radial-gradient(circle at 10% 20%, #0D1B2A 0%, #05070D 60%, #020305 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -63,7 +63,7 @@ export default function Login() {
           width: '600px',
           height: '600px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255, 230, 0, 0.14) 0%, rgba(10, 11, 5, 0) 70%)',
+          background: 'radial-gradient(circle, rgba(0, 229, 168, 0.12) 0%, rgba(5, 7, 13, 0) 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -75,7 +75,7 @@ export default function Login() {
           width: '650px',
           height: '650px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255, 241, 118, 0.08) 0%, rgba(10, 11, 5, 0) 70%)',
+          background: 'radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, rgba(5, 7, 13, 0) 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -103,21 +103,21 @@ export default function Login() {
               gap: '10px',
               padding: '6px 14px',
               borderRadius: '9999px',
-              background: 'rgba(255, 230, 0, 0.12)',
-              border: '1px solid rgba(255, 230, 0, 0.3)',
+              background: 'rgba(0, 229, 168, 0.08)',
+              border: '1px solid rgba(0, 229, 168, 0.25)',
               marginBottom: '24px',
             }}
           >
             <span className="pulsing-dot">
-              <span className="pulsing-dot-ping" style={{ backgroundColor: '#FFE600' }} />
-              <span className="pulsing-dot-core" style={{ backgroundColor: '#FFE600' }} />
+              <span className="pulsing-dot-ping" style={{ backgroundColor: '#00E5A8' }} />
+              <span className="pulsing-dot-core" style={{ backgroundColor: '#00E5A8' }} />
             </span>
             <span
               className="mono"
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#FFE600',
+                color: '#00E5A8',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
               }}
@@ -130,7 +130,7 @@ export default function Login() {
             style={{
               fontSize: 'clamp(32px, 4.5vw, 48px)',
               fontWeight: 800,
-              color: '#FEFCE8',
+              color: '#F8FAFC',
               letterSpacing: '-0.03em',
               lineHeight: 1.15,
               marginBottom: '16px',
@@ -139,7 +139,7 @@ export default function Login() {
             Intelligent Queue <br />
             <span
               style={{
-                background: 'linear-gradient(135deg, #FFE600 0%, #FFB300 100%)',
+                background: 'linear-gradient(135deg, #00E5A8 0%, #00D2FF 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
@@ -151,7 +151,7 @@ export default function Login() {
           <p
             style={{
               fontSize: '15px',
-              color: '#D4D4D8',
+              color: '#94A3B8',
               lineHeight: 1.6,
               maxWidth: '440px',
               marginBottom: '32px',
@@ -166,16 +166,16 @@ export default function Login() {
               style={{
                 padding: '14px 16px',
                 borderRadius: '14px',
-                background: 'rgba(22, 25, 12, 0.75)',
+                background: 'rgba(17, 27, 44, 0.65)',
                 border: '1px solid var(--border-subtle)',
                 backdropFilter: 'blur(8px)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FFE600', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00E5A8', marginBottom: '6px' }}>
                 <Activity size={16} />
                 <span className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>Real-Time Synchronization</span>
               </div>
-              <p style={{ fontSize: '11px', color: '#A1A1AA', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4 }}>
                 Sub-millisecond token lifecycle updates via Redis Socket.IO adapter.
               </p>
             </div>
@@ -184,16 +184,16 @@ export default function Login() {
               style={{
                 padding: '14px 16px',
                 borderRadius: '14px',
-                background: 'rgba(22, 25, 12, 0.75)',
+                background: 'rgba(17, 27, 44, 0.65)',
                 border: '1px solid var(--border-subtle)',
                 backdropFilter: 'blur(8px)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FFF176', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00D2FF', marginBottom: '6px' }}>
                 <Cpu size={16} />
                 <span className="mono" style={{ fontSize: '12px', fontWeight: 700 }}>IoT Crowd Sensors</span>
               </div>
-              <p style={{ fontSize: '11px', color: '#A1A1AA', lineHeight: 1.4 }}>
+              <p style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4 }}>
                 Automated optical turnstile and sensor telemetry integration.
               </p>
             </div>
@@ -207,7 +207,7 @@ export default function Login() {
             style={{
               padding: '40px 36px',
               borderRadius: '24px',
-              boxShadow: 'var(--shadow-lg), var(--shadow-glow-lemon)',
+              boxShadow: 'var(--shadow-lg), var(--shadow-glow-mint)',
               position: 'relative',
             }}
           >
@@ -219,17 +219,17 @@ export default function Login() {
                     width: '34px',
                     height: '34px',
                     borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #FFE600 0%, #FFB300 100%)',
+                    background: 'linear-gradient(135deg, #00E5A8 0%, #008f6b 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#0A0B05',
+                    color: '#05070D',
                   }}
                 >
                   <ShieldCheck size={18} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#FEFCE8', letterSpacing: '-0.02em' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
                     Operator Sign In
                   </h2>
                   <p style={{ fontSize: '12px', color: '#64748B' }}>

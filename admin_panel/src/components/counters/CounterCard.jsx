@@ -40,15 +40,15 @@ export default function CounterCard({
       style={{
         overflow: 'hidden',
         border: isServing
-          ? '1px solid rgba(255, 230, 0, 0.45)'
+          ? '1px solid rgba(0, 229, 168, 0.4)'
           : isBreak
-          ? '1px solid rgba(255, 152, 0, 0.35)'
+          ? '1px solid rgba(245, 158, 11, 0.3)'
           : isClosed
           ? '1px solid rgba(100, 116, 139, 0.25)'
           : '1px solid var(--border-subtle)',
-        boxShadow: isServing ? '0 0 20px rgba(255, 230, 0, 0.18)' : 'var(--shadow-sm)',
+        boxShadow: isServing ? '0 0 20px rgba(0, 229, 168, 0.12)' : 'var(--shadow-sm)',
         background: isServing
-          ? 'linear-gradient(135deg, rgba(28, 32, 16, 0.88) 0%, rgba(20, 23, 11, 0.78) 100%)'
+          ? 'linear-gradient(135deg, rgba(17, 27, 44, 0.85) 0%, rgba(13, 20, 34, 0.75) 100%)'
           : 'var(--bg-card)',
       }}
     >
@@ -74,9 +74,9 @@ export default function CounterCard({
               justifyContent: 'center',
               fontWeight: 800,
               fontSize: '14px',
-              background: isActive ? 'rgba(255, 230, 0, 0.14)' : 'rgba(255, 255, 255, 0.05)',
-              color: isActive ? '#FFE600' : '#64748B',
-              border: isActive ? '1px solid rgba(255, 230, 0, 0.35)' : '1px solid var(--border-subtle)',
+              background: isActive ? 'rgba(0, 229, 168, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+              color: isActive ? '#00E5A8' : '#64748B',
+              border: isActive ? '1px solid rgba(0, 229, 168, 0.25)' : '1px solid var(--border-subtle)',
             }}
           >
             {counter.number ?? '—'}
@@ -93,7 +93,7 @@ export default function CounterCard({
                 rel="noreferrer"
                 style={{ color: '#64748B', display: 'flex', alignItems: 'center', transition: 'color 0.15s ease' }}
                 title="Open fullscreen display board"
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#FFE600')}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#00E5A8')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = '#64748B')}
               >
                 <ExternalLink size={13} />
@@ -121,15 +121,15 @@ export default function CounterCard({
             style={{
               fontSize: '10px',
               background: isActive
-                ? 'rgba(255, 230, 0, 0.14)'
+                ? 'rgba(0, 229, 168, 0.12)'
                 : isBreak
-                ? 'rgba(255, 152, 0, 0.15)'
+                ? 'rgba(245, 158, 11, 0.15)'
                 : 'rgba(100, 116, 139, 0.15)',
-              color: isActive ? '#FFE600' : isBreak ? '#FFB300' : '#94A3B8',
+              color: isActive ? '#00E5A8' : isBreak ? '#FBBF24' : '#94A3B8',
               borderColor: isActive
-                ? 'rgba(255, 230, 0, 0.35)'
+                ? 'rgba(0, 229, 168, 0.3)'
                 : isBreak
-                ? 'rgba(255, 152, 0, 0.3)'
+                ? 'rgba(245, 158, 11, 0.3)'
                 : 'rgba(100, 116, 139, 0.25)',
             }}
           >
@@ -168,9 +168,9 @@ export default function CounterCard({
             style={{
               fontSize: '28px',
               fontWeight: 800,
-              color: isServing ? '#FFE600' : '#64748B',
+              color: isServing ? '#00E5A8' : '#64748B',
               lineHeight: 1,
-              textShadow: isServing ? '0 0 18px rgba(255, 230, 0, 0.35)' : 'none',
+              textShadow: isServing ? '0 0 18px rgba(0, 229, 168, 0.3)' : 'none',
             }}
           >
             {currentTokenCode}

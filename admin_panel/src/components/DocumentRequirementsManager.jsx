@@ -165,7 +165,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
     >
       <div
         style={{
-          background: 'var(--bg-card, #1D210F)',
+          background: 'var(--bg-card, #111B2C)',
           border: '1px solid var(--border-medium, rgba(255,255,255,0.1))',
           borderRadius: '16px',
           width: '100%',
@@ -189,7 +189,7 @@ export function DocumentRequirementsManager({ service, onClose }) {
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={20} color="var(--color-primary, #FFE600)" />
+              <FileText size={20} color="var(--color-primary, #00E5A8)" />
               <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
                 Document Gatekeeper — {service.name} ({service.tokenPrefix})
               </h2>
@@ -227,9 +227,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
             style={{
               padding: '12px 4px',
               border: 'none',
-              borderBottom: activeTab === 'requirements' ? '2px solid var(--color-primary, #FFE600)' : '2px solid transparent',
+              borderBottom: activeTab === 'requirements' ? '2px solid var(--color-primary, #00E5A8)' : '2px solid transparent',
               background: 'transparent',
-              color: activeTab === 'requirements' ? 'var(--color-primary, #FFE600)' : 'var(--text-secondary)',
+              color: activeTab === 'requirements' ? 'var(--color-primary, #00E5A8)' : 'var(--text-secondary)',
               fontWeight: 600,
               fontSize: '13px',
               cursor: 'pointer',
@@ -242,9 +242,9 @@ export function DocumentRequirementsManager({ service, onClose }) {
             style={{
               padding: '12px 4px',
               border: 'none',
-              borderBottom: activeTab === 'reviews' ? '2px solid var(--color-primary, #FFE600)' : '2px solid transparent',
+              borderBottom: activeTab === 'reviews' ? '2px solid var(--color-primary, #00E5A8)' : '2px solid transparent',
               background: 'transparent',
-              color: activeTab === 'reviews' ? 'var(--color-primary, #FFE600)' : 'var(--text-secondary)',
+              color: activeTab === 'reviews' ? 'var(--color-primary, #00E5A8)' : 'var(--text-secondary)',
               fontWeight: 600,
               fontSize: '13px',
               cursor: 'pointer',
@@ -439,8 +439,8 @@ export function DocumentRequirementsManager({ service, onClose }) {
                             fontSize: '11px',
                             fontWeight: 600,
                             cursor: 'pointer',
-                            background: req.isActive ? 'rgba(255,230,0,0.15)' : 'rgba(239,68,68,0.15)',
-                            color: req.isActive ? '#FFE600' : '#EF4444',
+                            background: req.isActive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                            color: req.isActive ? '#10B981' : '#EF4444',
                             border: 'none',
                           }}
                         >

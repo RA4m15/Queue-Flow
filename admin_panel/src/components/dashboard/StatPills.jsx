@@ -18,34 +18,34 @@ export default function StatPills({ queues = [], counters = [], avgWaitSeconds =
       label: 'WAITING IN QUEUE',
       value: totalWaiting,
       icon: Users,
-      color: totalWaiting > 10 ? '#FF3D3D' : totalWaiting > 5 ? '#FF9800' : '#FFE600',
-      accentGlow: 'rgba(255, 230, 0, 0.18)',
+      color: totalWaiting > 10 ? '#EF4444' : totalWaiting > 5 ? '#F59E0B' : '#00E5A8',
+      accentGlow: 'rgba(0, 229, 168, 0.15)',
     },
     {
       label: 'AVG WAIT TIME',
       value: avgWaitFormatted,
       icon: Clock,
-      color: '#FFF176',
-      accentGlow: 'rgba(255, 241, 118, 0.18)',
+      color: '#00D2FF',
+      accentGlow: 'rgba(0, 210, 255, 0.15)',
     },
     {
       label: 'COMPLETED TODAY',
       value: totalServed,
       icon: CheckCircle2,
-      color: '#FFE600',
-      accentGlow: 'rgba(255, 230, 0, 0.18)',
+      color: '#00E5A8',
+      accentGlow: 'rgba(0, 229, 168, 0.15)',
     },
     {
       label: 'ACTIVE COUNTERS',
       value: (
         <span>
           {activeCounters}
-          <span style={{ fontSize: '18px', color: '#94A3B8', fontWeight: 600 }}>/{totalCounters}</span>
+          <span style={{ fontSize: '18px', color: '#64748B', fontWeight: 600 }}>/{totalCounters}</span>
         </span>
       ),
       icon: Monitor,
-      color: activeCounters > 0 ? '#FFE600' : '#94A3B8',
-      accentGlow: 'rgba(255, 230, 0, 0.18)',
+      color: activeCounters > 0 ? '#00E5A8' : '#94A3B8',
+      accentGlow: 'rgba(0, 229, 168, 0.15)',
     },
   ];
 
@@ -68,7 +68,7 @@ export default function StatPills({ queues = [], counters = [], avgWaitSeconds =
               padding: '20px 22px',
               alignItems: 'flex-start',
               textAlign: 'left',
-              background: 'linear-gradient(135deg, rgba(26, 30, 14, 0.75) 0%, rgba(22, 25, 12, 0.6) 100%)',
+              background: 'linear-gradient(135deg, rgba(17, 27, 44, 0.75) 0%, rgba(13, 20, 34, 0.6) 100%)',
             }}
           >
             <div

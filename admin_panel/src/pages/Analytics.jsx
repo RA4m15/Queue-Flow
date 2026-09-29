@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 import { RefreshCw, TrendingUp, BarChart2, PieChart as PieIcon, Clock } from 'lucide-react';
 
-const SERVICE_COLORS = ['#FFE600', '#FFB300', '#FFF176', '#D4E157', '#FF9800', '#E6C200', '#FFF59D'];
+const SERVICE_COLORS = ['#00E5A8', '#00D2FF', '#3B82F6', '#A855F7', '#EC4899', '#F59E0B', '#10B981'];
 
 export default function Analytics() {
   const { activeCenterId } = useSocket();
@@ -48,11 +48,11 @@ export default function Analytics() {
   }));
 
   const darkTooltipStyle = {
-    background: '#14170A',
-    border: '1px solid rgba(255, 230, 0, 0.25)',
+    background: '#0D1422',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
     borderRadius: 12,
     fontSize: 12,
-    color: '#FEFCE8',
+    color: '#F8FAFC',
     boxShadow: '0 8px 30px rgba(0, 0, 0, 0.7)',
     fontFamily: 'var(--font-mono)',
   };
@@ -98,14 +98,14 @@ export default function Analytics() {
 
             <div className="stat-pill" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '18px 20px' }}>
               <span className="stat-pill-label">Completed Services</span>
-              <span className="stat-pill-val" style={{ color: '#FFE600', marginTop: '8px' }}>
+              <span className="stat-pill-val" style={{ color: '#00E5A8', marginTop: '8px' }}>
                 {summary.totalServed ?? 0}
               </span>
             </div>
 
             <div className="stat-pill" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '18px 20px' }}>
               <span className="stat-pill-label">Average Wait Time</span>
-              <span className="stat-pill-val" style={{ color: '#FFF176', marginTop: '8px' }}>
+              <span className="stat-pill-val" style={{ color: '#00D2FF', marginTop: '8px' }}>
                 {summary.avgWaitSeconds ? `${Math.round(summary.avgWaitSeconds / 60)}m` : '—'}
               </span>
             </div>
@@ -113,10 +113,10 @@ export default function Analytics() {
             <div className="stat-pill" style={{ alignItems: 'flex-start', textAlign: 'left', padding: '18px 20px' }}>
               <span className="stat-pill-label">Current Crowd</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
-                <span className="stat-pill-val" style={{ color: '#FEFCE8' }}>
+                <span className="stat-pill-val" style={{ color: '#F8FAFC' }}>
                   {summary.currentCrowd ?? '—'}
                 </span>
-                <span className="stat-pill-sub" style={{ color: '#FFE600' }}>
+                <span className="stat-pill-sub" style={{ color: '#00E5A8' }}>
                   {typeof summary.crowdPercent === 'number' ? `${summary.crowdPercent}% full` : ''}
                 </span>
               </div>
@@ -128,8 +128,8 @@ export default function Analytics() {
             {/* Hourly Footfall Chart */}
             <div className="q-card" style={{ padding: '22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <TrendingUp size={16} color="#FFE600" />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#FEFCE8' }}>
+                <TrendingUp size={16} color="#00E5A8" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
                   Hourly Visitor Footfall
                 </h3>
               </div>
@@ -143,8 +143,8 @@ export default function Analytics() {
                 <div style={{ width: '100%', height: '240px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={hourlyFootfall} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,230,0,0.12)' }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,230,0,0.12)' }} tickLine={false} />
+                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
                       <Tooltip
                         contentStyle={darkTooltipStyle}
                         formatter={(value) => [`${value} visitors`, 'Visitors']}
@@ -152,10 +152,10 @@ export default function Analytics() {
                       <Line
                         type="monotone"
                         dataKey="count"
-                        stroke="#FFE600"
+                        stroke="#00E5A8"
                         strokeWidth={2.5}
-                        dot={{ r: 4, fill: '#FFE600', stroke: '#14170A', strokeWidth: 2 }}
-                        activeDot={{ r: 6, fill: '#FFE600', boxShadow: '0 0 10px #FFE600' }}
+                        dot={{ r: 4, fill: '#00E5A8', stroke: '#0D1422', strokeWidth: 2 }}
+                        activeDot={{ r: 6, fill: '#00E5A8', boxShadow: '0 0 10px #00E5A8' }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -166,8 +166,8 @@ export default function Analytics() {
             {/* Counter Utilization Chart */}
             <div className="q-card" style={{ padding: '22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <BarChart2 size={16} color="#FFF176" />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#FEFCE8' }}>
+                <BarChart2 size={16} color="#00D2FF" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#F8FAFC' }}>
                   Counter Utilization
                 </h3>
               </div>
@@ -184,8 +184,8 @@ export default function Analytics() {
                   <div style={{ width: '100%', height: '240px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={utilData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,230,0,0.12)' }} tickLine={false} />
-                        <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,230,0,0.12)' }} tickLine={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
+                        <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: '#64748B', fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} tickLine={false} />
                         <Tooltip
                           contentStyle={darkTooltipStyle}
                           formatter={(val) => [
@@ -197,7 +197,7 @@ export default function Analytics() {
                           {utilData.map((d, i) => (
                             <Cell
                               key={i}
-                              fill={d.util !== null ? (d.util > 70 ? '#FFE600' : d.util > 30 ? '#FFF176' : '#FFB300') : 'transparent'}
+                              fill={d.util !== null ? (d.util > 70 ? '#00E5A8' : d.util > 30 ? '#00D2FF' : '#3B82F6') : 'transparent'}
                             />
                           ))}
                         </Bar>
@@ -246,7 +246,7 @@ export default function Analytics() {
                     <PieChart>
                       <Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={75} innerRadius={45} paddingAngle={4}>
                         {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} stroke="#14170A" strokeWidth={2} />
+                          <Cell key={`cell-${index}`} fill={entry.color} stroke="#0D1422" strokeWidth={2} />
                         ))}
                       </Pie>
                       <Tooltip contentStyle={darkTooltipStyle} />
@@ -297,7 +297,7 @@ export default function Analytics() {
                             {q.waitingCount || 0} waiting • {q.completedCount || 0} completed
                           </p>
                         </div>
-                        <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: avgSec ? '#FFE600' : '#64748B' }}>
+                        <span className="mono" style={{ fontSize: '12px', fontWeight: 700, color: avgSec ? '#00E5A8' : '#64748B' }}>
                           {avgDisplay}
                         </span>
                       </div>

@@ -223,16 +223,15 @@ export default function CounterDisplay() {
   const tokenCode = currentToken?.tokenCode || (typeof currentToken === 'string' ? currentToken : null);
   const isServing = !!tokenCode && counter.status === 'ACTIVE';
 
-  const statusColor = socketStatus === 'CONNECTED' ? '#FFE600' : socketStatus === 'CONNECTING' ? '#F59E0B' : '#EF4444';
+  const statusColor = socketStatus === 'CONNECTED' ? '#00E5A8' : socketStatus === 'CONNECTING' ? '#F59E0B' : '#EF4444';
   const statusLabel = socketStatus === 'CONNECTED' ? 'ONLINE' : socketStatus === 'CONNECTING' ? 'CONNECTING' : 'OFFLINE / RECONNECTING';
 
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: '#0A0B05',
-        backgroundImage: 'radial-gradient(circle at 50% 15%, #181C09 0%, #0A0B05 70%, #030401 100%)',
-        color: '#FEFCE8',
+        background: '#05070D',
+        color: '#F8FAFC',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -278,8 +277,8 @@ export default function CounterDisplay() {
           height: '650px',
           borderRadius: '50%',
           background: isServing
-            ? 'radial-gradient(circle, rgba(255, 230, 0, 0.18) 0%, rgba(10, 11, 5, 0) 70%)'
-            : 'radial-gradient(circle, rgba(255, 241, 118, 0.08) 0%, rgba(10, 11, 5, 0) 70%)',
+            ? 'radial-gradient(circle, rgba(0, 229, 168, 0.18) 0%, rgba(5, 7, 13, 0) 70%)'
+            : 'radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, rgba(5, 7, 13, 0) 70%)',
           pointerEvents: 'none',
           transition: 'background 0.5s ease',
         }}
@@ -292,12 +291,12 @@ export default function CounterDisplay() {
             style={{
               padding: '6px 16px',
               borderRadius: '12px',
-              background: 'rgba(255, 230, 0, 0.08)',
-              border: '1px solid rgba(255, 230, 0, 0.25)',
+              background: 'rgba(0, 229, 168, 0.08)',
+              border: '1px solid rgba(0, 229, 168, 0.25)',
               fontFamily: 'var(--font-mono)',
               fontSize: '14px',
               fontWeight: 700,
-              color: '#FFE600',
+              color: '#00E5A8',
               letterSpacing: '0.05em',
             }}
           >
@@ -371,8 +370,8 @@ export default function CounterDisplay() {
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             letterSpacing: '0.04em',
-            color: isServing ? '#FFE600' : 'rgba(255, 255, 255, 0.2)',
-            textShadow: isServing ? '0 0 60px rgba(255, 230, 0, 0.5)' : 'none',
+            color: isServing ? '#00E5A8' : 'rgba(255, 255, 255, 0.2)',
+            textShadow: isServing ? '0 0 60px rgba(0, 229, 168, 0.5)' : 'none',
             lineHeight: 1,
             margin: '20px 0',
           }}
@@ -384,7 +383,7 @@ export default function CounterDisplay() {
           style={{
             fontSize: 'clamp(16px, 2.5vw, 24px)',
             fontWeight: 600,
-            color: isServing ? '#FFE600' : 'rgba(255, 255, 255, 0.4)',
+            color: isServing ? '#00E5A8' : 'rgba(255, 255, 255, 0.4)',
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
           }}
